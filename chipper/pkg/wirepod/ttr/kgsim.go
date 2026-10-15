@@ -196,6 +196,40 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 	kgReadyToAnswer := make(chan bool)
 	kgStopLooping := false
 	ctx := context.Background()
+	var c *openai.Client
+	switch vars.APIConfig.Knowledge.Provider {
+	case "together":
+		if vars.APIConfig.Knowledge.Model == "" {
+			vars.APIConfig.Knowledge.Model = "meta-llama/Llama-3-70b-chat-hf"
+			vars.WriteConfigToDisk()
+		}
+		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
+		conf.BaseURL = "https://api.together.xyz/v1"
+		c = openai.NewClientWithConfig(conf)
+	case "custom":
+		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
+		conf.BaseURL = vars.APIConfig.Knowledge.Endpoint
+		c = openai.NewClientWithConfig(conf)
+	case "openai":
+		c = openai.NewClient(vars.APIConfig.Knowledge.Key)
+	}
+
+	// Open the LLM stream while the robot connection and behavior control are
+	// set up: both take a few hundred milliseconds, so they now overlap.
+	aireq := CreateAIReq(transcribedText, esn, false, isKG)
+	opened := make(chan openedLLMStream, 1)
+	go func() {
+		stream, err := openLLMStream(ctx, c, aireq)
+		opened <- openedLLMStream{stream: stream, err: err}
+	}()
+	// discardLLMStream closes the early stream when the robot setup fails.
+	discardLLMStream := func() {
+		go func() {
+			if o := <-opened; o.err == nil {
+				o.stream.Close()
+			}
+		}()
+	}
 	matched := false
 	var robot *vector.Vector
 	var guid string
@@ -212,11 +246,13 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 		var err error
 		robot, err = vector.New(vector.WithSerialNo(esn), vector.WithToken(guid), vector.WithTarget(target))
 		if err != nil {
+			discardLLMStream()
 			return err.Error(), err
 		}
 	}
 	_, err := robot.Conn.BatteryState(context.Background(), &vectorpb.BatteryStateRequest{})
 	if err != nil {
+		discardLLMStream()
 		return "", err
 	}
 	if isKG {
@@ -241,34 +277,11 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 	var fullfullRespText string
 	var fullRespSlice []string
 	var isDone bool
-	var c *openai.Client
-	switch vars.APIConfig.Knowledge.Provider {
-	case "together":
-		if vars.APIConfig.Knowledge.Model == "" {
-			vars.APIConfig.Knowledge.Model = "meta-llama/Llama-3-70b-chat-hf"
-			vars.WriteConfigToDisk()
-		}
-		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
-		conf.BaseURL = "https://api.together.xyz/v1"
-		c = openai.NewClientWithConfig(conf)
-	case "custom":
-		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
-		conf.BaseURL = vars.APIConfig.Knowledge.Endpoint
-		c = openai.NewClientWithConfig(conf)
-	case "openai":
-		c = openai.NewClient(vars.APIConfig.Knowledge.Key)
-	}
 	speakReady := make(chan string)
 	successIntent := make(chan bool)
 
-	aireq := CreateAIReq(transcribedText, esn, false, isKG)
-
-	var stream llmStream
-	if vars.APIConfig.Knowledge.Provider == "anthropic" {
-		stream, err = newAnthropicStream(ctx, sharedAnthropicClient(), aireq)
-	} else {
-		stream, err = c.CreateChatCompletionStream(ctx, aireq)
-	}
+	o := <-opened
+	stream, err := o.stream, o.err
 	if err != nil {
 		log.Printf("Error creating chat completion stream: %v", err)
 		if strings.Contains(err.Error(), "does not exist") && vars.APIConfig.Knowledge.Provider == "openai" {

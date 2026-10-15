@@ -2,6 +2,7 @@ package wirepod_ttr
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -230,4 +231,25 @@ func (s *anthropicStream) Recv() (openai.ChatCompletionStreamResponse, error) {
 
 func (s *anthropicStream) Close() error {
 	return s.stream.Close()
+}
+
+type openedLLMStream struct {
+	stream llmStream
+	err    error
+}
+
+// openLLMStream starts the streaming request for the configured provider. c is
+// the OpenAI-compatible client and is unused for Anthropic.
+func openLLMStream(ctx context.Context, c *openai.Client, req openai.ChatCompletionRequest) (llmStream, error) {
+	if vars.APIConfig.Knowledge.Provider == "anthropic" {
+		return newAnthropicStream(ctx, sharedAnthropicClient(), req)
+	}
+	if c == nil {
+		return nil, fmt.Errorf("no LLM client for provider %q", vars.APIConfig.Knowledge.Provider)
+	}
+	stream, err := c.CreateChatCompletionStream(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return stream, nil
 }

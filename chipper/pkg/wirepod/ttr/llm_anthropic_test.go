@@ -315,3 +315,47 @@ func TestAnthropicClientRetriesOverloadedRequestsOnce(t *testing.T) {
 		t.Errorf("requests = %d, want 2 (one retry)", got)
 	}
 }
+
+func TestOpenLLMStreamFailsWithoutAClient(t *testing.T) {
+	saved := vars.APIConfig.Knowledge.Provider
+	defer func() { vars.APIConfig.Knowledge.Provider = saved }()
+	vars.APIConfig.Knowledge.Provider = ""
+
+	stream, err := openLLMStream(context.Background(), nil, openai.ChatCompletionRequest{})
+	if err == nil || stream != nil {
+		t.Fatalf("openLLMStream = (%v, %v), want (nil, error)", stream, err)
+	}
+}
+
+func TestOpenLLMStreamUsesTheOpenAICompatibleClient(t *testing.T) {
+	saved := vars.APIConfig.Knowledge.Provider
+	defer func() { vars.APIConfig.Knowledge.Provider = saved }()
+	vars.APIConfig.Knowledge.Provider = "custom"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "text/event-stream")
+		io.WriteString(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi there.\"}}]}\n\n")
+		io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	defer server.Close()
+	conf := openai.DefaultConfig("test-key")
+	conf.BaseURL = server.URL
+	client := openai.NewClientWithConfig(conf)
+
+	stream, err := openLLMStream(context.Background(), client, openai.ChatCompletionRequest{
+		Model:    "llama3",
+		Stream:   true,
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+	})
+	if err != nil {
+		t.Fatalf("openLLMStream: %v", err)
+	}
+	defer stream.Close()
+	resp, err := stream.Recv()
+	if err != nil || resp.Choices[0].Delta.Content != "Hi there." {
+		t.Fatalf("Recv = (%v, %v), want \"Hi there.\"", resp, err)
+	}
+	if _, err := stream.Recv(); !errors.Is(err, io.EOF) {
+		t.Errorf("second Recv = %v, want io.EOF", err)
+	}
+}
