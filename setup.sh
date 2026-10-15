@@ -106,17 +106,19 @@ function getPackages() {
     echo "Installing golang binary package"
     mkdir golang
     cd golang
+    # Keep in step with the go/toolchain lines in chipper/go.mod.
+    GO_VERSION="1.26.9"
     if [[ ${TARGET} != "darwin" ]] && [[ ${TARGET} != "arch" ]]; then
         if [[ ! -f /usr/local/go/bin/go ]]; then
             if [[ ${ARCH} == "x86_64" ]]; then
-                wget -q --show-progress --no-check-certificate https://go.dev/dl/go1.22.4.linux-amd64.tar.gz
-                rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.4.linux-amd64.tar.gz
+                wget -q --show-progress https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz
+                rm -rf /usr/local/go && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
                 elif [[ ${ARCH} == "aarch64" ]]; then
-                wget -q --show-progress --no-check-certificate https://go.dev/dl/go1.22.4.linux-arm64.tar.gz
-                rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.4.linux-arm64.tar.gz
+                wget -q --show-progress https://go.dev/dl/go${GO_VERSION}.linux-arm64.tar.gz
+                rm -rf /usr/local/go && tar -C /usr/local -xzf go${GO_VERSION}.linux-arm64.tar.gz
                 elif [[ ${ARCH} == "armv7l" ]]; then
-                wget -q --show-progress --no-check-certificate https://go.dev/dl/go1.22.4.linux-armv6l.tar.gz
-                rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.4.linux-armv6l.tar.gz
+                wget -q --show-progress https://go.dev/dl/go${GO_VERSION}.linux-armv6l.tar.gz
+                rm -rf /usr/local/go && tar -C /usr/local -xzf go${GO_VERSION}.linux-armv6l.tar.gz
             fi
 	    if [[ ! -f /usr/bin/go ]] && [[ ! -e /usr/bin/go ]]; then
                 ln -s /usr/local/go/bin/go /usr/bin/go
