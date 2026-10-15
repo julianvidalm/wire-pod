@@ -265,7 +265,7 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 
 	var stream llmStream
 	if vars.APIConfig.Knowledge.Provider == "anthropic" {
-		stream, err = newAnthropicStream(ctx, aireq, anthropicClientOptions()...)
+		stream, err = newAnthropicStream(ctx, sharedAnthropicClient(), aireq)
 	} else {
 		stream, err = c.CreateChatCompletionStream(ctx, aireq)
 	}
@@ -301,6 +301,7 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 	})
 	fmt.Println("LLM stream response: ")
 	go func() {
+		defer stream.Close()
 		for {
 			response, err := stream.Recv()
 			if errors.Is(err, io.EOF) {

@@ -25,7 +25,7 @@ func TestLiveAnthropicStream(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	stream, err := newAnthropicStream(ctx, openai.ChatCompletionRequest{
+	stream, err := newAnthropicStream(ctx, newAnthropicClient(""), openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: "You are Vector, a small animated robot. Answer in one short sentence."},
 			{Role: openai.ChatMessageRoleUser, Content: "Say hello to your owner."},

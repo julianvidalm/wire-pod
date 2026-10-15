@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/kercre123/wire-pod/chipper/pkg/vars"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -189,12 +191,13 @@ func TestAnthropicStreamYieldsTextDeltasThenEOF(t *testing.T) {
 	}))
 	defer server.Close()
 
-	stream, err := newAnthropicStream(context.Background(), openai.ChatCompletionRequest{
+	client := newAnthropicClient("test-key", option.WithBaseURL(server.URL), option.WithMaxRetries(0))
+	stream, err := newAnthropicStream(context.Background(), client, openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: "You are Vector."},
 			{Role: openai.ChatMessageRoleUser, Content: "Say hi"},
 		},
-	}, option.WithBaseURL(server.URL), option.WithAPIKey("test-key"), option.WithMaxRetries(0))
+	})
 	if err != nil {
 		t.Fatalf("newAnthropicStream: %v", err)
 	}
@@ -237,14 +240,78 @@ func TestAnthropicStreamReturnsAPIErrorOnOpen(t *testing.T) {
 	}))
 	defer server.Close()
 
-	stream, err := newAnthropicStream(context.Background(), openai.ChatCompletionRequest{
+	client := newAnthropicClient("bad-key", option.WithBaseURL(server.URL), option.WithMaxRetries(0))
+	stream, err := newAnthropicStream(context.Background(), client, openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
-	}, option.WithBaseURL(server.URL), option.WithAPIKey("bad-key"), option.WithMaxRetries(0))
+	})
 	if err == nil {
 		stream.Close()
 		t.Fatal("newAnthropicStream error = nil, want authentication error")
 	}
 	if !strings.Contains(err.Error(), "401") {
 		t.Errorf("error = %v, want it to mention 401", err)
+	}
+}
+
+func TestAnthropicParamsDisablesThinkingForFastReplies(t *testing.T) {
+	for _, model := range []string{"", "claude-haiku-5-5", "claude-sonnet-5-5"} {
+		got := paramsJSON(t, openai.ChatCompletionRequest{
+			Model:    model,
+			Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+		})
+		thinking, ok := got["thinking"].(map[string]any)
+		if !ok || thinking["type"] != "disabled" {
+			t.Errorf("model %q: thinking = %v, want disabled", model, got["thinking"])
+		}
+	}
+}
+
+func TestAnthropicParamsLeavesThinkingUnsetWhereItCannotBeDisabled(t *testing.T) {
+	for _, model := range []string{"claude-opus-5-5", "claude-fable-5-1"} {
+		got := paramsJSON(t, openai.ChatCompletionRequest{
+			Model:    model,
+			Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+		})
+		if _, ok := got["thinking"]; ok {
+			t.Errorf("model %q: thinking = %v, want it omitted", model, got["thinking"])
+		}
+	}
+}
+
+func TestSharedAnthropicClientIsReusedUntilTheKeyChanges(t *testing.T) {
+	saved := vars.APIConfig.Knowledge.Key
+	defer func() { vars.APIConfig.Knowledge.Key = saved }()
+
+	vars.APIConfig.Knowledge.Key = "key-a"
+	first := sharedAnthropicClient()
+	if again := sharedAnthropicClient(); again != first {
+		t.Error("client was rebuilt although the key did not change")
+	}
+	vars.APIConfig.Knowledge.Key = "key-b"
+	if changed := sharedAnthropicClient(); changed == first {
+		t.Error("client was reused after the key changed")
+	}
+}
+
+func TestAnthropicClientRetriesOverloadedRequestsOnce(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("content-type", "application/json")
+		w.Header().Set("retry-after-ms", "1")
+		w.WriteHeader(529)
+		io.WriteString(w, `{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}`)
+	}))
+	defer server.Close()
+
+	client := newAnthropicClient("test-key", option.WithBaseURL(server.URL))
+	_, err := newAnthropicStream(context.Background(), client, openai.ChatCompletionRequest{
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+	})
+	if err == nil {
+		t.Fatal("error = nil, want overloaded error")
+	}
+	if got := calls.Load(); got != 2 {
+		t.Errorf("requests = %d, want 2 (one retry)", got)
 	}
 }
