@@ -1,24 +1,13 @@
-# Fork notes
+# Project notes
 
-This is `julianvidalm/wire-pod`, a fork of [kercre123/wire-pod](https://github.com/kercre123/wire-pod) used by the v3ctor project to give Vector a Claude-powered brain.
+`julianvidalm/wire-pod` is the voice and "cortex" server of the v3ctor project, which gives Vector a Claude-powered brain. It started from [kercre123/wire-pod](https://github.com/kercre123/wire-pod) (MIT, © 2022 Kerigan Creighton; see `LICENSE`) and is now developed independently: it is not a GitHub fork and does not track that repository.
 
-## Remotes
+## Independence
 
-```sh
-git remote -v
-# origin    git@github.com:julianvidalm/wire-pod.git
-# upstream  https://github.com/kercre123/wire-pod.git (push disabled)
-```
-
-Sync with upstream through a pull request, never by pushing to `main`:
-
-```sh
-git fetch upstream
-git checkout -b chore/sync-upstream origin/main
-git merge upstream/main
-git push -u origin chore/sync-upstream
-gh pr create --fill
-```
+- `origin` (`git@github.com:julianvidalm/wire-pod.git`) is the only remote. Do not add the original repository as a remote, merge from it, or open pull requests against it.
+- Pull requests come only from changes to this code base.
+- If an upstream fix is ever worth having (for example a security issue), review it and port it by hand in a normal pull request that credits the source.
+- Keep the MIT license text and copyright notice in `LICENSE`.
 
 ## Workflow
 
@@ -31,7 +20,6 @@ gh pr create --fill
 |----------|---------|--------------|
 | `ci.yml` | pull request, push to `main` | gofmt on changed Go files, `go vet`, `go test -race`, vosk build of chipper |
 | `release.yml` | tag `v*` | builds `chipper` (vosk, linux/amd64) and publishes a GitHub Release with the tarball and its SHA-256 |
-| `docker-publish.yml` | upstream only | skipped in this fork |
 | Dependabot | weekly | GitHub Actions and Go module updates |
 
 CI checks the packages listed by `.github/scripts/ci-packages.sh`. The coqui, leopard, whisper.cpp and experimental STT engines need extra native libraries and are excluded.

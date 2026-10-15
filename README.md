@@ -1,3 +1,5 @@
+> **v3ctor edition.** This repository is developed independently from the original wire-pod as part of the v3ctor project (Claude-powered Vector). See [PROJECT.md](PROJECT.md) for what differs, the workflow and the CI. The original documentation below still describes the base server.
+
 # wire-pod
 
 `wire-pod` is fully-featured server software for the Anki (now Digital Dream Labs) [Vector](https://web.archive.org/web/20190417120536if_/https://www.anki.com/en-us/vector) robot. It was created thanks to Digital Dream Labs' [open-sourced code](https://github.com/digital-dream-labs/chipper).
