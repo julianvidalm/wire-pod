@@ -263,7 +263,12 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 
 	aireq := CreateAIReq(transcribedText, esn, false, isKG)
 
-	stream, err := c.CreateChatCompletionStream(ctx, aireq)
+	var stream llmStream
+	if vars.APIConfig.Knowledge.Provider == "anthropic" {
+		stream, err = newAnthropicStream(ctx, aireq, anthropicClientOptions()...)
+	} else {
+		stream, err = c.CreateChatCompletionStream(ctx, aireq)
+	}
 	if err != nil {
 		log.Printf("Error creating chat completion stream: %v", err)
 		if strings.Contains(err.Error(), "does not exist") && vars.APIConfig.Knowledge.Provider == "openai" {

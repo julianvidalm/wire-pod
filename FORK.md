@@ -45,6 +45,24 @@ go vet -tags nolibopusfile $(../.github/scripts/ci-packages.sh)
 go test -race -tags nolibopusfile $(../.github/scripts/ci-packages.sh)
 ```
 
+## Anthropic (Claude) provider
+
+Select **Anthropic (Claude)** under *Knowledge Graph API Provider* in the web UI (`http://localhost:8080`) and enter:
+
+- **Anthropic API Key**: a workspace-scoped key from console.anthropic.com. If left blank, `ANTHROPIC_API_KEY` from the chipper process environment is used.
+- **Claude Model**: blank uses `claude-haiku-5-5` (fast, suited to spoken replies); `claude-opus-5-5` gives better answers at higher cost and latency.
+- **LLM Prompt**: optional system prompt, cached on Anthropic's side.
+
+It uses the official Go SDK (`github.com/anthropics/anthropic-sdk-go`) for knowledge-graph, intent-graph and camera (`getImage`) requests. Requests use effort `low` and send no sampling parameters, which current Claude models reject. The adapter lives in `chipper/pkg/wirepod/ttr/llm_anthropic.go`.
+
+Live check against the real API (never runs in CI):
+
+```sh
+ANTHROPIC_API_KEY=... go test -tags "nolibopusfile anthropic_live" -run Live ./pkg/wirepod/ttr/
+```
+
+The SDK requires Go 1.24+ (`go.mod`). Upstream `setup.sh` installs Go 1.22.4 on fresh machines; with the default `GOTOOLCHAIN=auto` Go downloads the newer toolchain on first build.
+
 ## Releasing
 
 ```sh

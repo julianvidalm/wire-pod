@@ -73,7 +73,7 @@ func SdkapiHandler(w http.ResponseWriter, r *http.Request) {
 		hue := r.FormValue("hue")
 		sat := r.FormValue("sat")
 		setCustomEyeColor(robotObj, hue, sat)
-		fmt.Fprintf(w, hue+sat)
+		fmt.Fprint(w, hue+sat)
 		return
 	case r.URL.Path == "/api-sdk/volume":
 		volume := r.FormValue("volume")

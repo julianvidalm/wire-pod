@@ -84,8 +84,26 @@
               <option value="openai">OpenAI</option>
               <option value="houndify">Houndify</option>
               <option value="together">Together</option>
+              <option value="anthropic">Anthropic (Claude)</option>
               <option value="custom">Custom</option>
             </select>
+            <span id="anthropicInput" style="display: none">
+              <small class="desc">To use Claude, create an API key at
+                <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+                scoped to a workspace. If the key is left blank, the ANTHROPIC_API_KEY environment variable is
+                used.</small><br />
+              <label for="anthropicKey">Anthropic API Key:</label>
+              <input type="password" name="anthropicKey" id="anthropicKey" autocomplete="off" /><br />
+              <label for="anthropicModel">Claude Model <small class="desc">(leave blank for default
+                  claude-haiku-5-5)</small>:</label>
+              <input type="text" name="anthropicModel" id="anthropicModel" /><br />
+              <label for="anthropicAIPrompt">LLM Prompt <small class="desc">(leave blank for
+                  default)</small>:</label><br />
+              <small><label class="desc" for="anthropicAIPrompt">(default: "You are a helpful, animated robot called
+                  Vector. Keep the response concise yet
+                  informative.")</label></small>
+              <input type="text" name="anthropicAIPrompt" id="anthropicAIPrompt" /><br />
+            </span>
             <span id="houndifyInput" style="display: none">
               <small class="desc">To use Houndify, create an account at
                 <a href="https://www.houndify.com/signup">houndify.com</a>,
