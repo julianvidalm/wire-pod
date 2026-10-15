@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/kercre123/wire-pod/chipper/pkg/vars"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -189,12 +191,13 @@ func TestAnthropicStreamYieldsTextDeltasThenEOF(t *testing.T) {
 	}))
 	defer server.Close()
 
-	stream, err := newAnthropicStream(context.Background(), openai.ChatCompletionRequest{
+	client := newAnthropicClient("test-key", option.WithBaseURL(server.URL), option.WithMaxRetries(0))
+	stream, err := newAnthropicStream(context.Background(), client, openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: "You are Vector."},
 			{Role: openai.ChatMessageRoleUser, Content: "Say hi"},
 		},
-	}, option.WithBaseURL(server.URL), option.WithAPIKey("test-key"), option.WithMaxRetries(0))
+	})
 	if err != nil {
 		t.Fatalf("newAnthropicStream: %v", err)
 	}
@@ -237,14 +240,133 @@ func TestAnthropicStreamReturnsAPIErrorOnOpen(t *testing.T) {
 	}))
 	defer server.Close()
 
-	stream, err := newAnthropicStream(context.Background(), openai.ChatCompletionRequest{
+	client := newAnthropicClient("bad-key", option.WithBaseURL(server.URL), option.WithMaxRetries(0))
+	stream, err := newAnthropicStream(context.Background(), client, openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
-	}, option.WithBaseURL(server.URL), option.WithAPIKey("bad-key"), option.WithMaxRetries(0))
+	})
 	if err == nil {
 		stream.Close()
 		t.Fatal("newAnthropicStream error = nil, want authentication error")
 	}
 	if !strings.Contains(err.Error(), "401") {
 		t.Errorf("error = %v, want it to mention 401", err)
+	}
+}
+
+func TestAnthropicParamsDisablesThinkingForFastReplies(t *testing.T) {
+	for _, model := range []string{"", "claude-haiku-5-5", "claude-opus-5"} {
+		got := paramsJSON(t, openai.ChatCompletionRequest{
+			Model:    model,
+			Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+		})
+		thinking, ok := got["thinking"].(map[string]any)
+		if !ok || thinking["type"] != "disabled" {
+			t.Errorf("model %q: thinking = %v, want disabled", model, got["thinking"])
+		}
+	}
+}
+
+func TestAnthropicParamsLeavesThinkingUnsetWhereItCannotBeDisabled(t *testing.T) {
+	for _, model := range []string{"claude-opus-5-5", "claude-fable-5-1", "claude-mythos-5-1"} {
+		got := paramsJSON(t, openai.ChatCompletionRequest{
+			Model:    model,
+			Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+		})
+		if _, ok := got["thinking"]; ok {
+			t.Errorf("model %q: thinking = %v, want it omitted", model, got["thinking"])
+		}
+	}
+}
+
+func TestSharedAnthropicClientIsReusedUntilTheKeyChanges(t *testing.T) {
+	saved := vars.APIConfig.Knowledge.Key
+	defer func() { vars.APIConfig.Knowledge.Key = saved }()
+
+	vars.APIConfig.Knowledge.Key = "key-a"
+	first := sharedAnthropicClient()
+	if again := sharedAnthropicClient(); again != first {
+		t.Error("client was rebuilt although the key did not change")
+	}
+	vars.APIConfig.Knowledge.Key = "key-b"
+	if changed := sharedAnthropicClient(); changed == first {
+		t.Error("client was reused after the key changed")
+	}
+}
+
+func TestAnthropicClientRetriesOverloadedRequestsOnce(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("content-type", "application/json")
+		w.Header().Set("retry-after-ms", "1")
+		w.WriteHeader(529)
+		io.WriteString(w, `{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}`)
+	}))
+	defer server.Close()
+
+	client := newAnthropicClient("test-key", option.WithBaseURL(server.URL))
+	_, err := newAnthropicStream(context.Background(), client, openai.ChatCompletionRequest{
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+	})
+	if err == nil {
+		t.Fatal("error = nil, want overloaded error")
+	}
+	if got := calls.Load(); got != 2 {
+		t.Errorf("requests = %d, want 2 (one retry)", got)
+	}
+}
+
+func TestOpenLLMStreamFailsWithoutAClient(t *testing.T) {
+	saved := vars.APIConfig.Knowledge.Provider
+	defer func() { vars.APIConfig.Knowledge.Provider = saved }()
+	vars.APIConfig.Knowledge.Provider = ""
+
+	stream, err := openLLMStream(context.Background(), nil, openai.ChatCompletionRequest{})
+	if err == nil || stream != nil {
+		t.Fatalf("openLLMStream = (%v, %v), want (nil, error)", stream, err)
+	}
+}
+
+func TestOpenLLMStreamUsesTheOpenAICompatibleClient(t *testing.T) {
+	saved := vars.APIConfig.Knowledge.Provider
+	defer func() { vars.APIConfig.Knowledge.Provider = saved }()
+	vars.APIConfig.Knowledge.Provider = "custom"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "text/event-stream")
+		io.WriteString(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi there.\"}}]}\n\n")
+		io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	defer server.Close()
+	conf := openai.DefaultConfig("test-key")
+	conf.BaseURL = server.URL
+	client := openai.NewClientWithConfig(conf)
+
+	stream, err := openLLMStream(context.Background(), client, openai.ChatCompletionRequest{
+		Model:    "llama3",
+		Stream:   true,
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+	})
+	if err != nil {
+		t.Fatalf("openLLMStream: %v", err)
+	}
+	defer stream.Close()
+	resp, err := stream.Recv()
+	if err != nil || resp.Choices[0].Delta.Content != "Hi there." {
+		t.Fatalf("Recv = (%v, %v), want \"Hi there.\"", resp, err)
+	}
+	if _, err := stream.Recv(); !errors.Is(err, io.EOF) {
+		t.Errorf("second Recv = %v, want io.EOF", err)
+	}
+}
+
+func TestAnthropicParamsUsesBetweenToolsThinkingForSonnet55(t *testing.T) {
+	got := paramsJSON(t, openai.ChatCompletionRequest{
+		Model:    "claude-sonnet-5-5",
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+	})
+	thinking, ok := got["thinking"].(map[string]any)
+	if !ok || thinking["type"] != "between_tools" {
+		t.Errorf("thinking = %v, want between_tools (Sonnet 5.5 rejects disabled)", got["thinking"])
 	}
 }

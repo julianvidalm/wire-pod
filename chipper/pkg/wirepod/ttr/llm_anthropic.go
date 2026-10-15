@@ -2,8 +2,10 @@ package wirepod_ttr
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -26,13 +28,43 @@ type llmStream interface {
 	Close() error
 }
 
-// anthropicClientOptions uses the key from the web UI, or falls back to the
-// ANTHROPIC_API_KEY environment variable when it is empty.
-func anthropicClientOptions() []option.RequestOption {
-	if key := strings.TrimSpace(vars.APIConfig.Knowledge.Key); key != "" {
-		return []option.RequestOption{option.WithAPIKey(key)}
+// alwaysThinkingModels reject thinking {type: disabled}; they keep the default
+// adaptive thinking and rely on effort "low" for speed.
+var alwaysThinkingModels = []string{"claude-opus-5-5", "claude-fable-", "claude-mythos-"}
+
+// betweenToolsThinkingModels turn thinking off with {type: between_tools}
+// instead of {type: disabled}, which they reject.
+var betweenToolsThinkingModels = []string{"claude-sonnet-5-5"}
+
+var (
+	anthropicClientMu  sync.Mutex
+	anthropicClientKey string
+	anthropicClient    *anthropic.Client
+)
+
+// newAnthropicClient builds a client for key, or for the ANTHROPIC_API_KEY
+// environment variable when key is empty. A spoken reply is better late once
+// than never, but not after several backoffs, so it retries at most once.
+func newAnthropicClient(key string, extra ...option.RequestOption) *anthropic.Client {
+	opts := []option.RequestOption{option.WithMaxRetries(1)}
+	if key = strings.TrimSpace(key); key != "" {
+		opts = append(opts, option.WithAPIKey(key))
 	}
-	return nil
+	client := anthropic.NewClient(append(opts, extra...)...)
+	return &client
+}
+
+// sharedAnthropicClient returns one client per configured key so requests
+// reuse pooled HTTPS connections instead of paying a new TLS handshake.
+func sharedAnthropicClient() *anthropic.Client {
+	key := strings.TrimSpace(vars.APIConfig.Knowledge.Key)
+	anthropicClientMu.Lock()
+	defer anthropicClientMu.Unlock()
+	if anthropicClient == nil || key != anthropicClientKey {
+		anthropicClient = newAnthropicClient(key)
+		anthropicClientKey = key
+	}
+	return anthropicClient
 }
 
 // anthropicParams converts an OpenAI-style chat request into a Claude Messages
@@ -79,6 +111,16 @@ func anthropicParams(req openai.ChatCompletionRequest) anthropic.MessageNewParam
 		Messages:     msgs,
 		OutputConfig: anthropic.OutputConfigParam{Effort: anthropic.OutputConfigEffortLow},
 	}
+	// Thinking delays the first spoken word (~730 ms vs ~410 ms measured on
+	// claude-haiku-5-5), and short spoken answers rarely need it.
+	switch {
+	case modelHasPrefix(model, alwaysThinkingModels):
+	case modelHasPrefix(model, betweenToolsThinkingModels):
+		betweenTools := anthropic.NewThinkingConfigBetweenToolsParam()
+		params.Thinking = anthropic.ThinkingConfigParamUnion{OfBetweenTools: &betweenTools}
+	default:
+		params.Thinking = anthropic.ThinkingConfigParamUnion{OfDisabled: &anthropic.ThinkingConfigDisabledParam{}}
+	}
 	if len(system) > 0 {
 		params.System = []anthropic.TextBlockParam{{
 			Text:         strings.Join(system, "\n\n"),
@@ -86,6 +128,15 @@ func anthropicParams(req openai.ChatCompletionRequest) anthropic.MessageNewParam
 		}}
 	}
 	return params
+}
+
+func modelHasPrefix(model string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(model, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func anthropicContentBlocks(m openai.ChatCompletionMessage) []anthropic.ContentBlockParamUnion {
@@ -129,8 +180,7 @@ type anthropicStream struct {
 // newAnthropicStream starts a streaming Claude request. It reads the first
 // event before returning so that HTTP and authentication errors surface here,
 // like they do for go-openai's CreateChatCompletionStream.
-func newAnthropicStream(ctx context.Context, req openai.ChatCompletionRequest, opts ...option.RequestOption) (llmStream, error) {
-	client := anthropic.NewClient(opts...)
+func newAnthropicStream(ctx context.Context, client *anthropic.Client, req openai.ChatCompletionRequest) (llmStream, error) {
 	params := anthropicParams(req)
 	logger.Println("Using " + string(params.Model))
 	stream := client.Messages.NewStreaming(ctx, params)
@@ -190,4 +240,25 @@ func (s *anthropicStream) Recv() (openai.ChatCompletionStreamResponse, error) {
 
 func (s *anthropicStream) Close() error {
 	return s.stream.Close()
+}
+
+type openedLLMStream struct {
+	stream llmStream
+	err    error
+}
+
+// openLLMStream starts the streaming request for the configured provider. c is
+// the OpenAI-compatible client and is unused for Anthropic.
+func openLLMStream(ctx context.Context, c *openai.Client, req openai.ChatCompletionRequest) (llmStream, error) {
+	if vars.APIConfig.Knowledge.Provider == "anthropic" {
+		return newAnthropicStream(ctx, sharedAnthropicClient(), req)
+	}
+	if c == nil {
+		return nil, fmt.Errorf("no LLM client for provider %q", vars.APIConfig.Knowledge.Provider)
+	}
+	stream, err := c.CreateChatCompletionStream(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return stream, nil
 }

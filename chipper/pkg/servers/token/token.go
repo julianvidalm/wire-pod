@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/digital-dream-labs/api/go/tokenpb"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
 	"github.com/kercre123/wire-pod/chipper/pkg/vars"
