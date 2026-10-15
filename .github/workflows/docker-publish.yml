@@ -22,7 +22,8 @@ env:
 
 jobs:
   build:
-
+    # Publishing images belongs to the upstream repository only.
+    if: github.repository == 'kercre123/wire-pod'
     runs-on: ubuntu-latest
     permissions:
       contents: read

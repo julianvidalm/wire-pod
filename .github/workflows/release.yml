@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  GO_TAGS: nolibopusfile
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: chipper/go.sum
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libopus-dev libogg-dev pkg-config
+
+      - name: Install libvosk
+        run: .github/scripts/setup-vosk.sh
+
+      - name: Build chipper (vosk, linux/amd64)
+        working-directory: chipper
+        run: |
+          go build -tags "$GO_TAGS" -trimpath \
+            -ldflags "-X 'github.com/kercre123/wire-pod/chipper/pkg/vars.CommitSHA=${GITHUB_SHA::7}'" \
+            -o "$RUNNER_TEMP/dist/chipper" ./cmd/vosk
+
+      - name: Package
+        run: |
+          name="chipper-vosk-linux-amd64-${GITHUB_REF_NAME}"
+          tar -C "$RUNNER_TEMP/dist" -czf "$RUNNER_TEMP/$name.tar.gz" chipper
+          (cd "$RUNNER_TEMP" && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "$RUNNER_TEMP"/chipper-vosk-linux-amd64-*.tar.gz* \
+            --title "$GITHUB_REF_NAME" --generate-notes --verify-tag

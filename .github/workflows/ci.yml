@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_TAGS: nolibopusfile
+
+jobs:
+  build-test:
+    name: build-test
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: chipper
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: chipper/go.sum
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libopus-dev libogg-dev pkg-config
+
+      - name: Install libvosk
+        run: ../.github/scripts/setup-vosk.sh
+
+      - name: gofmt (changed files)
+        if: github.event_name == 'pull_request'
+        working-directory: .
+        run: |
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" -- '*.go')
+          if [ "${#files[@]}" -eq 0 ]; then echo "No Go files changed."; exit 0; fi
+          unformatted=$(gofmt -l "${files[@]}")
+          if [ -n "$unformatted" ]; then
+            echo "Run gofmt -w on:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: Vet
+        run: |
+          mapfile -t pkgs < <(../.github/scripts/ci-packages.sh)
+          go vet -tags "$GO_TAGS" "${pkgs[@]}"
+
+      - name: Test
+        run: |
+          mapfile -t pkgs < <(../.github/scripts/ci-packages.sh)
+          go test -race -tags "$GO_TAGS" "${pkgs[@]}"
+
+      - name: Build chipper (vosk)
+        run: |
+          go build -tags "$GO_TAGS" -trimpath \
+            -ldflags "-X 'github.com/kercre123/wire-pod/chipper/pkg/vars.CommitSHA=${GITHUB_SHA::7}'" \
+            -o "$RUNNER_TEMP/chipper" ./cmd/vosk
