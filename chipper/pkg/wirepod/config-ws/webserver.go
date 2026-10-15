@@ -409,7 +409,7 @@ func StartWebServer() {
 		webRoot = http.FileServer(http.Dir("./webroot"))
 	}
 	http.Handle("/", DisableCachingAndSniffing(webRoot))
-	fmt.Printf("Starting webserver at port " + vars.WebPort + " (http://localhost:" + vars.WebPort + ")\n")
+	fmt.Print("Starting webserver at port " + vars.WebPort + " (http://localhost:" + vars.WebPort + ")\n")
 	if err := http.ListenAndServe(":"+vars.WebPort, nil); err != nil {
 		logger.Println("Error binding to " + vars.WebPort + ": " + err.Error())
 		if vars.Packaged {

@@ -247,6 +247,7 @@ function checkKG() {
   const elements = [
     "houndifyInput",
     "togetherInput",
+    "anthropicInput",
     "customAIInput",
     "intentGraphInput",
     "openAIInput",
@@ -270,6 +271,11 @@ function checkKG() {
     } else if (provider === "together") {
       getE("intentGraphInput").style.display = "block";
       getE("togetherInput").style.display = "block";
+      getE("saveChatInput").style.display = "block";
+      getE("llmCommandInput").style.display = "block";
+    } else if (provider === "anthropic") {
+      getE("intentGraphInput").style.display = "block";
+      getE("anthropicInput").style.display = "block";
       getE("saveChatInput").style.display = "block";
       getE("llmCommandInput").style.display = "block";
     } else if (provider === "custom") {
@@ -314,6 +320,13 @@ function sendKGAPIKey() {
     data.intentgraph = getE("intentyes").checked
     data.save_chat = getE("saveChatYes").checked
     data.commands_enable = getE("commandYes").checked
+  } else if (provider === "anthropic") {
+    data.key = getE("anthropicKey").value.trim();
+    data.model = getE("anthropicModel").value.trim();
+    data.openai_prompt = getE("anthropicAIPrompt").value;
+    data.intentgraph = getE("intentyes").checked;
+    data.save_chat = getE("saveChatYes").checked;
+    data.commands_enable = getE("commandYes").checked;
   } else if (provider === "together") {
     data.key = getE("togetherKey").value;
     data.model = getE("togetherModel").value;
@@ -370,6 +383,13 @@ function updateKGAPI() {
         getE("togetherKey").value = data.key;
         getE("togetherModel").value = data.model;
         getE("togetherAIPrompt").value = data.openai_prompt;
+        getE("commandYes").checked = data.commands_enable
+        getE("intentyes").checked = data.intentgraph
+        getE("saveChatYes").checked = data.save_chat
+      } else if (data.provider === "anthropic") {
+        getE("anthropicKey").value = data.key;
+        getE("anthropicModel").value = data.model;
+        getE("anthropicAIPrompt").value = data.openai_prompt;
         getE("commandYes").checked = data.commands_enable
         getE("intentyes").checked = data.intentgraph
         getE("saveChatYes").checked = data.save_chat

@@ -504,7 +504,13 @@ func DoGetImage(msgs []openai.ChatCompletionMessage, param string, robot *vector
 	if stopImaging {
 		return
 	}
-	stream, err := c.CreateChatCompletionStream(ctx, aireq)
+	var stream llmStream
+	var err error
+	if vars.APIConfig.Knowledge.Provider == "anthropic" {
+		stream, err = newAnthropicStream(ctx, aireq, anthropicClientOptions()...)
+	} else {
+		stream, err = c.CreateChatCompletionStream(ctx, aireq)
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") && vars.APIConfig.Knowledge.Provider == "openai" {
 			logger.Println("GPT-4 model cannot be accessed with this API key. You likely need to add more than $5 dollars of funds to your OpenAI account.")
@@ -529,6 +535,21 @@ func DoGetImage(msgs []openai.ChatCompletionMessage, param string, robot *vector
 		for {
 			response, err := stream.Recv()
 			if errors.Is(err, io.EOF) {
+				if len(fullRespSlice) == 0 {
+					// No sentence was completed (empty, unpunctuated or declined reply);
+					// indexing fullRespSlice below would panic.
+					logger.Println("LLM returned no complete sentence")
+					reply := strings.TrimSpace(fullRespText)
+					if reply == "" {
+						reply = "Sorry, I can't answer that."
+					}
+					fullfullRespText = reply
+					fullRespSlice = append(fullRespSlice, reply)
+					select {
+					case speakReady <- reply:
+					default:
+					}
+				}
 				isDone = true
 				newStr := fullRespSlice[0]
 				for i, str := range fullRespSlice {
