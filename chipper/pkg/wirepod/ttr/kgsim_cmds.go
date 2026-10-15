@@ -535,6 +535,21 @@ func DoGetImage(msgs []openai.ChatCompletionMessage, param string, robot *vector
 		for {
 			response, err := stream.Recv()
 			if errors.Is(err, io.EOF) {
+				if len(fullRespSlice) == 0 {
+					// No sentence was completed (empty, unpunctuated or declined reply);
+					// indexing fullRespSlice below would panic.
+					logger.Println("LLM returned no complete sentence")
+					reply := strings.TrimSpace(fullRespText)
+					if reply == "" {
+						reply = "Sorry, I can't answer that."
+					}
+					fullfullRespText = reply
+					fullRespSlice = append(fullRespSlice, reply)
+					select {
+					case speakReady <- reply:
+					default:
+					}
+				}
 				isDone = true
 				newStr := fullRespSlice[0]
 				for i, str := range fullRespSlice {
