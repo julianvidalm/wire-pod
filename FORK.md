@@ -53,7 +53,9 @@ Select **Anthropic (Claude)** under *Knowledge Graph API Provider* in the web UI
 - **Claude Model**: blank uses `claude-haiku-5-5` (fast, suited to spoken replies); `claude-opus-5-5` gives better answers at higher cost and latency.
 - **LLM Prompt**: optional system prompt, cached on Anthropic's side.
 
-It uses the official Go SDK (`github.com/anthropics/anthropic-sdk-go`) for knowledge-graph, intent-graph and camera (`getImage`) requests. Requests use effort `low` and send no sampling parameters, which current Claude models reject. The adapter lives in `chipper/pkg/wirepod/ttr/llm_anthropic.go`.
+It uses the official Go SDK (`github.com/anthropics/anthropic-sdk-go`) for knowledge-graph, intent-graph and camera (`getImage`) requests. Requests use effort `low`, disable thinking (except on models that cannot turn it off, such as `claude-opus-5-5`) and send no sampling parameters, which current Claude models reject. One client is reused per API key, failed requests are retried at most once, and the request starts while wire-pod is still connecting to the robot. The adapter lives in `chipper/pkg/wirepod/ttr/llm_anthropic.go`.
+
+Measured time to first token on `claude-haiku-5-5` (median of 5): 731 ms with a new client and thinking, 406 ms with a reused client and thinking off.
 
 Live check against the real API (never runs in CI):
 
@@ -61,7 +63,7 @@ Live check against the real API (never runs in CI):
 ANTHROPIC_API_KEY=... go test -tags "nolibopusfile anthropic_live" -run Live ./pkg/wirepod/ttr/
 ```
 
-The SDK requires Go 1.24+ (`go.mod`). Upstream `setup.sh` installs Go 1.22.4 on fresh machines; with the default `GOTOOLCHAIN=auto` Go downloads the newer toolchain on first build.
+chipper requires Go 1.26 and pins the `go1.26.9` toolchain (`go.mod`); `setup.sh` installs Go 1.26.9 on fresh machines, and an older local Go downloads the pinned toolchain on first build (`GOTOOLCHAIN=auto`). CI runs `govulncheck` on the vosk build.
 
 ## Releasing
 
