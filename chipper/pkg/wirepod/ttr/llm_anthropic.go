@@ -30,7 +30,11 @@ type llmStream interface {
 
 // alwaysThinkingModels reject thinking {type: disabled}; they keep the default
 // adaptive thinking and rely on effort "low" for speed.
-var alwaysThinkingModels = []string{"claude-opus-5-5", "claude-fable-"}
+var alwaysThinkingModels = []string{"claude-opus-5-5", "claude-fable-", "claude-mythos-"}
+
+// betweenToolsThinkingModels turn thinking off with {type: between_tools}
+// instead of {type: disabled}, which they reject.
+var betweenToolsThinkingModels = []string{"claude-sonnet-5-5"}
 
 var (
 	anthropicClientMu  sync.Mutex
@@ -109,7 +113,12 @@ func anthropicParams(req openai.ChatCompletionRequest) anthropic.MessageNewParam
 	}
 	// Thinking delays the first spoken word (~730 ms vs ~410 ms measured on
 	// claude-haiku-5-5), and short spoken answers rarely need it.
-	if !modelAlwaysThinks(model) {
+	switch {
+	case modelHasPrefix(model, alwaysThinkingModels):
+	case modelHasPrefix(model, betweenToolsThinkingModels):
+		betweenTools := anthropic.NewThinkingConfigBetweenToolsParam()
+		params.Thinking = anthropic.ThinkingConfigParamUnion{OfBetweenTools: &betweenTools}
+	default:
 		params.Thinking = anthropic.ThinkingConfigParamUnion{OfDisabled: &anthropic.ThinkingConfigDisabledParam{}}
 	}
 	if len(system) > 0 {
@@ -121,8 +130,8 @@ func anthropicParams(req openai.ChatCompletionRequest) anthropic.MessageNewParam
 	return params
 }
 
-func modelAlwaysThinks(model string) bool {
-	for _, prefix := range alwaysThinkingModels {
+func modelHasPrefix(model string, prefixes []string) bool {
+	for _, prefix := range prefixes {
 		if strings.HasPrefix(model, prefix) {
 			return true
 		}

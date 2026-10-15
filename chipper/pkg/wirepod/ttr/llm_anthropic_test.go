@@ -254,7 +254,7 @@ func TestAnthropicStreamReturnsAPIErrorOnOpen(t *testing.T) {
 }
 
 func TestAnthropicParamsDisablesThinkingForFastReplies(t *testing.T) {
-	for _, model := range []string{"", "claude-haiku-5-5", "claude-sonnet-5-5"} {
+	for _, model := range []string{"", "claude-haiku-5-5", "claude-opus-5"} {
 		got := paramsJSON(t, openai.ChatCompletionRequest{
 			Model:    model,
 			Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
@@ -267,7 +267,7 @@ func TestAnthropicParamsDisablesThinkingForFastReplies(t *testing.T) {
 }
 
 func TestAnthropicParamsLeavesThinkingUnsetWhereItCannotBeDisabled(t *testing.T) {
-	for _, model := range []string{"claude-opus-5-5", "claude-fable-5-1"} {
+	for _, model := range []string{"claude-opus-5-5", "claude-fable-5-1", "claude-mythos-5-1"} {
 		got := paramsJSON(t, openai.ChatCompletionRequest{
 			Model:    model,
 			Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
@@ -357,5 +357,16 @@ func TestOpenLLMStreamUsesTheOpenAICompatibleClient(t *testing.T) {
 	}
 	if _, err := stream.Recv(); !errors.Is(err, io.EOF) {
 		t.Errorf("second Recv = %v, want io.EOF", err)
+	}
+}
+
+func TestAnthropicParamsUsesBetweenToolsThinkingForSonnet55(t *testing.T) {
+	got := paramsJSON(t, openai.ChatCompletionRequest{
+		Model:    "claude-sonnet-5-5",
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hi"}},
+	})
+	thinking, ok := got["thinking"].(map[string]any)
+	if !ok || thinking["type"] != "between_tools" {
+		t.Errorf("thinking = %v, want between_tools (Sonnet 5.5 rejects disabled)", got["thinking"])
 	}
 }
