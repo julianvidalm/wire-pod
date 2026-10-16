@@ -27,6 +27,12 @@ var params whisper.Params
 // utterance is transcribed in whichever of them whisper finds most likely, instead of one fixed language.
 var languageIDs []int
 
+// maxThreads: beyond about 8 threads whisper gets slower on this kind of machine (measured on a 28-thread
+// CPU: 1.9 s with 8 threads, 3.0 s with 28 for the same 2.3 s sentence).
+const maxThreads = 8
+
+func threads() int { return min(runtime.NumCPU(), maxThreads) }
+
 // whisperMu serializes use of the one whisper context: voice requests and PC-led sentences may overlap.
 var whisperMu sync.Mutex
 
@@ -79,7 +85,7 @@ func Init() error {
 	params.SetPrintProgress(false)
 	params.SetPrintRealtime(false)
 	params.SetPrintTimestamps(false)
-	params.SetThreads(runtime.NumCPU())
+	params.SetThreads(threads())
 	params.SetNoContext(true)
 	params.SetSingleSegment(true)
 	params.SetLanguage(context.Whisper_lang_id(sttLanguage))
@@ -101,12 +107,11 @@ func chooseLanguage(data []float32) {
 	if len(languageIDs) == 0 {
 		return
 	}
-	threads := runtime.NumCPU()
-	if err := context.Whisper_pcm_to_mel(data, threads); err != nil {
+	if err := context.Whisper_pcm_to_mel(data, threads()); err != nil {
 		logger.Println("Whisper: language detection skipped:", err)
 		return
 	}
-	probs, err := context.Whisper_lang_auto_detect(0, threads)
+	probs, err := context.Whisper_lang_auto_detect(0, threads())
 	if err != nil {
 		logger.Println("Whisper: language detection skipped:", err)
 		return
