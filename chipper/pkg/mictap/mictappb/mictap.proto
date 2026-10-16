@@ -33,8 +33,13 @@ message Command {
     IntentResult intent_result = 1;
     // Text for Vector to say, with its knowledge-graph animations.
     KnowledgeResponse knowledge = 2;
+    // Wake up as if the user had said "Hey Vector" (or pressed the backpack button): get-in animation,
+    // earcon, then the robot's normal voice request, which the cortex answers with what it already heard.
+    Wake wake = 3;
   }
 }
+
+message Wake {}
 
 message IntentResult {
   string intent = 1;

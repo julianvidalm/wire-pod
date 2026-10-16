@@ -15,6 +15,7 @@ import (
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
 	"github.com/kercre123/wire-pod/chipper/pkg/mdnshandler"
 	"github.com/kercre123/wire-pod/chipper/pkg/mictap/mictappb"
+	"github.com/kercre123/wire-pod/chipper/pkg/pcled"
 	chipperserver "github.com/kercre123/wire-pod/chipper/pkg/servers/chipper"
 	jdocsserver "github.com/kercre123/wire-pod/chipper/pkg/servers/jdocs"
 	tokenserver "github.com/kercre123/wire-pod/chipper/pkg/servers/token"
@@ -22,6 +23,7 @@ import (
 	wpweb "github.com/kercre123/wire-pod/chipper/pkg/wirepod/config-ws"
 	wp "github.com/kercre123/wire-pod/chipper/pkg/wirepod/preqs"
 	sdkWeb "github.com/kercre123/wire-pod/chipper/pkg/wirepod/sdkapp"
+	sr "github.com/kercre123/wire-pod/chipper/pkg/wirepod/speechrequest"
 	"github.com/soheilhy/cmux"
 
 	//	grpclog "github.com/digital-dream-labs/hugh/grpc/interceptors/logger"
@@ -89,6 +91,10 @@ func BeginWirepodSpecific(sttInitFunc func() error, sttHandlerFunc interface{}, 
 	// begin wirepod stuff
 	vars.Init()
 	var err error
+	// A voice request the PC already heard (PC-led conversation) is answered with that utterance.
+	if stt, ok := sttHandlerFunc.(func(sr.SpeechRequest) (string, error)); ok {
+		sttHandlerFunc = pcled.WrapSTT(stt, pcPending, logger.Println)
+	}
 	voiceProcessor, err = wp.New(sttInitFunc, sttHandlerFunc, voiceProcessorName)
 	wpweb.SttInitFunc = sttInitFunc
 	go sdkWeb.BeginServer()

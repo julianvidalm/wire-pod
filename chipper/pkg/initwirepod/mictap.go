@@ -7,6 +7,7 @@ import (
 
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
 	"github.com/kercre123/wire-pod/chipper/pkg/mictap"
+	"github.com/kercre123/wire-pod/chipper/pkg/pcled"
 	"github.com/kercre123/wire-pod/chipper/pkg/wakeword"
 	"github.com/kercre123/wire-pod/chipper/pkg/wakeword/voskrec"
 )
@@ -18,6 +19,9 @@ const wakeWordModelEnv = "WAKEWORD_VOSK_MODEL"
 var (
 	micTapSinkOnce sync.Once
 	micTapSinkVal  mictap.Sink
+
+	// pcPending holds what the PC heard each robot say, until the robot's voice request picks it up.
+	pcPending = pcled.NewPending(pcled.DefaultPendingTTL)
 )
 
 // micTapSink receives every robot's MicTap stream; both TLS listeners share it.
