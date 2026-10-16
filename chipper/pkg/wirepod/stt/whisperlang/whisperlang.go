@@ -4,7 +4,10 @@
 // restricting the choice to the user's languages avoids that.
 package whisperlang
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // ParseAllowed reads a list like "en,es" (WHISPER_LANGUAGES) into whisper language codes: lowercased, region
 // dropped ("es-ES" -> "es"), duplicates and empty entries removed.
@@ -37,4 +40,33 @@ func Pick(probs []float32, allowed []int) int {
 		}
 	}
 	return best
+}
+
+const (
+	// MinAudioCtx keeps enough encoder context for whisper to recognize short commands reliably.
+	MinAudioCtx = 256
+	// fullAudioCtx is whisper's whole 30 s window (50 positions per second of 16 kHz audio).
+	fullAudioCtx     = 1500
+	ctxPerSecond     = 50
+	audioCtxMargin   = 64
+	samplesPerSecond = 16000
+)
+
+// AudioCtx returns the encoder context for an utterance of n 16 kHz samples. Whisper encodes a full 30 s
+// window by default, which made a 2 s question take about 5 s on the PC; sizing the window to the audio
+// (plus a margin) makes it several times faster without losing the words.
+func AudioCtx(samples int) int {
+	n := (samples*ctxPerSecond+samplesPerSecond-1)/samplesPerSecond + audioCtxMargin
+	return max(MinAudioCtx, min(n, fullAudioCtx))
+}
+
+// annotations are the non-speech notes whisper writes for sounds, such as Vector's own beep ("*pitido*",
+// "(phone beeps)", "[música]", "♪"); left in, they confuse intent matching.
+var annotations = regexp.MustCompile(`\*[^*]*\*|\([^)]*\)|\[[^\]]*\]|♪`)
+
+// CleanText removes sound annotations and leading dashes from a transcription and normalizes spaces.
+func CleanText(s string) string {
+	s = annotations.ReplaceAllString(s, " ")
+	s = strings.Join(strings.Fields(s), " ")
+	return strings.TrimSpace(strings.TrimLeft(s, "- "))
 }

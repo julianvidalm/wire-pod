@@ -38,3 +38,39 @@ func TestPickWithoutValidCandidatesLeavesDetectionToWhisper(t *testing.T) {
 		t.Fatalf("picked %d with only invalid ids", got)
 	}
 }
+
+func TestAudioCtxFitsTheUtteranceWithAMargin(t *testing.T) {
+	// whisper's encoder covers 30 s with 1500 positions (50 per second); a short question needs far fewer.
+	cases := []struct {
+		seconds float64
+		want    int
+	}{
+		{0.5, MinAudioCtx}, // never below the minimum
+		{3, MinAudioCtx},   // 150 + margin 64 = 214 -> minimum 256
+		{6, 364},           // 300 + 64
+		{29.9, 1500},       // capped at the full window
+		{45, 1500},
+	}
+	for _, c := range cases {
+		if got := AudioCtx(int(c.seconds * 16000)); got != c.want {
+			t.Errorf("%.1f s: got %d, want %d", c.seconds, got, c.want)
+		}
+	}
+}
+
+func TestCleanTextDropsSoundAnnotations(t *testing.T) {
+	cases := map[string]string{
+		"*pitido* ¿te gusta el la sopa?":               "¿te gusta el la sopa?",
+		"(phone beeps) (speaking in foreign language)": "",
+		"- kia ora.":                "kia ora.",
+		"[música] what time is it?": "what time is it?",
+		"what   time (beep) is it?": "what time is it?",
+		"♪ hola ♪":                  "hola",
+		"what time is it?":          "what time is it?",
+	}
+	for in, want := range cases {
+		if got := CleanText(in); got != want {
+			t.Errorf("CleanText(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

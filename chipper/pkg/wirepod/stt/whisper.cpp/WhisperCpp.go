@@ -129,12 +129,16 @@ func STT(req sr.SpeechRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	transcribedText = strings.ToLower(transcribedText)
+	// Whisper writes notes for sounds such as Vector's own beep ("*pitido*", "(phone beeps)"); drop them.
+	transcribedText = strings.ToLower(whisperlang.CleanText(transcribedText))
 	logger.Println("Bot " + req.Device + " Transcribed text: " + transcribedText)
 	return transcribedText, nil
 }
 
 func process(data []float32) (string, error) {
+	// Encode only as much of whisper's 30 s window as the utterance needs: several times faster for a short
+	// question, which otherwise outlasted the robot's wait for an answer.
+	params.SetAudioCtx(whisperlang.AudioCtx(len(data)))
 	chooseLanguage(data)
 	var transcribedText string
 	context.Whisper_full(params, data, nil, func(_ int) {
