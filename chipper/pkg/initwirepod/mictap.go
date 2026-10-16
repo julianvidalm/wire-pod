@@ -45,7 +45,11 @@ func micTapSink() mictap.Sink {
 // newMicTapSink always logs each stream. With a wake word model it also runs the detector: a sentence with
 // Vector's name wakes the robot and is answered as its voice request (PC-led conversation, pkg/pcled).
 func newMicTapSink() mictap.Sink {
-	logSink := mictap.NewLogSink(logger.Println)
+	var logSink mictap.Sink = mictap.NewLogSink(logger.Println)
+	// MICTAP_RECORD_DIR saves every session's mic and speaker audio, to replay real sessions offline.
+	if rec := os.Getenv("MICTAP_RECORD_DIR"); rec != "" {
+		logSink = mictap.Tee(logSink, mictap.NewRecordSink(rec, logger.Println))
+	}
 	dir := os.Getenv(wakeWordModelEnv)
 	if dir == "" {
 		return logSink
