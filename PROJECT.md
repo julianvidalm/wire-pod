@@ -39,9 +39,25 @@ Robots stream what they hear (and play) to wire-pod with MicTap: the gRPC servic
 
 - `chipper/pkg/mictap`: v1 decoder, `Consume`, and the `Sink` port that consumers implement.
 - `chipper/pkg/servers/mictap`: the gRPC adapter.
-- `micTapSink` in `chipper/pkg/initwirepod/startserver.go`: the active sink. It logs each stream (start, robot drop totals, end with sequence gaps) until the wake word detector replaces it.
+- `micTapSink` in `chipper/pkg/initwirepod/mictap.go`: the active sink. It logs each stream (start, robot drop totals, end with sequence gaps) and, when a wake word model is configured, also runs the wake word detector.
 
 The proto is canonical here; the firmware keeps an identical copy. Regenerate the Go code with `go generate ./pkg/mictap/mictappb/` (needs `protoc` and the plugin versions pinned in `generate.go`).
+
+## Wake word detector
+
+`chipper/pkg/wakeword` detects Vector's name in the robot's MicTap stream: "vector" or "víctor" anywhere in an utterance, in Spanish or English, independent of the robot's own "Hey Vector". It is off unless `WAKEWORD_VOSK_MODEL` points to a Vosk model directory; the Spanish small model (`vosk-model-small-es-0.42`) works best on Vector's microphone. For now a detection is only logged (`Wake word: <esn> heard "vector" ...`); starting a conversation from it is still to be designed.
+
+- Whole words only: "director" and "lector" never match. Matches below confidence 0.6 are ignored ("sin nombre tuyo" was heard as "sin vector" at 0.54).
+- Partial recognition results are checked every 100 ms, so the name is caught while the user keeps talking; each spoken name wakes once.
+- Echo handling level 1: while Vector speaks or moves (MicTap flags), and for 300 ms after, the recognizer gets silence. Detections closer than 1.5 s are merged.
+- Ports: `Recognizer` (Vosk adapter in `pkg/wakeword/voskrec`) and `Handler` (what to do on a detection).
+
+Evaluate it on recordings of Vector's microphone (16 kHz mono WAV) without a robot:
+
+```sh
+go build -tags nolibopusfile -o wakeword-eval ./cmd/wakeword-eval
+./wakeword-eval -model ~/vosk-model-small-es-0.42 clip1.wav clip2.wav
+```
 
 ## Anthropic (Claude) provider
 
