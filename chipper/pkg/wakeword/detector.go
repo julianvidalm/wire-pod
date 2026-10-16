@@ -11,6 +11,11 @@ import (
 const (
 	micRate         = 16000
 	samplesPerFrame = 160 // one MicTap mic frame: 10 ms at 16 kHz
+
+	// maxUtteranceSeconds of audio are kept per robot, enough for a long sentence around the name.
+	maxUtteranceSeconds = 15
+	// utteranceMarginSeconds is added before the first and after the last recognized word.
+	utteranceMarginSeconds = 0.3
 )
 
 // Recognizer turns 16 kHz mono speech into words. Accept returns the words recognized so far in the current
@@ -26,13 +31,17 @@ const sameWordSeconds = 0.3
 
 type RecognizerFactory func() (Recognizer, error)
 
-// Detection is one wake: the robot, the matched word, the whole utterance, and the robot timestamp (ms) of the
-// mic frame that completed it.
+// Detection is one wake: the robot, the matched word, the recognized text, and the robot timestamp (ms) of the
+// mic frame that completed it. Early detections come from partial results while the user is still talking;
+// a Final detection comes once the recognizer closes the utterance and carries its audio (16 kHz mono), so
+// the whole sentence can be transcribed again with a better recognizer.
 type Detection struct {
 	ESN            string
 	Word           Word
 	Text           string
 	FrameTimestamp uint64
+	Final          bool
+	Utterance      []int16
 }
 
 // Handler acts on a detection (for now: log it; later: start a conversation).
@@ -68,6 +77,30 @@ type session struct {
 	lastWake   uint64
 	woke       bool
 	seen       []float64 // start times of names already handled in the current utterance
+	ring       []int16   // the last maxUtteranceSeconds of audio given to the recognizer
+	fed        int       // samples given to the recognizer since it started (the clock of its word times)
+}
+
+// record keeps audio for utterance extraction.
+func (s *session) record(audio []int16) {
+	for _, v := range audio {
+		s.ring[s.fed%len(s.ring)] = v
+		s.fed++
+	}
+}
+
+// utterance returns the recorded audio between two recognizer times (seconds), clamped to what is kept.
+func (s *session) utterance(start, end float64) []int16 {
+	from := max(int(start*micRate), s.fed-len(s.ring), 0)
+	to := min(int(end*micRate), s.fed)
+	if from >= to {
+		return nil
+	}
+	out := make([]int16, 0, to-from)
+	for i := from; i < to; i++ {
+		out = append(out, s.ring[i%len(s.ring)])
+	}
+	return out
 }
 
 func New(cfg Config) *Detector {
@@ -91,7 +124,8 @@ func (d *Detector) Start(esn string, h mictap.Hello) {
 	if old := d.sessions[esn]; old != nil {
 		old.rec.Close()
 	}
-	d.sessions[esn] = &session{rec: rec, pcm: make([]int16, samplesPerFrame), silence: make([]int16, samplesPerFrame)}
+	d.sessions[esn] = &session{rec: rec, pcm: make([]int16, samplesPerFrame), silence: make([]int16, samplesPerFrame),
+		ring: make([]int16, maxUtteranceSeconds*micRate)}
 	d.mu.Unlock()
 }
 
@@ -118,6 +152,7 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 			s.pcm[i] = int16(binary.LittleEndian.Uint16(f.Payload[2*i:]))
 		}
 	}
+	s.record(audio)
 	utterance, final, err := s.rec.Accept(audio)
 	if err != nil {
 		d.cfg.Logf("wakeword: ", esn, ": ", err)
@@ -138,6 +173,11 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 	}
 	if final {
 		s.seen = s.seen[:0]
+		if names := d.cfg.Matcher.MatchAll(utterance); len(names) > 0 {
+			first, last := utterance[0], utterance[len(utterance)-1]
+			d.cfg.Handler.OnWake(Detection{ESN: esn, Word: names[0], Text: text(utterance), FrameTimestamp: f.Timestamp,
+				Final: true, Utterance: s.utterance(first.Start-utteranceMarginSeconds, last.End+utteranceMarginSeconds)})
+		}
 	}
 }
 

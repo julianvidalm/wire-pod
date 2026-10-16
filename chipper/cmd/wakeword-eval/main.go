@@ -64,6 +64,10 @@ func (p printingRecognizer) Accept(pcm []int16) ([]wakeword.Word, bool, error) {
 type countingHandler struct{ n int }
 
 func (h *countingHandler) OnWake(d wakeword.Detection) {
+	if d.Final {
+		fmt.Printf("  UTTERANCE %.1fs of audio for %q\n", float64(len(d.Utterance))/16000, d.Text)
+		return
+	}
 	h.n++
 	at := float64(d.FrameTimestamp) / 1000
 	fmt.Printf("  WAKE at %.2fs (%.2fs after the word ended): %q (conf %.2f) in %q\n",

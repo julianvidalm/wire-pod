@@ -54,6 +54,17 @@ func (h *recordingHandler) OnWake(d Detection) {
 	h.mu.Unlock()
 }
 
+// early returns the detections made while the user was still talking (not the final, whole-utterance ones).
+func early(h *recordingHandler) []Detection {
+	var out []Detection
+	for _, d := range h.wake {
+		if !d.Final {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 func micFrame(seq uint32, flags uint8, value int16) mictap.Frame {
 	payload := make([]byte, 2*samplesPerFrame)
 	for i := 0; i < samplesPerFrame; i++ {
@@ -83,10 +94,10 @@ func TestDetectorReportsWakeWordWithItsUtterance(t *testing.T) {
 	d.Start("esn1", hello)
 	d.Frame("esn1", micFrame(0, 0, 100))
 	d.End("esn1", nil)
-	if len(h.wake) != 1 {
+	if len(early(h)) != 1 {
 		t.Fatalf("detections %+v", h.wake)
 	}
-	got := h.wake[0]
+	got := early(h)[0]
 	if got.ESN != "esn1" || got.Word.Text != "vector" || got.Text != "hola cómo estás vector" || got.FrameTimestamp != 0 {
 		t.Fatalf("detection %+v", got)
 	}
@@ -134,7 +145,7 @@ func TestDetectorCooldownSuppressesRepeats(t *testing.T) {
 	d.Frame("esn1", micFrame(0, 0, 1)) // t=0: wake
 	d.Frame("esn1", micFrame(1, 0, 1)) // t=10 ms: within the cooldown
 	d.Frame("esn1", micFrame(2, 0, 1)) // t=20 ms: wake again
-	if len(h.wake) != 2 || h.wake[1].FrameTimestamp != 20 {
+	if w := early(h); len(w) != 2 || w[1].FrameTimestamp != 20 {
 		t.Fatalf("detections %+v", h.wake)
 	}
 }
@@ -193,7 +204,7 @@ func TestDetectorKeepsRobotsApart(t *testing.T) {
 	d.Start("b", hello)
 	d.Frame("a", micFrame(0, 0, 1))
 	d.Frame("b", micFrame(0, 0, 1))
-	if len(h.wake) != 1 || h.wake[0].ESN != "b" {
+	if w := early(h); len(w) != 1 || w[0].ESN != "b" {
 		t.Fatalf("detections %+v", h.wake)
 	}
 }
@@ -213,7 +224,7 @@ func TestDetectorWakesOnPartialResultsOnceperWord(t *testing.T) {
 	for seq := uint32(0); seq < 4; seq++ {
 		d.Frame("esn1", micFrame(seq, 0, 1))
 	}
-	if len(h.wake) != 1 || h.wake[0].FrameTimestamp != 10 || h.wake[0].Text != "hola cómo estás vector" {
+	if w := early(h); len(w) != 1 || w[0].FrameTimestamp != 10 || w[0].Text != "hola cómo estás vector" {
 		t.Fatalf("detections %+v", h.wake)
 	}
 }
@@ -230,7 +241,7 @@ func TestDetectorWakesAgainForASecondNameInTheSameUtterance(t *testing.T) {
 	d.Start("esn1", hello)
 	d.Frame("esn1", micFrame(0, 0, 1))
 	d.Frame("esn1", micFrame(1, 0, 1))
-	if len(h.wake) != 2 || h.wake[1].Word.Text != "víctor" {
+	if w := early(h); len(w) != 2 || w[1].Word.Text != "víctor" {
 		t.Fatalf("detections %+v", h.wake)
 	}
 }
@@ -245,5 +256,88 @@ func TestDetectorIgnoresLowConfidencePartials(t *testing.T) {
 	d.Frame("esn1", micFrame(0, 0, 1))
 	if len(h.wake) != 0 {
 		t.Fatalf("detections %+v", h.wake)
+	}
+}
+
+// frameValue makes each mic frame's samples equal to its seq, so an extracted utterance shows which frames it
+// covers.
+func frameValue(seq uint32) mictap.Frame { return micFrame(seq, 0, int16(seq)) }
+
+func timed(text string, start, end float64) Word {
+	return Word{Text: text, Conf: 1, Start: start, End: end}
+}
+
+func TestFinalResultCarriesTheWholeUtterance(t *testing.T) {
+	// 100 frames = 1 s of audio; the final result arrives with the last one. The words span 0.40-0.70 s, so
+	// with the 0.3 s margins the utterance covers 0.10-1.00 s: frames 10..99.
+	final := result{final: true, words: []Word{timed("hola", 0.40, 0.50), timed("vector", 0.55, 0.70)}}
+	rec := &scriptedRecognizer{every: 100 * samplesPerFrame, results: []result{final}}
+	h := &recordingHandler{}
+	d := newDetector(t, rec, h, Config{})
+	d.Start("esn1", hello)
+	for seq := uint32(0); seq < 100; seq++ {
+		d.Frame("esn1", frameValue(seq))
+	}
+	var finals []Detection
+	for _, w := range h.wake {
+		if w.Final {
+			finals = append(finals, w)
+		}
+	}
+	if len(finals) != 1 {
+		t.Fatalf("final detections %+v", h.wake)
+	}
+	u := finals[0].Utterance
+	if len(u) != 90*samplesPerFrame || u[0] != 10 || u[len(u)-1] != 99 {
+		t.Fatalf("utterance %d samples, first %d, last %d", len(u), u[0], u[len(u)-1])
+	}
+	if finals[0].Text != "hola vector" {
+		t.Fatalf("text %q", finals[0].Text)
+	}
+}
+
+func TestEarlyAndFinalDetectionsForOneUtterance(t *testing.T) {
+	rec := &scriptedRecognizer{every: samplesPerFrame, results: []result{
+		{words: []Word{timed("vector", 0, 0.01)}},
+		{final: true, words: []Word{timed("vector", 0, 0.01), timed("hola", 0.01, 0.02)}},
+	}}
+	h := &recordingHandler{}
+	d := newDetector(t, rec, h, Config{})
+	d.Start("esn1", hello)
+	d.Frame("esn1", frameValue(0))
+	d.Frame("esn1", frameValue(1))
+	if len(h.wake) != 2 || h.wake[0].Final || !h.wake[1].Final || h.wake[1].Utterance == nil {
+		t.Fatalf("detections %+v", h.wake)
+	}
+}
+
+func TestFinalWithoutTheNameIsNotADetection(t *testing.T) {
+	rec := &scriptedRecognizer{every: samplesPerFrame, results: []result{
+		{final: true, words: []Word{timed("hola", 0, 0.01)}},
+	}}
+	h := &recordingHandler{}
+	d := newDetector(t, rec, h, Config{})
+	d.Start("esn1", hello)
+	d.Frame("esn1", frameValue(0))
+	if len(h.wake) != 0 {
+		t.Fatalf("detections %+v", h.wake)
+	}
+}
+
+func TestUtteranceOlderThanTheBufferIsClampedToWhatIsKept(t *testing.T) {
+	// The final claims the utterance started at 0 s, but only the last maxUtteranceSeconds are kept.
+	frames := uint32(maxUtteranceSeconds*100 + 50)
+	end := float64(frames) / 100
+	final := result{final: true, words: []Word{timed("vector", 0, end)}}
+	rec := &scriptedRecognizer{every: int(frames) * samplesPerFrame, results: []result{final}}
+	h := &recordingHandler{}
+	d := newDetector(t, rec, h, Config{})
+	d.Start("esn1", hello)
+	for seq := uint32(0); seq < frames; seq++ {
+		d.Frame("esn1", frameValue(seq))
+	}
+	u := h.wake[len(h.wake)-1].Utterance
+	if len(u) != maxUtteranceSeconds*micRate || u[0] != int16(frames-maxUtteranceSeconds*100) {
+		t.Fatalf("utterance %d samples starting at frame %d", len(u), u[0])
 	}
 }
