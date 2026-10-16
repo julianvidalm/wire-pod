@@ -33,6 +33,16 @@ go vet -tags nolibopusfile $(../.github/scripts/ci-packages.sh)
 go test -race -tags nolibopusfile $(../.github/scripts/ci-packages.sh)
 ```
 
+## MicTap receiver
+
+Robots stream what they hear (and play) to wire-pod with MicTap: the gRPC service `v3ctor.mictap.v1.MicTap` (`chipper/pkg/mictap/mictappb/mictap.proto`) on the same TLS server and port as chipper. The robot is the client, so no port is open on the robot and the link works across NAT boundaries; vic-cloud forwards the stream using the chipper address from the robot's `server_config.json` and the pinned wire-pod certificate. Each `Stream` call carries the robot's ESN in the `x-vector-esn` metadata and the MicTap v1 byte stream (hello, then mic, speaker and stats frames) in chunks.
+
+- `chipper/pkg/mictap`: v1 decoder, `Consume`, and the `Sink` port that consumers implement.
+- `chipper/pkg/servers/mictap`: the gRPC adapter.
+- `micTapSink` in `chipper/pkg/initwirepod/startserver.go`: the active sink. It logs each stream (start, robot drop totals, end with sequence gaps) until the wake word detector replaces it.
+
+The proto is canonical here; the firmware keeps an identical copy. Regenerate the Go code with `go generate ./pkg/mictap/mictappb/` (needs `protoc` and the plugin versions pinned in `generate.go`).
+
 ## Anthropic (Claude) provider
 
 Select **Anthropic (Claude)** under *Knowledge Graph API Provider* in the web UI (`http://localhost:8080`) and enter:

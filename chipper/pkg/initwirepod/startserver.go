@@ -14,8 +14,11 @@ import (
 	"github.com/digital-dream-labs/hugh/log"
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
 	"github.com/kercre123/wire-pod/chipper/pkg/mdnshandler"
+	"github.com/kercre123/wire-pod/chipper/pkg/mictap"
+	"github.com/kercre123/wire-pod/chipper/pkg/mictap/mictappb"
 	chipperserver "github.com/kercre123/wire-pod/chipper/pkg/servers/chipper"
 	jdocsserver "github.com/kercre123/wire-pod/chipper/pkg/servers/jdocs"
+	mictapserver "github.com/kercre123/wire-pod/chipper/pkg/servers/mictap"
 	tokenserver "github.com/kercre123/wire-pod/chipper/pkg/servers/token"
 	"github.com/kercre123/wire-pod/chipper/pkg/vars"
 	wpweb "github.com/kercre123/wire-pod/chipper/pkg/wirepod/config-ws"
@@ -53,6 +56,9 @@ func httpServe(l net.Listener) error {
 	return s.Serve(l)
 }
 
+// micTapSink receives every robot's MicTap stream; it only logs until the wake word detector consumes it.
+var micTapSink mictap.Sink = mictap.NewLogSink(logger.Println)
+
 func grpcServe(l net.Listener, p *wp.Server) error {
 	srv, err := grpcserver.New(
 		grpcserver.WithViper(),
@@ -76,6 +82,8 @@ func grpcServe(l net.Listener, p *wp.Server) error {
 	chipperpb.RegisterChipperGrpcServer(srv.Transport(), s)
 	jdocspb.RegisterJdocsServer(srv.Transport(), jdocsServer)
 	tokenpb.RegisterTokenServer(srv.Transport(), tokenServer)
+	// Robots stream their microphone here (MicTap); the robot is the client, see pkg/mictap.
+	mictappb.RegisterMicTapServer(srv.Transport(), mictapserver.New(micTapSink))
 
 	return srv.Transport().Serve(l)
 }

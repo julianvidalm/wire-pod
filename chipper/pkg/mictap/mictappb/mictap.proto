@@ -1,0 +1,30 @@
+// MicTap: Vector streams what it hears (and plays) to the cortex (wire-pod).
+//
+// The robot is the client: vic-cloud opens Stream on the wire-pod gRPC server it already uses for chipper
+// (host and port from /data/data/server_config.json, TLS with the pinned wire-pod certificate), so no port is
+// open on the robot and the link works across NAT boundaries.
+//
+// The canonical copy of this file lives in julianvidalm/wire-pod (chipper/pkg/mictap/mictappb/mictap.proto);
+// the firmware keeps an identical copy. Regenerate Go code with protoc-gen-go v1.36.6 and
+// protoc-gen-go-grpc v1.5.1 (see chipper/pkg/mictap/mictappb/generate.go).
+
+syntax = "proto3";
+
+package v3ctor.mictap.v1;
+
+option go_package = "github.com/kercre123/wire-pod/chipper/pkg/mictap/mictappb";
+
+service MicTap {
+  // Stream carries the MicTap v1 byte stream (one hello, then frames), split into chunks at any byte boundary.
+  // The robot sends its ESN in the "x-vector-esn" request metadata. The server answers when the stream ends.
+  rpc Stream(stream Chunk) returns (StreamSummary);
+}
+
+message Chunk {
+  bytes data = 1;
+}
+
+message StreamSummary {
+  uint64 mic_frames = 1;
+  uint64 speaker_frames = 2;
+}
