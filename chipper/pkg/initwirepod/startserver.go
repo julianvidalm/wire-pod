@@ -17,7 +17,6 @@ import (
 	"github.com/kercre123/wire-pod/chipper/pkg/mictap/mictappb"
 	chipperserver "github.com/kercre123/wire-pod/chipper/pkg/servers/chipper"
 	jdocsserver "github.com/kercre123/wire-pod/chipper/pkg/servers/jdocs"
-	mictapserver "github.com/kercre123/wire-pod/chipper/pkg/servers/mictap"
 	tokenserver "github.com/kercre123/wire-pod/chipper/pkg/servers/token"
 	"github.com/kercre123/wire-pod/chipper/pkg/vars"
 	wpweb "github.com/kercre123/wire-pod/chipper/pkg/wirepod/config-ws"
@@ -79,7 +78,7 @@ func grpcServe(l net.Listener, p *wp.Server) error {
 	jdocspb.RegisterJdocsServer(srv.Transport(), jdocsServer)
 	tokenpb.RegisterTokenServer(srv.Transport(), tokenServer)
 	// Robots stream their microphone here (MicTap); the robot is the client, see pkg/mictap.
-	mictappb.RegisterMicTapServer(srv.Transport(), mictapserver.New(micTapSink()))
+	mictappb.RegisterMicTapServer(srv.Transport(), micTapServer())
 
 	return srv.Transport().Serve(l)
 }

@@ -18,6 +18,33 @@ service MicTap {
   // Stream carries the MicTap v1 byte stream (one hello, then frames), split into chunks at any byte boundary.
   // The robot sends its ESN in the "x-vector-esn" request metadata. The server answers when the stream ends.
   rpc Stream(stream Chunk) returns (StreamSummary);
+
+  // Session is Stream plus a way back: the robot sends the same chunks, and the cortex sends commands for the
+  // robot to carry out (the answer to something it heard). The robot keeps the call open while MicTap runs,
+  // so the cortex never has to connect to the robot. Robots fall back to Stream when Session is unimplemented.
+  rpc Session(stream Chunk) returns (stream Command);
+}
+
+// Command is something the robot should do now.
+message Command {
+  oneof command {
+    // A chipper-style intent result, delivered to the engine as if it answered the robot's own voice request
+    // (for example intent_clock_time).
+    IntentResult intent_result = 1;
+    // Text for Vector to say, with its knowledge-graph animations.
+    KnowledgeResponse knowledge = 2;
+  }
+}
+
+message IntentResult {
+  string intent = 1;
+  string parameters_json = 2;
+  string metadata = 3;
+}
+
+message KnowledgeResponse {
+  string answer = 1;
+  string query_text = 2;
 }
 
 message Chunk {

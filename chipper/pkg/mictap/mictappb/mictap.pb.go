@@ -31,6 +31,204 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Command is something the robot should do now.
+type Command struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Command:
+	//
+	//	*Command_IntentResult
+	//	*Command_Knowledge
+	Command       isCommand_Command `protobuf_oneof:"command"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Command) Reset() {
+	*x = Command{}
+	mi := &file_mictap_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Command) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Command) ProtoMessage() {}
+
+func (x *Command) ProtoReflect() protoreflect.Message {
+	mi := &file_mictap_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Command.ProtoReflect.Descriptor instead.
+func (*Command) Descriptor() ([]byte, []int) {
+	return file_mictap_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Command) GetCommand() isCommand_Command {
+	if x != nil {
+		return x.Command
+	}
+	return nil
+}
+
+func (x *Command) GetIntentResult() *IntentResult {
+	if x != nil {
+		if x, ok := x.Command.(*Command_IntentResult); ok {
+			return x.IntentResult
+		}
+	}
+	return nil
+}
+
+func (x *Command) GetKnowledge() *KnowledgeResponse {
+	if x != nil {
+		if x, ok := x.Command.(*Command_Knowledge); ok {
+			return x.Knowledge
+		}
+	}
+	return nil
+}
+
+type isCommand_Command interface {
+	isCommand_Command()
+}
+
+type Command_IntentResult struct {
+	// A chipper-style intent result, delivered to the engine as if it answered the robot's own voice request
+	// (for example intent_clock_time).
+	IntentResult *IntentResult `protobuf:"bytes,1,opt,name=intent_result,json=intentResult,proto3,oneof"`
+}
+
+type Command_Knowledge struct {
+	// Text for Vector to say, with its knowledge-graph animations.
+	Knowledge *KnowledgeResponse `protobuf:"bytes,2,opt,name=knowledge,proto3,oneof"`
+}
+
+func (*Command_IntentResult) isCommand_Command() {}
+
+func (*Command_Knowledge) isCommand_Command() {}
+
+type IntentResult struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Intent         string                 `protobuf:"bytes,1,opt,name=intent,proto3" json:"intent,omitempty"`
+	ParametersJson string                 `protobuf:"bytes,2,opt,name=parameters_json,json=parametersJson,proto3" json:"parameters_json,omitempty"`
+	Metadata       string                 `protobuf:"bytes,3,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *IntentResult) Reset() {
+	*x = IntentResult{}
+	mi := &file_mictap_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IntentResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IntentResult) ProtoMessage() {}
+
+func (x *IntentResult) ProtoReflect() protoreflect.Message {
+	mi := &file_mictap_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IntentResult.ProtoReflect.Descriptor instead.
+func (*IntentResult) Descriptor() ([]byte, []int) {
+	return file_mictap_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *IntentResult) GetIntent() string {
+	if x != nil {
+		return x.Intent
+	}
+	return ""
+}
+
+func (x *IntentResult) GetParametersJson() string {
+	if x != nil {
+		return x.ParametersJson
+	}
+	return ""
+}
+
+func (x *IntentResult) GetMetadata() string {
+	if x != nil {
+		return x.Metadata
+	}
+	return ""
+}
+
+type KnowledgeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Answer        string                 `protobuf:"bytes,1,opt,name=answer,proto3" json:"answer,omitempty"`
+	QueryText     string                 `protobuf:"bytes,2,opt,name=query_text,json=queryText,proto3" json:"query_text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KnowledgeResponse) Reset() {
+	*x = KnowledgeResponse{}
+	mi := &file_mictap_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KnowledgeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KnowledgeResponse) ProtoMessage() {}
+
+func (x *KnowledgeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mictap_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KnowledgeResponse.ProtoReflect.Descriptor instead.
+func (*KnowledgeResponse) Descriptor() ([]byte, []int) {
+	return file_mictap_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *KnowledgeResponse) GetAnswer() string {
+	if x != nil {
+		return x.Answer
+	}
+	return ""
+}
+
+func (x *KnowledgeResponse) GetQueryText() string {
+	if x != nil {
+		return x.QueryText
+	}
+	return ""
+}
+
 type Chunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
@@ -40,7 +238,7 @@ type Chunk struct {
 
 func (x *Chunk) Reset() {
 	*x = Chunk{}
-	mi := &file_mictap_proto_msgTypes[0]
+	mi := &file_mictap_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -52,7 +250,7 @@ func (x *Chunk) String() string {
 func (*Chunk) ProtoMessage() {}
 
 func (x *Chunk) ProtoReflect() protoreflect.Message {
-	mi := &file_mictap_proto_msgTypes[0]
+	mi := &file_mictap_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -65,7 +263,7 @@ func (x *Chunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Chunk.ProtoReflect.Descriptor instead.
 func (*Chunk) Descriptor() ([]byte, []int) {
-	return file_mictap_proto_rawDescGZIP(), []int{0}
+	return file_mictap_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Chunk) GetData() []byte {
@@ -85,7 +283,7 @@ type StreamSummary struct {
 
 func (x *StreamSummary) Reset() {
 	*x = StreamSummary{}
-	mi := &file_mictap_proto_msgTypes[1]
+	mi := &file_mictap_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -97,7 +295,7 @@ func (x *StreamSummary) String() string {
 func (*StreamSummary) ProtoMessage() {}
 
 func (x *StreamSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_mictap_proto_msgTypes[1]
+	mi := &file_mictap_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -110,7 +308,7 @@ func (x *StreamSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamSummary.ProtoReflect.Descriptor instead.
 func (*StreamSummary) Descriptor() ([]byte, []int) {
-	return file_mictap_proto_rawDescGZIP(), []int{1}
+	return file_mictap_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *StreamSummary) GetMicFrames() uint64 {
@@ -131,15 +329,28 @@ var File_mictap_proto protoreflect.FileDescriptor
 
 const file_mictap_proto_rawDesc = "" +
 	"\n" +
-	"\fmictap.proto\x12\x10v3ctor.mictap.v1\"\x1b\n" +
+	"\fmictap.proto\x12\x10v3ctor.mictap.v1\"\xa0\x01\n" +
+	"\aCommand\x12E\n" +
+	"\rintent_result\x18\x01 \x01(\v2\x1e.v3ctor.mictap.v1.IntentResultH\x00R\fintentResult\x12C\n" +
+	"\tknowledge\x18\x02 \x01(\v2#.v3ctor.mictap.v1.KnowledgeResponseH\x00R\tknowledgeB\t\n" +
+	"\acommand\"k\n" +
+	"\fIntentResult\x12\x16\n" +
+	"\x06intent\x18\x01 \x01(\tR\x06intent\x12'\n" +
+	"\x0fparameters_json\x18\x02 \x01(\tR\x0eparametersJson\x12\x1a\n" +
+	"\bmetadata\x18\x03 \x01(\tR\bmetadata\"J\n" +
+	"\x11KnowledgeResponse\x12\x16\n" +
+	"\x06answer\x18\x01 \x01(\tR\x06answer\x12\x1d\n" +
+	"\n" +
+	"query_text\x18\x02 \x01(\tR\tqueryText\"\x1b\n" +
 	"\x05Chunk\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\"U\n" +
 	"\rStreamSummary\x12\x1d\n" +
 	"\n" +
 	"mic_frames\x18\x01 \x01(\x04R\tmicFrames\x12%\n" +
-	"\x0espeaker_frames\x18\x02 \x01(\x04R\rspeakerFrames2N\n" +
+	"\x0espeaker_frames\x18\x02 \x01(\x04R\rspeakerFrames2\x91\x01\n" +
 	"\x06MicTap\x12D\n" +
-	"\x06Stream\x12\x17.v3ctor.mictap.v1.Chunk\x1a\x1f.v3ctor.mictap.v1.StreamSummary(\x01B;Z9github.com/kercre123/wire-pod/chipper/pkg/mictap/mictappbb\x06proto3"
+	"\x06Stream\x12\x17.v3ctor.mictap.v1.Chunk\x1a\x1f.v3ctor.mictap.v1.StreamSummary(\x01\x12A\n" +
+	"\aSession\x12\x17.v3ctor.mictap.v1.Chunk\x1a\x19.v3ctor.mictap.v1.Command(\x010\x01B;Z9github.com/kercre123/wire-pod/chipper/pkg/mictap/mictappbb\x06proto3"
 
 var (
 	file_mictap_proto_rawDescOnce sync.Once
@@ -153,19 +364,26 @@ func file_mictap_proto_rawDescGZIP() []byte {
 	return file_mictap_proto_rawDescData
 }
 
-var file_mictap_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_mictap_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_mictap_proto_goTypes = []any{
-	(*Chunk)(nil),         // 0: v3ctor.mictap.v1.Chunk
-	(*StreamSummary)(nil), // 1: v3ctor.mictap.v1.StreamSummary
+	(*Command)(nil),           // 0: v3ctor.mictap.v1.Command
+	(*IntentResult)(nil),      // 1: v3ctor.mictap.v1.IntentResult
+	(*KnowledgeResponse)(nil), // 2: v3ctor.mictap.v1.KnowledgeResponse
+	(*Chunk)(nil),             // 3: v3ctor.mictap.v1.Chunk
+	(*StreamSummary)(nil),     // 4: v3ctor.mictap.v1.StreamSummary
 }
 var file_mictap_proto_depIdxs = []int32{
-	0, // 0: v3ctor.mictap.v1.MicTap.Stream:input_type -> v3ctor.mictap.v1.Chunk
-	1, // 1: v3ctor.mictap.v1.MicTap.Stream:output_type -> v3ctor.mictap.v1.StreamSummary
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: v3ctor.mictap.v1.Command.intent_result:type_name -> v3ctor.mictap.v1.IntentResult
+	2, // 1: v3ctor.mictap.v1.Command.knowledge:type_name -> v3ctor.mictap.v1.KnowledgeResponse
+	3, // 2: v3ctor.mictap.v1.MicTap.Stream:input_type -> v3ctor.mictap.v1.Chunk
+	3, // 3: v3ctor.mictap.v1.MicTap.Session:input_type -> v3ctor.mictap.v1.Chunk
+	4, // 4: v3ctor.mictap.v1.MicTap.Stream:output_type -> v3ctor.mictap.v1.StreamSummary
+	0, // 5: v3ctor.mictap.v1.MicTap.Session:output_type -> v3ctor.mictap.v1.Command
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_mictap_proto_init() }
@@ -173,13 +391,17 @@ func file_mictap_proto_init() {
 	if File_mictap_proto != nil {
 		return
 	}
+	file_mictap_proto_msgTypes[0].OneofWrappers = []any{
+		(*Command_IntentResult)(nil),
+		(*Command_Knowledge)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mictap_proto_rawDesc), len(file_mictap_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

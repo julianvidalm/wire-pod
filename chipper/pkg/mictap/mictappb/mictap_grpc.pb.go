@@ -29,7 +29,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MicTap_Stream_FullMethodName = "/v3ctor.mictap.v1.MicTap/Stream"
+	MicTap_Stream_FullMethodName  = "/v3ctor.mictap.v1.MicTap/Stream"
+	MicTap_Session_FullMethodName = "/v3ctor.mictap.v1.MicTap/Session"
 )
 
 // MicTapClient is the client API for MicTap service.
@@ -39,6 +40,10 @@ type MicTapClient interface {
 	// Stream carries the MicTap v1 byte stream (one hello, then frames), split into chunks at any byte boundary.
 	// The robot sends its ESN in the "x-vector-esn" request metadata. The server answers when the stream ends.
 	Stream(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[Chunk, StreamSummary], error)
+	// Session is Stream plus a way back: the robot sends the same chunks, and the cortex sends commands for the
+	// robot to carry out (the answer to something it heard). The robot keeps the call open while MicTap runs,
+	// so the cortex never has to connect to the robot. Robots fall back to Stream when Session is unimplemented.
+	Session(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Chunk, Command], error)
 }
 
 type micTapClient struct {
@@ -62,6 +67,19 @@ func (c *micTapClient) Stream(ctx context.Context, opts ...grpc.CallOption) (grp
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type MicTap_StreamClient = grpc.ClientStreamingClient[Chunk, StreamSummary]
 
+func (c *micTapClient) Session(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Chunk, Command], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &MicTap_ServiceDesc.Streams[1], MicTap_Session_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[Chunk, Command]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MicTap_SessionClient = grpc.BidiStreamingClient[Chunk, Command]
+
 // MicTapServer is the server API for MicTap service.
 // All implementations must embed UnimplementedMicTapServer
 // for forward compatibility.
@@ -69,6 +87,10 @@ type MicTapServer interface {
 	// Stream carries the MicTap v1 byte stream (one hello, then frames), split into chunks at any byte boundary.
 	// The robot sends its ESN in the "x-vector-esn" request metadata. The server answers when the stream ends.
 	Stream(grpc.ClientStreamingServer[Chunk, StreamSummary]) error
+	// Session is Stream plus a way back: the robot sends the same chunks, and the cortex sends commands for the
+	// robot to carry out (the answer to something it heard). The robot keeps the call open while MicTap runs,
+	// so the cortex never has to connect to the robot. Robots fall back to Stream when Session is unimplemented.
+	Session(grpc.BidiStreamingServer[Chunk, Command]) error
 	mustEmbedUnimplementedMicTapServer()
 }
 
@@ -81,6 +103,9 @@ type UnimplementedMicTapServer struct{}
 
 func (UnimplementedMicTapServer) Stream(grpc.ClientStreamingServer[Chunk, StreamSummary]) error {
 	return status.Errorf(codes.Unimplemented, "method Stream not implemented")
+}
+func (UnimplementedMicTapServer) Session(grpc.BidiStreamingServer[Chunk, Command]) error {
+	return status.Errorf(codes.Unimplemented, "method Session not implemented")
 }
 func (UnimplementedMicTapServer) mustEmbedUnimplementedMicTapServer() {}
 func (UnimplementedMicTapServer) testEmbeddedByValue()                {}
@@ -110,6 +135,13 @@ func _MicTap_Stream_Handler(srv interface{}, stream grpc.ServerStream) error {
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type MicTap_StreamServer = grpc.ClientStreamingServer[Chunk, StreamSummary]
 
+func _MicTap_Session_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(MicTapServer).Session(&grpc.GenericServerStream[Chunk, Command]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MicTap_SessionServer = grpc.BidiStreamingServer[Chunk, Command]
+
 // MicTap_ServiceDesc is the grpc.ServiceDesc for MicTap service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -121,6 +153,12 @@ var MicTap_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Stream",
 			Handler:       _MicTap_Stream_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "Session",
+			Handler:       _MicTap_Session_Handler,
+			ServerStreams: true,
 			ClientStreams: true,
 		},
 	},
