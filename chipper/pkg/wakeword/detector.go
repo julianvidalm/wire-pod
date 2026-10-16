@@ -66,6 +66,10 @@ type Config struct {
 	// a robot sends speaker audio, it decides instead of the speaker-active flag, which vic-anim raises whenever
 	// its audio sink is open, even while it plays silence.
 	SpeakerGateRMS float64
+	// GateOnMotion also hides the mic while Vector moves. Off by default: Vector turns its head toward
+	// whoever talks, so motion gating hid half of the user's sentence, and its motors do not sound like its
+	// name.
+	GateOnMotion bool
 	// CooldownMs ignores further detections for this long after one, so one call does not wake the robot twice.
 	CooldownMs uint64
 	Logf       func(a ...any)
@@ -187,7 +191,7 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 	if moving {
 		s.moving++
 	}
-	if speaking || moving {
+	if speaking || (moving && d.cfg.GateOnMotion) {
 		s.gatedUntil = f.Timestamp + d.cfg.HoldoffMs
 		if speaking && s.speakerFed {
 			// The holdoff runs from the end of the audible buffer, not from the mic frame that overlapped it.

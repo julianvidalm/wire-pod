@@ -119,7 +119,7 @@ func TestDetectorIgnoresUtterancesWithoutTheName(t *testing.T) {
 
 func TestDetectorFeedsSilenceWhileVectorSpeaksOrMovesAndForTheHoldoff(t *testing.T) {
 	rec := &scriptedRecognizer{every: 1 << 30}
-	d := newDetector(t, rec, &recordingHandler{}, Config{HoldoffMs: 20})
+	d := newDetector(t, rec, &recordingHandler{}, Config{HoldoffMs: 20, GateOnMotion: true})
 	d.Start("esn1", hello)
 	d.Frame("esn1", micFrame(0, 0, 7))                           // heard
 	d.Frame("esn1", micFrame(1, mictap.MicFlagSpeakerActive, 7)) // Vector speaking: silence
@@ -348,7 +348,7 @@ func TestUtteranceKeepsTheRealAudioOfGatedFrames(t *testing.T) {
 	final := result{final: true, words: []Word{timed("vector", 0.30, 0.70)}}
 	rec := &scriptedRecognizer{every: 100 * samplesPerFrame, results: []result{final}}
 	h := &recordingHandler{}
-	d := newDetector(t, rec, h, Config{HoldoffMs: 0})
+	d := newDetector(t, rec, h, Config{HoldoffMs: 0, GateOnMotion: true})
 	d.Start("esn1", hello)
 	for seq := uint32(0); seq < 100; seq++ {
 		var flags uint8
@@ -423,6 +423,22 @@ func TestAudibleSpeakerOutputGatesUntilTheHoldoffAfterIt(t *testing.T) {
 	for i, real := range heard {
 		if want := i < 10 || i >= 44; real != want {
 			t.Fatalf("mic frame %d heard=%v, want %v (all: %v)", i, real, want, heard)
+		}
+	}
+}
+
+func TestMotionDoesNotGateByDefault(t *testing.T) {
+	// Vector turns its head toward whoever talks; gating on motion hid half of the user's sentence, and its
+	// motors do not sound like its name.
+	rec := &scriptedRecognizer{every: 1 << 30}
+	d := newDetector(t, rec, &recordingHandler{}, Config{HoldoffMs: 300})
+	d.Start("esn1", hello)
+	for seq := uint32(0); seq < 10; seq++ {
+		d.Frame("esn1", micFrame(seq, mictap.MicFlagRobotMoving, 7))
+	}
+	for i, real := range heardFrames(rec) {
+		if !real {
+			t.Fatalf("mic frame %d was gated for motion", i)
 		}
 	}
 }
