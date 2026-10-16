@@ -94,12 +94,17 @@ func (rec *recording) close() {
 	rec.speaker.close()
 }
 
-// wavFile is a mono 16-bit PCM WAV whose header is rewritten with the final length on close.
+// headerEvery: the WAV header is rewritten with the current length every this many writes (about a second of
+// mic frames), so a recording can be read while the session still runs.
+const headerEvery = 100
+
+// wavFile is a mono 16-bit PCM WAV whose header follows the length written so far.
 type wavFile struct {
-	mu   sync.Mutex
-	f    *os.File
-	rate uint32
-	data uint32
+	mu     sync.Mutex
+	f      *os.File
+	rate   uint32
+	data   uint32
+	writes int
 }
 
 func (w *wavFile) header() error {
@@ -129,6 +134,9 @@ func (w *wavFile) write(pcm []byte) {
 	defer w.mu.Unlock()
 	if _, err := w.f.WriteAt(pcm, 44+int64(w.data)); err == nil {
 		w.data += uint32(len(pcm))
+	}
+	if w.writes++; w.writes%headerEvery == 0 {
+		w.header()
 	}
 }
 

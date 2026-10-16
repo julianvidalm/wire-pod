@@ -60,3 +60,18 @@ func TestRecordSinkWithoutDirectoryAccessKeepsTheStreamGoing(t *testing.T) {
 	r.Frame("esn1", pcmFrame(FrameMic, 0, 1))
 	r.End("esn1", nil)
 }
+
+func TestRecordingIsReadableWhileTheSessionRuns(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	for seq := uint32(0); seq < 2*headerEvery; seq++ {
+		r.Frame("esn1", pcmFrame(FrameMic, seq, 5))
+	}
+	_, mic := readWAV(t, filepath.Join(dir, "esn1_20261016-170000_mic.wav"))
+	if len(mic) != 2*headerEvery {
+		t.Fatalf("readable samples %d, want %d", len(mic), 2*headerEvery)
+	}
+	r.End("esn1", nil)
+}
