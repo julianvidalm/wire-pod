@@ -2,12 +2,14 @@ package wirepod_whispercpp
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	whisper "github.com/kercre123/whisper.cpp/bindings/go"
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
@@ -154,8 +156,14 @@ func TranscribePCM(pcm []int16) (string, error) {
 }
 
 func process(data []float32) (string, error) {
+	asked := time.Now()
 	whisperMu.Lock()
 	defer whisperMu.Unlock()
+	started := time.Now()
+	defer func() {
+		logger.Println(fmt.Sprintf("Whisper: %.1f s of audio in %s (waited %s for another transcription)",
+			float64(len(data))/16000, time.Since(started).Round(time.Millisecond), started.Sub(asked).Round(time.Millisecond)))
+	}()
 	// Encode only as much of whisper's 30 s window as the utterance needs: several times faster for a short
 	// question, which otherwise outlasted the robot's wait for an answer.
 	params.SetAudioCtx(whisperlang.AudioCtx(len(data)))

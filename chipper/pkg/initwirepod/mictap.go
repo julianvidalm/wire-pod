@@ -60,6 +60,7 @@ func newMicTapSink() mictap.Sink {
 		HoldoffMs:  300,
 		CooldownMs: 1500,
 		Logf:       logger.Println,
+		Debug:      os.Getenv("WAKEWORD_DEBUG") == "1",
 	})
 	logger.Println("Wake word detector on, model", dir)
 	return mictap.Tee(logSink, detector)

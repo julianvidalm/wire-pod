@@ -2,6 +2,7 @@ package wakeword
 
 import (
 	"encoding/binary"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -59,6 +60,9 @@ type Config struct {
 	// CooldownMs ignores further detections for this long after one, so one call does not wake the robot twice.
 	CooldownMs uint64
 	Logf       func(a ...any)
+	// Debug logs every utterance the recognizer closes, with how many frames it got and how many were gated,
+	// to diagnose missed names.
+	Debug bool
 }
 
 // Detector implements mictap.Sink: one recognizer per robot stream.
@@ -78,6 +82,8 @@ type session struct {
 	woke       bool
 	seen       []float64 // start times of names already handled in the current utterance
 	ring       []int16   // the last maxUtteranceSeconds of audio given to the recognizer
+	frames     int       // mic frames since the last final result (Debug)
+	gated      int       // of those, replaced by silence (Debug)
 	fed        int       // samples given to the recognizer since it started (the clock of its word times)
 }
 
@@ -142,11 +148,14 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	audio := s.pcm
+	s.frames++
 	if f.Flags&(mictap.MicFlagSpeakerActive|mictap.MicFlagRobotMoving) != 0 {
 		s.gatedUntil = f.Timestamp + d.cfg.HoldoffMs
 		audio = s.silence
+		s.gated++
 	} else if f.Timestamp < s.gatedUntil {
 		audio = s.silence
+		s.gated++
 	} else {
 		for i := range s.pcm {
 			s.pcm[i] = int16(binary.LittleEndian.Uint16(f.Payload[2*i:]))
@@ -172,6 +181,10 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 		d.cfg.Handler.OnWake(Detection{ESN: esn, Word: w, Text: text(utterance), FrameTimestamp: f.Timestamp})
 	}
 	if final {
+		if d.cfg.Debug {
+			d.cfg.Logf(fmt.Sprintf("wakeword: %s heard %q (%d frames, %d gated)", esn, text(utterance), s.frames, s.gated))
+		}
+		s.frames, s.gated = 0, 0
 		s.seen = s.seen[:0]
 		if names := d.cfg.Matcher.MatchAll(utterance); len(names) > 0 {
 			first, last := utterance[0], utterance[len(utterance)-1]
