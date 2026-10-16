@@ -3,7 +3,10 @@ package initwirepod
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
 	"github.com/kercre123/wire-pod/chipper/pkg/mictap"
@@ -72,6 +75,7 @@ func (logWake) OnWake(d wakeword.Detection) {
 	if d.Final {
 		logger.Println(fmt.Sprintf("Wake word: %s finished a sentence with the name (%.1f s): %q",
 			d.ESN, float64(len(d.Utterance))/16000, d.Text))
+		dumpUtterance(d)
 		return
 	}
 	logger.Println(fmt.Sprintf("Wake word: %s heard %q (confidence %.2f) in %q", d.ESN, d.Word.Text, d.Word.Conf, d.Text))
@@ -83,5 +87,28 @@ type handlers []wakeword.Handler
 func (hs handlers) OnWake(d wakeword.Detection) {
 	for _, h := range hs {
 		h.OnWake(d)
+	}
+}
+
+// dumpUtterance saves each sentence with the name as a WAV in WAKEWORD_DUMP_DIR, when set, to evaluate
+// recognizers offline. The file name carries what Vosk heard.
+func dumpUtterance(d wakeword.Detection) {
+	dir := os.Getenv("WAKEWORD_DUMP_DIR")
+	if dir == "" {
+		return
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		logger.Println("Wake word: cannot dump utterance:", err)
+		return
+	}
+	name := time.Now().Format("20060102-150405") + "_" + strings.ReplaceAll(d.Text, " ", "-") + ".wav"
+	f, err := os.OpenFile(filepath.Join(dir, filepath.Base(name)), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		logger.Println("Wake word: cannot dump utterance:", err)
+		return
+	}
+	defer f.Close()
+	if err := wakeword.WriteWAV(f, d.Utterance); err != nil {
+		logger.Println("Wake word: cannot dump utterance:", err)
 	}
 }

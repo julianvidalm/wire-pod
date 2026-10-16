@@ -341,3 +341,26 @@ func TestUtteranceOlderThanTheBufferIsClampedToWhatIsKept(t *testing.T) {
 		t.Fatalf("utterance %d samples starting at frame %d", len(u), u[0])
 	}
 }
+
+func TestUtteranceKeepsTheRealAudioOfGatedFrames(t *testing.T) {
+	// Gating hides Vector's own voice and motors from the name detector, but the user's sentence often
+	// overlaps them; the better recognizer gets the real audio, not the silence the detector heard.
+	final := result{final: true, words: []Word{timed("vector", 0.30, 0.70)}}
+	rec := &scriptedRecognizer{every: 100 * samplesPerFrame, results: []result{final}}
+	h := &recordingHandler{}
+	d := newDetector(t, rec, h, Config{HoldoffMs: 0})
+	d.Start("esn1", hello)
+	for seq := uint32(0); seq < 100; seq++ {
+		var flags uint8
+		if seq >= 40 && seq < 60 {
+			flags = mictap.MicFlagRobotMoving
+		}
+		d.Frame("esn1", micFrame(seq, flags, int16(seq+1)))
+	}
+	u := h.wake[len(h.wake)-1].Utterance
+	for i, v := range u {
+		if v == 0 {
+			t.Fatalf("sample %d of the utterance is silence: gated audio was not kept", i)
+		}
+	}
+}

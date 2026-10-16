@@ -83,7 +83,9 @@ type session struct {
 	seen       []float64 // start times of names already handled in the current utterance
 	ring       []int16   // the last maxUtteranceSeconds of audio given to the recognizer
 	frames     int       // mic frames since the last final result (Debug)
-	gated      int       // of those, replaced by silence (Debug)
+	gated      int       // of those, replaced by silence for the recognizer (Debug)
+	speaking   int       // of those, flagged as Vector speaking (Debug)
+	moving     int       // of those, flagged as Vector moving (Debug)
 	fed        int       // samples given to the recognizer since it started (the clock of its word times)
 }
 
@@ -147,8 +149,20 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for i := range s.pcm {
+		s.pcm[i] = int16(binary.LittleEndian.Uint16(f.Payload[2*i:]))
+	}
+	// The utterance keeps the real audio: the user's sentence often overlaps Vector's voice or motors, and the
+	// better recognizer that transcribes it copes with them. Only the name detector hears silence there.
+	s.record(s.pcm)
 	audio := s.pcm
 	s.frames++
+	if f.Flags&mictap.MicFlagSpeakerActive != 0 {
+		s.speaking++
+	}
+	if f.Flags&mictap.MicFlagRobotMoving != 0 {
+		s.moving++
+	}
 	if f.Flags&(mictap.MicFlagSpeakerActive|mictap.MicFlagRobotMoving) != 0 {
 		s.gatedUntil = f.Timestamp + d.cfg.HoldoffMs
 		audio = s.silence
@@ -156,12 +170,7 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 	} else if f.Timestamp < s.gatedUntil {
 		audio = s.silence
 		s.gated++
-	} else {
-		for i := range s.pcm {
-			s.pcm[i] = int16(binary.LittleEndian.Uint16(f.Payload[2*i:]))
-		}
 	}
-	s.record(audio)
 	utterance, final, err := s.rec.Accept(audio)
 	if err != nil {
 		d.cfg.Logf("wakeword: ", esn, ": ", err)
@@ -182,9 +191,10 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 	}
 	if final {
 		if d.cfg.Debug {
-			d.cfg.Logf(fmt.Sprintf("wakeword: %s heard %q (%d frames, %d gated)", esn, text(utterance), s.frames, s.gated))
+			d.cfg.Logf(fmt.Sprintf("wakeword: %s heard %q (%d frames, %d gated: %d speaking, %d moving)",
+				esn, text(utterance), s.frames, s.gated, s.speaking, s.moving))
 		}
-		s.frames, s.gated = 0, 0
+		s.frames, s.gated, s.speaking, s.moving = 0, 0, 0, 0
 		s.seen = s.seen[:0]
 		if names := d.cfg.Matcher.MatchAll(utterance); len(names) > 0 {
 			first, last := utterance[0], utterance[len(utterance)-1]
