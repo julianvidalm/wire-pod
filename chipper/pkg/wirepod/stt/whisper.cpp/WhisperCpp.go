@@ -12,12 +12,17 @@ import (
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
 	"github.com/kercre123/wire-pod/chipper/pkg/vars"
 	sr "github.com/kercre123/wire-pod/chipper/pkg/wirepod/speechrequest"
+	"github.com/kercre123/wire-pod/chipper/pkg/wirepod/stt/whisperlang"
 )
 
 var Name string = "whisper.cpp"
 
 var context *whisper.Context
 var params whisper.Params
+
+// languageIDs are the languages the user speaks (WHISPER_LANGUAGES, for example "en,es"). When set, each
+// utterance is transcribed in whichever of them whisper finds most likely, instead of one fixed language.
+var languageIDs []int
 
 func padPCM(data []byte) []byte {
 	const sampleRate = 16000
@@ -72,7 +77,37 @@ func Init() error {
 	params.SetNoContext(true)
 	params.SetSingleSegment(true)
 	params.SetLanguage(context.Whisper_lang_id(sttLanguage))
+	for _, code := range whisperlang.ParseAllowed(os.Getenv("WHISPER_LANGUAGES")) {
+		if id := context.Whisper_lang_id(code); id >= 0 {
+			languageIDs = append(languageIDs, id)
+		} else {
+			logger.Println("Whisper: unknown language in WHISPER_LANGUAGES: " + code)
+		}
+	}
+	if len(languageIDs) > 0 {
+		logger.Println("Whisper: choosing the language of each utterance among " + os.Getenv("WHISPER_LANGUAGES"))
+	}
 	return nil
+}
+
+// chooseLanguage sets the transcription language to the most likely of languageIDs for this audio.
+func chooseLanguage(data []float32) {
+	if len(languageIDs) == 0 {
+		return
+	}
+	threads := runtime.NumCPU()
+	if err := context.Whisper_pcm_to_mel(data, threads); err != nil {
+		logger.Println("Whisper: language detection skipped:", err)
+		return
+	}
+	probs, err := context.Whisper_lang_auto_detect(0, threads)
+	if err != nil {
+		logger.Println("Whisper: language detection skipped:", err)
+		return
+	}
+	id := whisperlang.Pick(probs, languageIDs)
+	params.SetLanguage(id)
+	logger.Println("Whisper: detected language " + whisper.Whisper_lang_str(id))
 }
 
 func STT(req sr.SpeechRequest) (string, error) {
@@ -100,6 +135,7 @@ func STT(req sr.SpeechRequest) (string, error) {
 }
 
 func process(data []float32) (string, error) {
+	chooseLanguage(data)
 	var transcribedText string
 	context.Whisper_full(params, data, nil, func(_ int) {
 		transcribedText = strings.TrimSpace(context.Whisper_full_get_segment_text(0))
