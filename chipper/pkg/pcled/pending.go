@@ -24,9 +24,15 @@ type Pending struct {
 	now         func() time.Time
 }
 
+// Utterance is what the robot's user said and the language it was said in ("" when not detected).
+type Utterance struct {
+	Text string
+	Lang string
+}
+
 type pendingUtterance struct {
-	text string
-	at   time.Time
+	Utterance
+	at time.Time
 }
 
 func NewPending(ttl time.Duration) *Pending {
@@ -34,22 +40,22 @@ func NewPending(ttl time.Duration) *Pending {
 }
 
 // Set records what the robot's user just said; a newer utterance replaces an older one.
-func (p *Pending) Set(esn, text string) {
+func (p *Pending) Set(esn, text, lang string) {
 	p.mu.Lock()
-	p.byESN[esn] = pendingUtterance{text: text, at: p.now()}
+	p.byESN[esn] = pendingUtterance{Utterance: Utterance{Text: text, Lang: lang}, at: p.now()}
 	p.mu.Unlock()
 }
 
 // Take returns the robot's pending utterance once, if it is still fresh.
-func (p *Pending) Take(esn string) (string, bool) {
+func (p *Pending) Take(esn string) (Utterance, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	u, ok := p.byESN[esn]
 	delete(p.byESN, esn)
 	if !ok || p.now().Sub(u.at) > p.ttl {
-		return "", false
+		return Utterance{}, false
 	}
-	return u.text, true
+	return u.Utterance, true
 }
 
 // markRequest records that the robot just made a voice request.
@@ -68,16 +74,21 @@ func (p *Pending) requestedWithin(esn string, d time.Duration) bool {
 }
 
 // WrapSTT returns a speech-to-text handler that answers a robot's voice request with its pending utterance
-// when there is one, and otherwise transcribes the robot's audio with stt as before.
-func WrapSTT(stt func(sr.SpeechRequest) (string, error), pending *Pending, logf func(a ...any)) func(sr.SpeechRequest) (string, error) {
+// when there is one, and otherwise transcribes the robot's audio with stt as before. setLanguage, when not
+// nil, receives the pending utterance's language so its intents are matched in that language.
+func WrapSTT(stt func(sr.SpeechRequest) (string, error), pending *Pending, setLanguage func(device, lang string),
+	logf func(a ...any)) func(sr.SpeechRequest) (string, error) {
 	if logf == nil {
 		logf = func(...any) {}
 	}
 	return func(req sr.SpeechRequest) (string, error) {
 		pending.markRequest(req.Device)
-		if text, ok := pending.Take(req.Device); ok {
-			logf("Bot " + req.Device + " answered with what the PC heard: " + text)
-			return text, nil
+		if u, ok := pending.Take(req.Device); ok {
+			logf("Bot " + req.Device + " answered with what the PC heard: " + u.Text)
+			if setLanguage != nil && u.Lang != "" {
+				setLanguage(req.Device, u.Lang)
+			}
+			return u.Text, nil
 		}
 		return stt(req)
 	}

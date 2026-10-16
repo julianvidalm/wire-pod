@@ -25,7 +25,7 @@ func (s *Server) ProcessIntentGraph(req *vtt.IntentGraphRequest) (*vtt.IntentGra
 			ttr.IntentPass(req, "intent_system_noaudio", "", map[string]string{}, false)
 			return nil, nil
 		}
-		successMatched = ttr.ProcessTextAll(req, transcribedText, vars.IntentList, speechReq.IsOpus)
+		successMatched = ttr.ProcessTextAll(req, transcribedText, vars.IntentsFor(vars.UtteranceLanguage(speechReq.Device)), speechReq.IsOpus)
 	} else {
 		intent, slots, err := stiHandler(speechReq)
 		if err != nil {

@@ -93,7 +93,7 @@ func BeginWirepodSpecific(sttInitFunc func() error, sttHandlerFunc interface{}, 
 	var err error
 	// A voice request the PC already heard (PC-led conversation) is answered with that utterance.
 	if stt, ok := sttHandlerFunc.(func(sr.SpeechRequest) (string, error)); ok {
-		sttHandlerFunc = pcled.WrapSTT(stt, pcPending, logger.Println)
+		sttHandlerFunc = pcled.WrapSTT(stt, pcPending, vars.SetUtteranceLanguage, logger.Println)
 	}
 	voiceProcessor, err = wp.New(sttInitFunc, sttHandlerFunc, voiceProcessorName)
 	wpweb.SttInitFunc = sttInitFunc

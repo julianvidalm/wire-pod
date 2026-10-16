@@ -11,8 +11,9 @@ import (
 // is not woken again for the same sentence.
 const recentRequestWindow = 8 * time.Second
 
-// Transcriber turns an utterance (16 kHz mono) into text; wire-pod's whisper provides it.
-type Transcriber func(pcm []int16) (string, error)
+// Transcriber turns an utterance (16 kHz mono) into text and its language ("" when not detected); wire-pod's
+// whisper provides it.
+type Transcriber func(pcm []int16) (text, lang string, err error)
 
 // CommandSender reaches a robot over its MicTap session.
 type CommandSender interface {
@@ -45,12 +46,12 @@ func (r *Responder) respond(d wakeword.Detection) {
 		return
 	}
 	if r.Transcribe != nil && len(d.Utterance) > 0 {
-		text, err := r.Transcribe(d.Utterance)
+		text, lang, err := r.Transcribe(d.Utterance)
 		switch {
 		case err != nil:
 			r.logf("PC-led: transcription failed, the robot will transcribe its own request: ", err)
 		case text != "":
-			r.Pending.Set(d.ESN, text)
+			r.Pending.Set(d.ESN, text, lang)
 			r.logf("PC-led: ", d.ESN, " said: ", text)
 		}
 	}

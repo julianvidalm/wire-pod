@@ -98,27 +98,34 @@ func Init() error {
 	}
 	if len(languageIDs) > 0 {
 		logger.Println("Whisper: choosing the language of each utterance among " + os.Getenv("WHISPER_LANGUAGES"))
+		// Match each utterance's intents in its own language.
+		if err := vars.LoadIntentLanguages("./intent-data", whisperlang.ParseAllowed(os.Getenv("WHISPER_LANGUAGES"))); err != nil {
+			logger.Println("Whisper: intents stay in the configured language:", err)
+		}
 	}
 	return nil
 }
 
-// chooseLanguage sets the transcription language to the most likely of languageIDs for this audio.
-func chooseLanguage(data []float32) {
+// chooseLanguage sets the transcription language to the most likely of languageIDs for this audio and returns
+// its code ("" when the language is fixed).
+func chooseLanguage(data []float32) string {
 	if len(languageIDs) == 0 {
-		return
+		return ""
 	}
 	if err := context.Whisper_pcm_to_mel(data, threads()); err != nil {
 		logger.Println("Whisper: language detection skipped:", err)
-		return
+		return ""
 	}
 	probs, err := context.Whisper_lang_auto_detect(0, threads())
 	if err != nil {
 		logger.Println("Whisper: language detection skipped:", err)
-		return
+		return ""
 	}
 	id := whisperlang.Pick(probs, languageIDs)
 	params.SetLanguage(id)
-	logger.Println("Whisper: detected language " + whisper.Whisper_lang_str(id))
+	code := whisper.Whisper_lang_str(id)
+	logger.Println("Whisper: detected language " + code)
+	return code
 }
 
 func STT(req sr.SpeechRequest) (string, error) {
@@ -136,9 +143,12 @@ func STT(req sr.SpeechRequest) (string, error) {
 			break
 		}
 	}
-	transcribedText, err := process(BytesToFloat32Buffer(padPCM(req.DecodedMicData)))
+	transcribedText, lang, err := process(BytesToFloat32Buffer(padPCM(req.DecodedMicData)))
 	if err != nil {
 		return "", err
+	}
+	if lang != "" {
+		vars.SetUtteranceLanguage(req.Device, lang)
 	}
 	// Whisper writes notes for sounds such as Vector's own beep ("*pitido*", "(phone beeps)"); drop them.
 	transcribedText = strings.ToLower(whisperlang.CleanText(transcribedText))
@@ -148,19 +158,19 @@ func STT(req sr.SpeechRequest) (string, error) {
 
 // TranscribePCM transcribes a whole sentence (16 kHz mono) the PC heard through MicTap, for the PC-led
 // conversation.
-func TranscribePCM(pcm []int16) (string, error) {
+func TranscribePCM(pcm []int16) (string, string, error) {
 	data := make([]float32, len(pcm))
 	for i, s := range pcm {
 		data[i] = float32(s) / 32768
 	}
-	text, err := process(data)
+	text, lang, err := process(data)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return strings.ToLower(whisperlang.CleanText(text)), nil
+	return strings.ToLower(whisperlang.CleanText(text)), lang, nil
 }
 
-func process(data []float32) (string, error) {
+func process(data []float32) (string, string, error) {
 	asked := time.Now()
 	whisperMu.Lock()
 	defer whisperMu.Unlock()
@@ -172,12 +182,12 @@ func process(data []float32) (string, error) {
 	// Encode only as much of whisper's 30 s window as the utterance needs: several times faster for a short
 	// question, which otherwise outlasted the robot's wait for an answer.
 	params.SetAudioCtx(whisperlang.AudioCtxFor(os.Getenv("WHISPER_AUDIO_CTX"), len(data)))
-	chooseLanguage(data)
+	lang := chooseLanguage(data)
 	var transcribedText string
 	context.Whisper_full(params, data, nil, func(_ int) {
 		transcribedText = strings.TrimSpace(context.Whisper_full_get_segment_text(0))
 	}, nil)
-	return transcribedText, nil
+	return transcribedText, lang, nil
 }
 
 func BytesToFloat32Buffer(buf []byte) []float32 {

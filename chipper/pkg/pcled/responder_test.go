@@ -48,9 +48,9 @@ func TestFinalDetectionIsTranscribedStoredAndWakesTheRobot(t *testing.T) {
 	sender := newRecordingSender()
 	var heard []int
 	r := &Responder{
-		Transcribe: func(pcm []int16) (string, error) {
+		Transcribe: func(pcm []int16) (string, string, error) {
 			heard = append(heard, len(pcm))
-			return "hola vector qué hora es", nil
+			return "hola vector qué hora es", "es", nil
 		},
 		Pending: pending, Sender: sender,
 	}
@@ -59,8 +59,8 @@ func TestFinalDetectionIsTranscribedStoredAndWakesTheRobot(t *testing.T) {
 	if len(heard) != 1 || heard[0] != 16000 {
 		t.Fatalf("transcribed %v", heard)
 	}
-	if text, ok := pending.Take("esn1"); !ok || text != "hola vector qué hora es" {
-		t.Fatalf("pending %q %v", text, ok)
+	if u, ok := pending.Take("esn1"); !ok || u.Text != "hola vector qué hora es" || u.Lang != "es" {
+		t.Fatalf("pending %+v %v", u, ok)
 	}
 	if len(sender.sent) != 1 || sender.sent[0] != "esn1:wake" {
 		t.Fatalf("sent %v", sender.sent)
@@ -94,7 +94,7 @@ func TestWithoutATranscriberTheRobotStillWakes(t *testing.T) {
 func TestFailedTranscriptionStillWakesWithoutAPendingUtterance(t *testing.T) {
 	pending, _ := newTestPending(10 * time.Second)
 	sender := newRecordingSender()
-	r := &Responder{Transcribe: func([]int16) (string, error) { return "", errors.New("boom") }, Pending: pending, Sender: sender}
+	r := &Responder{Transcribe: func([]int16) (string, string, error) { return "", "", errors.New("boom") }, Pending: pending, Sender: sender}
 	r.OnWake(final("hola víctor"))
 	sender.wait(t)
 	if _, ok := pending.Take("esn1"); ok {
@@ -106,10 +106,10 @@ func TestNoSecondWakeWhenTheRobotAlreadyWokeItself(t *testing.T) {
 	// The user said "Hey Vector ...": the robot woke on its own and made a voice request, and the PC heard the
 	// name in the same sentence. Waking it again would start a second conversation.
 	pending, _ := newTestPending(10 * time.Second)
-	stt := WrapSTT(func(sr.SpeechRequest) (string, error) { return "what time is it", nil }, pending, nil)
+	stt := WrapSTT(func(sr.SpeechRequest) (string, error) { return "what time is it", nil }, pending, nil, nil)
 	stt(sr.SpeechRequest{Device: "esn1"})
 	sender := newRecordingSender()
-	r := &Responder{Transcribe: func([]int16) (string, error) { return "hey vector what time is it", nil }, Pending: pending, Sender: sender}
+	r := &Responder{Transcribe: func([]int16) (string, string, error) { return "hey vector what time is it", "en", nil }, Pending: pending, Sender: sender}
 	r.OnWake(final("hey vector"))
 	time.Sleep(100 * time.Millisecond)
 	if len(sender.sent) != 0 {
