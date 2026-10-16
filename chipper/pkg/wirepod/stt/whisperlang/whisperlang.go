@@ -70,3 +70,13 @@ func CleanText(s string) string {
 	s = strings.Join(strings.Fields(s), " ")
 	return strings.TrimSpace(strings.TrimLeft(s, "- "))
 }
+
+// AudioCtxFor applies WHISPER_AUDIO_CTX: "full" keeps whisper's whole window (0), which is faster and more
+// accurate on a GPU; anything else ("short", the default) sizes the window to the utterance, which is what
+// makes whisper fast enough on a CPU.
+func AudioCtxFor(mode string, samples int) int {
+	if mode == "full" {
+		return 0
+	}
+	return AudioCtx(samples)
+}

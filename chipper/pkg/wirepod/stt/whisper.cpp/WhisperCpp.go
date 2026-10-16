@@ -171,7 +171,7 @@ func process(data []float32) (string, error) {
 	}()
 	// Encode only as much of whisper's 30 s window as the utterance needs: several times faster for a short
 	// question, which otherwise outlasted the robot's wait for an answer.
-	params.SetAudioCtx(whisperlang.AudioCtx(len(data)))
+	params.SetAudioCtx(whisperlang.AudioCtxFor(os.Getenv("WHISPER_AUDIO_CTX"), len(data)))
 	chooseLanguage(data)
 	var transcribedText string
 	context.Whisper_full(params, data, nil, func(_ int) {

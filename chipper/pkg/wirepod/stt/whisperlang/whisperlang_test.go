@@ -74,3 +74,16 @@ func TestCleanTextDropsSoundAnnotations(t *testing.T) {
 		}
 	}
 }
+
+func TestAudioCtxModeFullKeepsWhispersWholeWindow(t *testing.T) {
+	// On a GPU the shortened window is both slower and less accurate (measured on an RTX 4060 with
+	// large-v3-turbo); 0 asks whisper for its full window.
+	if got := AudioCtxFor("full", 3*16000); got != 0 {
+		t.Fatalf("full: %d", got)
+	}
+	for _, mode := range []string{"", "short"} {
+		if got := AudioCtxFor(mode, 6*16000); got != 364 {
+			t.Fatalf("%q: %d, want the shortened window 364", mode, got)
+		}
+	}
+}
