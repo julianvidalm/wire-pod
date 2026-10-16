@@ -6,5 +6,7 @@ import (
 )
 
 func main() {
+	// Whole sentences heard through MicTap are transcribed with whisper too (PC-led conversation).
+	initwirepod.SetUtteranceTranscriber(stt.TranscribePCM)
 	initwirepod.StartFromProgramInit(stt.Init, stt.STT, stt.Name)
 }

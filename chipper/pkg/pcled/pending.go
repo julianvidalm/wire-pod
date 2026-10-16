@@ -17,10 +17,11 @@ const DefaultPendingTTL = 10 * time.Second
 
 // Pending holds, per robot, the utterance the PC heard and is about to answer.
 type Pending struct {
-	mu    sync.Mutex
-	ttl   time.Duration
-	byESN map[string]pendingUtterance
-	now   func() time.Time
+	mu          sync.Mutex
+	ttl         time.Duration
+	byESN       map[string]pendingUtterance
+	lastRequest map[string]time.Time // the robot's latest voice request
+	now         func() time.Time
 }
 
 type pendingUtterance struct {
@@ -29,7 +30,7 @@ type pendingUtterance struct {
 }
 
 func NewPending(ttl time.Duration) *Pending {
-	return &Pending{ttl: ttl, byESN: map[string]pendingUtterance{}, now: time.Now}
+	return &Pending{ttl: ttl, byESN: map[string]pendingUtterance{}, lastRequest: map[string]time.Time{}, now: time.Now}
 }
 
 // Set records what the robot's user just said; a newer utterance replaces an older one.
@@ -51,6 +52,21 @@ func (p *Pending) Take(esn string) (string, bool) {
 	return u.text, true
 }
 
+// markRequest records that the robot just made a voice request.
+func (p *Pending) markRequest(esn string) {
+	p.mu.Lock()
+	p.lastRequest[esn] = p.now()
+	p.mu.Unlock()
+}
+
+// requestedWithin reports whether the robot made a voice request in the last d.
+func (p *Pending) requestedWithin(esn string, d time.Duration) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	at, ok := p.lastRequest[esn]
+	return ok && p.now().Sub(at) <= d
+}
+
 // WrapSTT returns a speech-to-text handler that answers a robot's voice request with its pending utterance
 // when there is one, and otherwise transcribes the robot's audio with stt as before.
 func WrapSTT(stt func(sr.SpeechRequest) (string, error), pending *Pending, logf func(a ...any)) func(sr.SpeechRequest) (string, error) {
@@ -58,6 +74,7 @@ func WrapSTT(stt func(sr.SpeechRequest) (string, error), pending *Pending, logf 
 		logf = func(...any) {}
 	}
 	return func(req sr.SpeechRequest) (string, error) {
+		pending.markRequest(req.Device)
 		if text, ok := pending.Take(req.Device); ok {
 			logf("Bot " + req.Device + " answered with what the PC heard: " + text)
 			return text, nil

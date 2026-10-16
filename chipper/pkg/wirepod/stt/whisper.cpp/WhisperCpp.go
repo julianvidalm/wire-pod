@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	whisper "github.com/kercre123/whisper.cpp/bindings/go"
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
@@ -23,6 +24,9 @@ var params whisper.Params
 // languageIDs are the languages the user speaks (WHISPER_LANGUAGES, for example "en,es"). When set, each
 // utterance is transcribed in whichever of them whisper finds most likely, instead of one fixed language.
 var languageIDs []int
+
+// whisperMu serializes use of the one whisper context: voice requests and PC-led sentences may overlap.
+var whisperMu sync.Mutex
 
 func padPCM(data []byte) []byte {
 	const sampleRate = 16000
@@ -135,7 +139,23 @@ func STT(req sr.SpeechRequest) (string, error) {
 	return transcribedText, nil
 }
 
+// TranscribePCM transcribes a whole sentence (16 kHz mono) the PC heard through MicTap, for the PC-led
+// conversation.
+func TranscribePCM(pcm []int16) (string, error) {
+	data := make([]float32, len(pcm))
+	for i, s := range pcm {
+		data[i] = float32(s) / 32768
+	}
+	text, err := process(data)
+	if err != nil {
+		return "", err
+	}
+	return strings.ToLower(whisperlang.CleanText(text)), nil
+}
+
 func process(data []float32) (string, error) {
+	whisperMu.Lock()
+	defer whisperMu.Unlock()
 	// Encode only as much of whisper's 30 s window as the utterance needs: several times faster for a short
 	// question, which otherwise outlasted the robot's wait for an answer.
 	params.SetAudioCtx(whisperlang.AudioCtx(len(data)))
