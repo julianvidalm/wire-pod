@@ -364,3 +364,65 @@ func TestUtteranceKeepsTheRealAudioOfGatedFrames(t *testing.T) {
 		}
 	}
 }
+
+// speakerFrame is one speaker buffer (1024 samples at 32 kHz, 32 ms) of constant value, at robot time ms.
+func speakerFrame(seq uint32, ms uint64, value int16) mictap.Frame {
+	payload := make([]byte, 2*1024)
+	for i := 0; i < 1024; i++ {
+		payload[2*i] = byte(uint16(value))
+		payload[2*i+1] = byte(uint16(value) >> 8)
+	}
+	return mictap.Frame{Type: mictap.FrameSpeaker, Seq: seq, Timestamp: ms, Flags: 1, Payload: payload}
+}
+
+// heardFrames returns, per mic frame given to the recognizer, whether it was the real audio (true) or silence.
+func heardFrames(rec *scriptedRecognizer) []bool {
+	var out []bool
+	for i := 0; i+samplesPerFrame <= len(rec.received); i += samplesPerFrame {
+		out = append(out, rec.received[i] != 0)
+	}
+	return out
+}
+
+func TestSilentSpeakerOutputDoesNotGateDespiteTheFlag(t *testing.T) {
+	// vic-anim flags "speaker active" whenever its audio sink is open, which in idle is most of the time,
+	// even when it plays silence. The speaker audio itself tells whether Vector is making any sound.
+	rec := &scriptedRecognizer{every: 1 << 30}
+	d := newDetector(t, rec, &recordingHandler{}, Config{HoldoffMs: 300})
+	d.Start("esn1", hello)
+	for seq := uint32(0); seq < 20; seq++ {
+		if seq%3 == 0 {
+			d.Frame("esn1", speakerFrame(seq/3, uint64(seq)*10, 0))
+		}
+		d.Frame("esn1", micFrame(seq, mictap.MicFlagSpeakerActive, 7))
+	}
+	for i, real := range heardFrames(rec) {
+		if !real {
+			t.Fatalf("mic frame %d was gated while the speaker played silence", i)
+		}
+	}
+}
+
+func TestAudibleSpeakerOutputGatesUntilTheHoldoffAfterIt(t *testing.T) {
+	rec := &scriptedRecognizer{every: 1 << 30}
+	d := newDetector(t, rec, &recordingHandler{}, Config{HoldoffMs: 300})
+	d.Start("esn1", hello)
+	d.Frame("esn1", speakerFrame(0, 0, 0))
+	// Vector says something at 100 ms (one 32 ms buffer), then is silent again.
+	for seq := uint32(0); seq < 60; seq++ {
+		if seq == 10 {
+			d.Frame("esn1", speakerFrame(1, 100, 3000))
+		}
+		if seq == 14 {
+			d.Frame("esn1", speakerFrame(2, 132, 0))
+		}
+		d.Frame("esn1", micFrame(seq, mictap.MicFlagSpeakerActive, 7))
+	}
+	heard := heardFrames(rec)
+	// Gated from 100 ms to the end of the loud buffer (132 ms) plus the 300 ms holdoff: frames 10..43.
+	for i, real := range heard {
+		if want := i < 10 || i >= 44; real != want {
+			t.Fatalf("mic frame %d heard=%v, want %v (all: %v)", i, real, want, heard)
+		}
+	}
+}

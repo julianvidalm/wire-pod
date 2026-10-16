@@ -3,6 +3,7 @@ package wakeword
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
@@ -17,6 +18,10 @@ const (
 	maxUtteranceSeconds = 15
 	// utteranceMarginSeconds is added before the first and after the last recognized word.
 	utteranceMarginSeconds = 0.3
+
+	// DefaultSpeakerGateRMS: a speaker buffer this loud (about -50 dBFS) is Vector making a sound.
+	DefaultSpeakerGateRMS = 100
+	speakerRate           = 32000
 )
 
 // Recognizer turns 16 kHz mono speech into words. Accept returns the words recognized so far in the current
@@ -57,6 +62,10 @@ type Config struct {
 	// HoldoffMs keeps feeding silence this long after Vector stopped speaking or moving, so the tail of its own
 	// voice (echo) and motor noise cannot wake it (echo handling level 1).
 	HoldoffMs uint64
+	// SpeakerGateRMS is how loud a speaker buffer must be to gate the mic (DefaultSpeakerGateRMS when 0). Once
+	// a robot sends speaker audio, it decides instead of the speaker-active flag, which vic-anim raises whenever
+	// its audio sink is open, even while it plays silence.
+	SpeakerGateRMS float64
 	// CooldownMs ignores further detections for this long after one, so one call does not wake the robot twice.
 	CooldownMs uint64
 	Logf       func(a ...any)
@@ -86,6 +95,9 @@ type session struct {
 	gated      int       // of those, replaced by silence for the recognizer (Debug)
 	speaking   int       // of those, flagged as Vector speaking (Debug)
 	moving     int       // of those, flagged as Vector moving (Debug)
+	speakerFed bool      // the robot sends speaker audio: gate on its loudness, not on the flag
+	soundUntil uint64    // robot ms: Vector's speaker is audible until then
+	loudest    float64   // loudest speaker buffer RMS since the last final result (Debug)
 	fed        int       // samples given to the recognizer since it started (the clock of its word times)
 }
 
@@ -138,7 +150,7 @@ func (d *Detector) Start(esn string, h mictap.Hello) {
 }
 
 func (d *Detector) Frame(esn string, f mictap.Frame) {
-	if f.Type != mictap.FrameMic || len(f.Payload) != 2*samplesPerFrame {
+	if f.Type != mictap.FrameMic && f.Type != mictap.FrameSpeaker {
 		return
 	}
 	d.mu.Lock()
@@ -149,6 +161,13 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if f.Type == mictap.FrameSpeaker {
+		d.speaker(s, f)
+		return
+	}
+	if len(f.Payload) != 2*samplesPerFrame {
+		return
+	}
 	for i := range s.pcm {
 		s.pcm[i] = int16(binary.LittleEndian.Uint16(f.Payload[2*i:]))
 	}
@@ -157,14 +176,23 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 	s.record(s.pcm)
 	audio := s.pcm
 	s.frames++
-	if f.Flags&mictap.MicFlagSpeakerActive != 0 {
+	speaking := f.Flags&mictap.MicFlagSpeakerActive != 0
+	if s.speakerFed {
+		speaking = f.Timestamp < s.soundUntil
+	}
+	moving := f.Flags&mictap.MicFlagRobotMoving != 0
+	if speaking {
 		s.speaking++
 	}
-	if f.Flags&mictap.MicFlagRobotMoving != 0 {
+	if moving {
 		s.moving++
 	}
-	if f.Flags&(mictap.MicFlagSpeakerActive|mictap.MicFlagRobotMoving) != 0 {
+	if speaking || moving {
 		s.gatedUntil = f.Timestamp + d.cfg.HoldoffMs
+		if speaking && s.speakerFed {
+			// The holdoff runs from the end of the audible buffer, not from the mic frame that overlapped it.
+			s.gatedUntil = max(s.gatedUntil, s.soundUntil+d.cfg.HoldoffMs)
+		}
 		audio = s.silence
 		s.gated++
 	} else if f.Timestamp < s.gatedUntil {
@@ -191,16 +219,39 @@ func (d *Detector) Frame(esn string, f mictap.Frame) {
 	}
 	if final {
 		if d.cfg.Debug {
-			d.cfg.Logf(fmt.Sprintf("wakeword: %s heard %q (%d frames, %d gated: %d speaking, %d moving)",
-				esn, text(utterance), s.frames, s.gated, s.speaking, s.moving))
+			d.cfg.Logf(fmt.Sprintf("wakeword: %s heard %q (%d frames, %d gated: %d speaking, %d moving; loudest speaker RMS %.0f)",
+				esn, text(utterance), s.frames, s.gated, s.speaking, s.moving, s.loudest))
 		}
-		s.frames, s.gated, s.speaking, s.moving = 0, 0, 0, 0
+		s.frames, s.gated, s.speaking, s.moving, s.loudest = 0, 0, 0, 0, 0
 		s.seen = s.seen[:0]
 		if names := d.cfg.Matcher.MatchAll(utterance); len(names) > 0 {
 			first, last := utterance[0], utterance[len(utterance)-1]
 			d.cfg.Handler.OnWake(Detection{ESN: esn, Word: names[0], Text: text(utterance), FrameTimestamp: f.Timestamp,
 				Final: true, Utterance: s.utterance(first.Start-utteranceMarginSeconds, last.End+utteranceMarginSeconds)})
 		}
+	}
+}
+
+// speaker notes when Vector's speaker is audible: from the buffer's start to its end.
+func (d *Detector) speaker(s *session, f mictap.Frame) {
+	samples := f.Samples()
+	if len(samples) == 0 {
+		return
+	}
+	s.speakerFed = true
+	var sum float64
+	for _, v := range samples {
+		sum += float64(v) * float64(v)
+	}
+	rms := math.Sqrt(sum / float64(len(samples)))
+	s.loudest = max(s.loudest, rms)
+	threshold := d.cfg.SpeakerGateRMS
+	if threshold == 0 {
+		threshold = DefaultSpeakerGateRMS
+	}
+	if rms >= threshold {
+		end := f.Timestamp + uint64(len(samples))*1000/speakerRate
+		s.soundUntil = max(s.soundUntil, end)
 	}
 }
 
