@@ -58,7 +58,7 @@ func freeSpkModel(model *VoskSpkModel) {
 	C.vosk_spk_model_free(model.spkModel)
 }
 
-func(s *VoskSpkModel) Free() {
+func (s *VoskSpkModel) Free() {
 	C.vosk_spk_model_free(s.spkModel)
 }
 
