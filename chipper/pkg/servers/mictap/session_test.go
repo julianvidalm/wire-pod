@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/mictap/mictappb"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap/mictappb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"

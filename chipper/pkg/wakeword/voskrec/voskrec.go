@@ -11,8 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/julianvidalm/wire-pod/chipper/pkg/wakeword"
 	vosk "github.com/kercre123/vosk-api/go"
-	"github.com/kercre123/wire-pod/chipper/pkg/wakeword"
 )
 
 const sampleRate = 16000

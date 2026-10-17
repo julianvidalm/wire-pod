@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"github.com/digital-dream-labs/vector-bluetooth/ble"
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/mdnshandler"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/mdnshandler"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 )
 
 // need JSONable type

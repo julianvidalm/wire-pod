@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 )
 
 // setupLAN fixes the LAN address and port the setup endpoints report, so the tests do not depend on this machine's network.

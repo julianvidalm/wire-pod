@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/mictap"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap"
 )
 
 const (

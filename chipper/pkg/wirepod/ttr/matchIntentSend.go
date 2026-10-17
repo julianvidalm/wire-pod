@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	pb "github.com/digital-dream-labs/api/go/chipperpb"
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/scripting"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
-	"github.com/kercre123/wire-pod/chipper/pkg/vtt"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/scripting"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vtt"
 )
 
 type systemIntentResponseStruct struct {
@@ -329,7 +329,7 @@ func KnowledgeGraphResponseIG(req *vtt.IntentGraphRequest, spokenText string, qu
 		QueryText:    queryText,
 		CommandType:  pb.RobotMode_VOICE_COMMAND.String(),
 	}
-	
+
 	if err := req.Stream.Send(&intentGraphSend); err != nil {
 		return err
 	}

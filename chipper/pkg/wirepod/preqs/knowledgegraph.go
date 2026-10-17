@@ -2,15 +2,15 @@ package processreqs
 
 import (
 	"encoding/json"
-	"strings"
 	"regexp"
+	"strings"
 
 	pb "github.com/digital-dream-labs/api/go/chipperpb"
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
-	"github.com/kercre123/wire-pod/chipper/pkg/vtt"
-	sr "github.com/kercre123/wire-pod/chipper/pkg/wirepod/speechrequest"
-	ttr "github.com/kercre123/wire-pod/chipper/pkg/wirepod/ttr"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vtt"
+	sr "github.com/julianvidalm/wire-pod/chipper/pkg/wirepod/speechrequest"
+	ttr "github.com/julianvidalm/wire-pod/chipper/pkg/wirepod/ttr"
 	"github.com/pkg/errors"
 	"github.com/soundhound/houndify-sdk-go"
 )
@@ -131,21 +131,21 @@ func houndifyTextRequest(queryText string, device string, session string) string
 	if !vars.APIConfig.Knowledge.Enable || vars.APIConfig.Knowledge.Provider != "houndify" {
 		return "Houndify is not enabled."
 	}
-	
+
 	logger.Println("Sending text request to Houndify...")
-	
+
 	req := houndify.TextRequest{
 		Query:     queryText,
 		UserID:    device,
 		RequestID: session,
 	}
-	
+
 	serverResponse, err := HKGclient.TextSearch(req)
 	if err != nil {
 		logger.Println("Error sending text request to Houndify:", err)
 		return ""
 	}
-	
+
 	apiResponse, err := ParseSpokenResponse(serverResponse)
 	if err != nil {
 		logger.Println("Error parsing Houndify response:", err)
@@ -154,7 +154,7 @@ func houndifyTextRequest(queryText string, device string, session string) string
 	}
 
 	apiResponse = cleanHoundifyResponse(apiResponse)
-	
+
 	logger.Println("Houndify response:", apiResponse)
 	return apiResponse
 }

@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 	"github.com/sashabaranov/go-openai"
 )
 

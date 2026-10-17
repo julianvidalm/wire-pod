@@ -10,12 +10,12 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/scripting"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
-	"github.com/kercre123/wire-pod/chipper/pkg/wirepod/localization"
-	processreqs "github.com/kercre123/wire-pod/chipper/pkg/wirepod/preqs"
-	botsetup "github.com/kercre123/wire-pod/chipper/pkg/wirepod/setup"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/scripting"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/wirepod/localization"
+	processreqs "github.com/julianvidalm/wire-pod/chipper/pkg/wirepod/preqs"
+	botsetup "github.com/julianvidalm/wire-pod/chipper/pkg/wirepod/setup"
 )
 
 var SttInitFunc func() error

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/mictap/mictappb"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap/mictappb"
 )
 
 // ErrNoSession means the robot has no open Session (MicTap off, an older robot using Stream, or offline).

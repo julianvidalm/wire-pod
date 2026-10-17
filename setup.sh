@@ -576,7 +576,7 @@ function setupSystemd() {
         export GOTAGS="nolibopusfile,inbuiltble"
     fi
     COMMIT_HASH="$(git rev-parse --short HEAD)"
-    export GOLDFLAGS="-X 'github.com/kercre123/wire-pod/chipper/pkg/vars.CommitSHA=${COMMIT_HASH}'"
+    export GOLDFLAGS="-X 'github.com/julianvidalm/wire-pod/chipper/pkg/vars.CommitSHA=${COMMIT_HASH}'"
     if [[ ${STT_SERVICE} == "leopard" ]]; then
         echo "wire-pod.service created, building chipper with Picovoice STT service..."
         /usr/local/go/bin/go build -tags $GOTAGS -ldflags="${GOLDFLAGS}" cmd/leopard/main.go

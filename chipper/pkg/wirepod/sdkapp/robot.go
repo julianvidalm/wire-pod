@@ -11,8 +11,8 @@ import (
 	"github.com/digital-dream-labs/hugh/grpc/client"
 	"github.com/fforchino/vector-go-sdk/pkg/vector"
 	"github.com/fforchino/vector-go-sdk/pkg/vectorpb"
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 )
 
 var robots []Robot
@@ -118,12 +118,41 @@ func getRobot(serial string) (Robot, int, error) {
 		}
 		time.Sleep(time.Second / 2)
 	}
-	for index, robot := range robots {
-		if strings.EqualFold(serial, robot.ESN) {
-			return robot, index, nil
-		}
+	if robot, index, ok := cachedRobot(serial); ok {
+		return robot, index, nil
 	}
 	return newRobot(serial)
+}
+
+// cachedRobot returns the open connection for serial if it still uses the robot's current GUID. Setting a robot
+// up again gives it a new GUID (token server, SetBotGUID) and the robot then refuses the old one with
+// "401 invalid token"; such a connection is dropped so the caller reconnects with the new GUID.
+func cachedRobot(serial string) (Robot, int, bool) {
+	for index, robot := range robots {
+		if !strings.EqualFold(serial, robot.ESN) {
+			continue
+		}
+		if guid, known := currentGUID(serial); known && guid != robot.GUID {
+			logger.Println("Closing SDK connection for " + robot.ESN + ": the robot has a new GUID")
+			removeRobot(robot.ESN, "server")
+			return Robot{}, 0, false
+		}
+		return robot, index, true
+	}
+	return Robot{}, 0, false
+}
+
+// currentGUID is the GUID newRobot would connect with: the robot's own, or the global one when it has none.
+func currentGUID(serial string) (string, bool) {
+	for _, robot := range vars.BotInfo.Robots {
+		if strings.EqualFold(serial, robot.Esn) {
+			if robot.GUID == "" {
+				return vars.BotInfo.GlobalGUID, true
+			}
+			return robot.GUID, true
+		}
+	}
+	return "", false
 }
 
 // if connection is inactive for more than 5 minutes, remove robot
@@ -155,7 +184,7 @@ func connTimer(ind int) {
 			logger.Println("Closing SDK connection for " + robots[ind].ESN + ", source: connTimer")
 			removeRobot(robots[ind].ESN, "connTimer")
 			return
-		}  
+		}
 		robots[ind].ConnTimer = robots[ind].ConnTimer + 1
 	}
 }
