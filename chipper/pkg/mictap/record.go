@@ -2,6 +2,7 @@ package mictap
 
 import (
 	"encoding/binary"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -22,7 +23,16 @@ type RecordSink struct {
 
 type recording struct {
 	mic, speaker *wavFile
+	clock        *os.File // one JSON line per mic second: PC time against mic samples written
+
+	nextMicSeq uint32
+	seenMic    bool
+	micSamples int64
+	micWrites  int
 }
+
+// maxGapFrames bounds the silence written for a seq jump, so a corrupt seq cannot fill the disk.
+const maxGapFrames = 500
 
 func NewRecordSink(dir string, logf func(a ...any)) *RecordSink {
 	return &RecordSink{dir: dir, logf: logf, now: time.Now, sessions: map[string]*recording{}}
@@ -33,6 +43,13 @@ func (r *RecordSink) Start(esn string, h Hello) {
 	rec := &recording{
 		mic:     r.create(base+"_mic.wav", h.MicRate),
 		speaker: r.create(base+"_speaker.wav", h.SpeakerRate),
+	}
+	if rec.mic != nil {
+		clock, err := os.OpenFile(base+"_clock.jsonl", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+		if err != nil {
+			r.logf("MicTap: cannot record the clock: ", err)
+		}
+		rec.clock = clock
 	}
 	r.mu.Lock()
 	old := r.sessions[esn]
@@ -53,7 +70,7 @@ func (r *RecordSink) Frame(esn string, f Frame) {
 	}
 	switch f.Type {
 	case FrameMic:
-		rec.mic.write(f.Payload)
+		rec.writeMic(f, r.now())
 	case FrameSpeaker:
 		rec.speaker.write(f.Payload)
 	}
@@ -86,9 +103,30 @@ func (r *RecordSink) create(path string, rate uint32) *wavFile {
 	return w
 }
 
+// writeMic keeps the mic file on the robot's timeline: frames the robot dropped become silence, so a time in
+// the recording stays a time in the session.
+func (rec *recording) writeMic(f Frame, now time.Time) {
+	if rec.seenMic && f.Seq > rec.nextMicSeq {
+		gap := min(f.Seq-rec.nextMicSeq, maxGapFrames)
+		silence := make([]byte, int(gap)*len(f.Payload))
+		rec.mic.write(silence)
+		rec.micSamples += int64(len(silence) / 2)
+	}
+	rec.seenMic, rec.nextMicSeq = true, f.Seq+1
+	rec.mic.write(f.Payload)
+	rec.micSamples += int64(len(f.Payload) / 2)
+	if rec.micWrites%headerEvery == 0 && rec.clock != nil {
+		fmt.Fprintf(rec.clock, "{\"unix_ms\":%d,\"mic_samples\":%d}\n", now.UnixMilli(), rec.micSamples)
+	}
+	rec.micWrites++
+}
+
 func (rec *recording) close() {
 	if rec == nil {
 		return
+	}
+	if rec.clock != nil {
+		rec.clock.Close()
 	}
 	rec.mic.close()
 	rec.speaker.close()

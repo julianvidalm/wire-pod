@@ -2,6 +2,7 @@ package mictap
 
 import (
 	"encoding/binary"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -74,4 +75,49 @@ func TestRecordingIsReadableWhileTheSessionRuns(t *testing.T) {
 		t.Fatalf("readable samples %d, want %d", len(mic), 2*headerEvery)
 	}
 	r.End("esn1", nil)
+}
+
+func TestRecordingFillsDroppedMicFramesWithSilence(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	r.Frame("esn1", pcmFrame(FrameMic, 7, 1, 2))
+	r.Frame("esn1", pcmFrame(FrameMic, 10, 3, 4)) // robot dropped frames 8 and 9
+	r.End("esn1", nil)
+
+	_, mic := readWAV(t, filepath.Join(dir, "esn1_20261016-170000_mic.wav"))
+	want := []int16{1, 2, 0, 0, 0, 0, 3, 4}
+	if len(mic) != len(want) {
+		t.Fatalf("mic %v, want %v", mic, want)
+	}
+	for i := range want {
+		if mic[i] != want[i] {
+			t.Fatalf("mic %v, want %v", mic, want)
+		}
+	}
+}
+
+func TestRecordingLogsThePCClockAgainstTheMicPosition(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	clock := time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC)
+	r.now = func() time.Time { return clock }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	for seq := uint32(0); seq < headerEvery+1; seq++ {
+		clock = clock.Add(10 * time.Millisecond)
+		r.Frame("esn1", pcmFrame(FrameMic, seq, 5, 5))
+	}
+	r.End("esn1", nil)
+
+	b, err := os.ReadFile(filepath.Join(dir, "esn1_20261016-170000_clock.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := clock.Add(-headerEvery * 10 * time.Millisecond).UnixMilli()
+	want := fmt.Sprintf("{\"unix_ms\":%d,\"mic_samples\":2}\n{\"unix_ms\":%d,\"mic_samples\":%d}\n",
+		first, clock.UnixMilli(), 2*(headerEvery+1))
+	if string(b) != want {
+		t.Fatalf("clock\n%s\nwant\n%s", b, want)
+	}
 }
