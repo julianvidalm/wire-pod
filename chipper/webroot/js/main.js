@@ -25,14 +25,15 @@ function updateIntentSelection(element) {
           }
         });
         const label = document.createElement("label");
-        label.innerHTML = "Choose the intent: ";
+        label.innerHTML = "Your intents";
         label.htmlFor = `${element}intents`;
         container.appendChild(label).appendChild(select);
 
         select.addEventListener("change", hideEditIntents);
       } else {
         const error = document.createElement("p");
-        error.innerHTML = "No intents found, you must add one first";
+        error.className = "empty-state";
+        error.innerHTML = "No custom intents yet. Add one above.";
         container.appendChild(error);
       }
     }).catch(() => {
@@ -69,7 +70,7 @@ function createIntentSelect(element) {
     select.appendChild(option);
   });
   const label = document.createElement("label");
-  label.innerHTML = "Intent to send to robot after script executed:";
+  label.innerHTML = "Intent sent to the robot";
   label.htmlFor = `${element}intents`;
   getE(element).innerHTML = "";
   getE(element).appendChild(label).appendChild(select);
@@ -102,7 +103,7 @@ function editFormCreate() {
           <label for="exec">Exec:<br><input type="text" id="exec" value="${intent.exec}"></label><br>
           <label for="execargs">Exec Args:<br><input type="text" id="execargs" value="${intent.execargs.join(",")}"></label><br>
           <label for="luascript">Lua code to run:</label><br><textarea id="luascript">${intent.luascript}</textarea>
-          <button onclick="editIntent(${intentNumber})">Submit</button>
+          <div class="actions"><button type="button" onclick="editIntent(${intentNumber})">Save changes</button></div>
         `;
         //form.querySelector("#submit").onclick = () => editIntent(intentNumber);
         getE("editIntentForm").innerHTML = "";
@@ -503,18 +504,13 @@ function closeSection(sectionID) {
   sectionID.style.display = "none";
 }
 
-function updateColor(id) {
-  const l_id = id.replace("section", "icon");
-  const elements = document.getElementsByName("icon");
-
-  elements.forEach((element) => {
-    element.classList.remove("selectedicon");
-    element.classList.add("nowselectedicon");
-  });
-
-  const targetElement = document.getElementById(l_id);
-  targetElement.classList.remove("notselectedicon");
-  targetElement.classList.add("selectedicon");
+// Marks the tab that holds the given icon as the active one (the tabs are in js/shell.js).
+function updateColor(iconId) {
+  const tab = getE(iconId)?.closest(".tab");
+  if (!tab) {
+    return;
+  }
+  tab.parentElement.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
 }
 
 
@@ -552,7 +548,7 @@ function showVersionInfo() {
 }
 
 function showLanguage() {
-  toggleVisibility(["section-weather", "section-restart", "section-kg", "section-language"], "section-language", "icon-Language");
+  toggleVisibility(["section-weather", "section-kg", "section-language"], "section-language", "icon-Language");
   fetch("/api/get_stt_info")
     .then((response) => response.json())
     .then((parsed) => {
@@ -576,11 +572,11 @@ function showIntents() {
 }
 
 function showWeather() {
-  toggleVisibility(["section-weather", "section-restart", "section-language", "section-kg"], "section-weather", "icon-Weather");
+  toggleVisibility(["section-weather", "section-language", "section-kg"], "section-weather", "icon-Weather");
 }
 
 function showKG() {
-  toggleVisibility(["section-weather", "section-restart", "section-language", "section-kg"], "section-kg", "icon-KG");
+  toggleVisibility(["section-weather", "section-language", "section-kg"], "section-kg", "icon-KG");
 }
 
 function toggleVisibility(sections, sectionToShow, iconId) {
