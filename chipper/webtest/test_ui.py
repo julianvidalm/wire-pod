@@ -323,3 +323,69 @@ def test_setup_page_with_web_bluetooth_starts_at_pairing_on_the_wire_pod_stack(p
     expect(page.locator("#vecEnv")).to_have_text("wire-pod")
     expect(page.locator("#btnDiscoverVector")).to_be_visible()
     assert page.errors == []
+
+
+FAKE_BLUETOOTH = "Object.defineProperty(navigator, 'bluetooth', {value: {}, configurable: true})"
+
+
+def test_setup_page_uses_the_shared_shell_and_stylesheet(page, server):
+    Api(page)
+    page.goto(f"{server}/setup/")
+    expect(page.locator(".topbar")).to_have_count(1)
+    expect(page.locator(".topbar .brand")).to_be_visible()
+    sheets = page.evaluate("[...document.styleSheets].map((s) => new URL(s.href).pathname)")
+    assert "/css/style.css" in sheets
+    assert not [s for s in sheets if "bootstrap" in s or "vecSetup" in s]
+    expect(page.locator("h1")).to_have_text("Set up a robot")
+    expect(page.locator("#containerIncompatible .notice.warning")).to_be_visible()
+    assert page.errors == []
+
+
+def test_setup_page_follows_the_dark_theme(page, server):
+    Api(page)
+    page.add_init_script("localStorage.setItem('v3ctor.theme', 'dark')")
+    page.goto(f"{server}/setup/")
+    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(14, 16, 21)"
+    card = page.evaluate("getComputedStyle(document.querySelector('#containerIncompatible')).backgroundColor")
+    assert card == "rgb(22, 25, 32)"
+
+
+def test_setup_page_with_web_bluetooth_shows_the_pairing_card_and_steps(page, server):
+    Api(page)
+    page.add_init_script(FAKE_BLUETOOTH)
+    page.goto(f"{server}/setup/")
+    expect(page.locator("#containerDiscover")).to_be_visible()
+    expect(page.locator("#containerIncompatible")).to_be_hidden()
+    expect(page.locator("#incompatibleMessage")).to_be_hidden()
+    expect(page.locator("#iconBle")).to_have_class("vec-icon step vec-icon-active")
+    expect(page.locator(".steps .step:visible")).to_have_text(["Pair", "PIN", "Wi-Fi", "Link", "Settings"])
+    assert page.errors == []
+
+
+def test_setup_terminal_is_collapsed_and_only_reads_keys_when_open(page, server):
+    Api(page)
+    page.add_init_script(FAKE_BLUETOOTH)
+    page.goto(f"{server}/setup/")
+    expect(page.locator(".pterm-main")).to_be_hidden()
+    page.keyboard.press("h")
+    assert page.evaluate("document.querySelector('.pterm-current .pterm-text').textContent") == ""
+    page.click("#terminalPanel > summary")
+    expect(page.locator(".pterm-main")).to_be_visible()
+    page.click(".pterm-main")
+    page.keyboard.press("h")
+    expect(page.locator(".pterm-current .pterm-text")).to_have_text("h")
+    assert page.errors == []
+
+
+@pytest.mark.parametrize("bluetooth", [False, True])
+def test_setup_page_fits_a_phone(browser, server, bluetooth):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844})
+    pg = ctx.new_page()
+    Api(pg)
+    if bluetooth:
+        pg.add_init_script(FAKE_BLUETOOTH)
+    pg.goto(f"{server}/setup/")
+    pg.wait_for_timeout(300)
+    assert pg.evaluate("document.documentElement.scrollWidth") <= 390
+    ctx.close()

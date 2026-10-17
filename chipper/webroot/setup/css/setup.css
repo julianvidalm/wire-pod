@@ -1,0 +1,221 @@
+/* The robot setup page (/setup/) on the v3ctor design system (/css/style.css): only what that page adds.
+ * app.js drives it by these class names (vec-container, vec-current, vec-hidden, vec-icon*, vec-*-row,
+ * vec-progress-bar*), so they are kept from vector-web-setup. */
+
+.vec-hidden { display: none !important; }
+
+/* ---------- Step indicator ---------- */
+
+.steps {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+.step {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 560;
+  text-align: center;
+}
+.step[hidden] { display: none; }
+.step .icon {
+  box-sizing: content-box;
+  width: 18px;
+  height: 18px;
+  padding: 9px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  position: relative;
+  z-index: 1;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+/* The line between two steps, drawn from the previous step's circle to this one's. */
+.step + .step::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  right: calc(50% + 18px);
+  width: calc(100% - 32px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.step span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.step.vec-icon-done { color: var(--text); }
+.step.vec-icon-done .icon { color: var(--success); border-color: var(--success); background: var(--success-soft); }
+.step.vec-icon-done + .step::before { background: var(--success); }
+.step.vec-icon-active { color: var(--accent-strong); }
+.step.vec-icon-active .icon {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+/* ---------- Layout ---------- */
+
+.setup-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.setup-layout { margin-bottom: 16px; }
+.setup-side > .card { padding: 18px; margin-bottom: 0; }
+@media (max-width: 860px) { .setup-layout { grid-template-columns: minmax(0, 1fr); } }
+/* Without Web Bluetooth only the notice is left: no steps, robot or terminal to show. */
+#content:has(#containerIncompatible.vec-current) :is(.steps, .setup-side, #terminalPanel) { display: none; }
+#content:has(#containerIncompatible.vec-current) .setup-layout { grid-template-columns: minmax(0, 1fr); }
+
+/* One card per step; app.js shows the current one (setPhase). */
+.vec-container {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  transition: opacity 0.25s;
+}
+.vec-container.vec-current { display: block; }
+@media (max-width: 640px) { .vec-container { padding: 18px; } }
+.vec-container .notice p { margin: 0; }
+.vec-container .actions:first-child { margin-top: 0; }
+
+.instructions { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.instructions li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  counter-increment: step;
+}
+.instructions li > span:last-child::before { content: counter(step) ". "; font-weight: 650; color: var(--accent-strong); }
+.instructions.single li > span:last-child::before { content: none; }
+
+/* Digital Dream Labs' line drawings (white strokes), painted in the accent color through a mask. */
+.illus {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  background: var(--accent-strong);
+  -webkit-mask: var(--img) center / contain no-repeat;
+  mask: var(--img) center / contain no-repeat;
+}
+.illus-charger { --img: url("../images/onboarding_icon_plugincharger_med.svg"); }
+.illus-backpack { --img: url("../images/onboarding_icon_pressbackpack_med.svg"); }
+.illus-lights { --img: url("../images/nav_icon_backpacklights_sml.svg"); }
+
+.pin-field {
+  max-width: 220px;
+  font-family: var(--font-mono) !important;
+  font-size: 1.5rem !important;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+#txtWifiSsid.readonly { background: var(--surface-2); }
+
+.vec-error {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+/* ---------- Pick lists (Wi-Fi networks, firmware files) ---------- */
+
+.pick-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.pick-list:empty::before { content: "No networks found."; color: var(--text-muted); padding: 12px 0; }
+.vec-ota-table:empty::before { content: ""; }
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pick-row:hover, .pick-row:focus-visible { border-color: var(--accent); background: var(--accent-soft); }
+.pick-row > .icon { color: var(--accent); }
+.pick-row > div:not(.vec-wifi-ssid) { flex: 1 1 auto; min-width: 0; }
+.pick-row .chev { margin-left: auto; color: var(--text-muted); transform: rotate(-90deg); }
+.vec-wifi-ssid { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 560; }
+.vec-ota-name { font-weight: 560; overflow-wrap: anywhere; }
+.vec-ota-host { color: var(--text-muted); font-size: 0.84rem; }
+
+/* Signal strength: three bars, as many lit as the scan reported. */
+.signal { display: inline-flex; align-items: flex-end; gap: 2px; width: 18px; height: 16px; flex: none; }
+.signal i { flex: 1; border-radius: 1px; background: var(--border-strong); }
+.signal i:nth-child(1) { height: 40%; }
+.signal i:nth-child(2) { height: 70%; }
+.signal i:nth-child(3) { height: 100%; }
+.signal.s1 i:nth-child(-n+1), .signal.s2 i:nth-child(-n+2), .signal.s3 i { background: var(--accent); }
+
+/* ---------- Progress and loading ---------- */
+
+.vec-progress-bar {
+  height: 12px;
+  margin: 10px 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.vec-progress-bar.vec-sm { height: 8px; }
+.vec-progress-bar-fill { width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.6s; }
+
+.vec-spinner-container { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px 0 14px; color: var(--text-muted); }
+.vec-spinner-container p { margin: 0; }
+.vec-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: vec-spin 0.9s linear infinite;
+}
+@keyframes vec-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .vec-spinner { animation-duration: 3s; } }
+
+.done { text-align: center; padding: 10px 0; }
+.done .actions { justify-content: center; }
+#iconComplete { width: 56px; height: 56px; color: var(--success); margin-bottom: 10px; }
+
+/* ---------- Side: robot and terminal ---------- */
+
+.robot-card h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.robot-card h3 .icon { color: var(--accent); }
+.robot-info { margin: 0; display: grid; gap: 6px; font-size: 0.9rem; }
+.robot-info div { display: flex; justify-content: space-between; gap: 12px; }
+.robot-info dt { color: var(--text-muted); }
+.robot-info dd { margin: 0; font-family: var(--font-mono); overflow-wrap: anywhere; text-align: right; }
+.robot-empty { color: var(--text-muted); font-size: 0.9rem; }
+#boxVectorStatus:not(.vec-hidden) ~ .robot-empty { display: none; }
+#boxVectorStatus + .robot-empty + #boxVectorEnv, #boxVectorStatus ~ #boxVectorEnv { padding-top: 10px; border-top: 1px solid var(--border); }
+#boxStatusLogs { margin-top: 10px; }
+#btnDownloadLogs { padding-left: 0; }
+
+.terminal-card > summary { padding: 2px 0; }
+.terminal-card .hint { margin: 10px 0; }
+
+.setup-credits { margin-top: 8px; text-align: center; color: var(--text-muted); font-size: 0.82rem; }
+.setup-credits a { color: inherit; }

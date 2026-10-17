@@ -165,6 +165,8 @@ function setupOTAFiles() {
 }
 
 function showOtaChoices(otaUrls) {
+  // The update step is shown only for the robots that need one.
+  $("#iconOta").prop("hidden", false);
   setPhase("containerOta");
 
   // No URL present
@@ -222,24 +224,23 @@ function getOtasPresent() {
 }
 
 function generateOtaFileRow(value, urlObj) {
-  var img = "";
-
-  if (urlObj.type == TYPE.CLOUD) {
-    img = "images/fontawesome/cloud-download-alt-solid.svg";
-  } else if (urlObj.type == TYPE.LOCAL) {
-    img = "images/fontawesome/sd-card-solid.svg";
-  }
+  let iconName = urlObj.type == TYPE.CLOUD ? "download" : "cube";
 
   // DDL had a stray quote before data-value, which left the row without its value.
   return (
-    `<div data-value="${value}" class="row vec-ota-row">` +
-    `<div class="col-md-2"><img class="vec-ota-type" src="${img}" /> </div>` +
-    `<div class="vec-ota-name col-md-10">` +
-    `<div class="vec-ota-name col-md-12">${urlObj.filename}</div>` +
-    `<div class="vec-ota-host col-md-12">${urlObj.hostname}</div>` +
+    `<div data-value="${value}" class="vec-ota-row pick-row" role="button" tabindex="0">` +
+    icon(iconName) +
+    `<div>` +
+    `<div class="vec-ota-name">${urlObj.filename}</div>` +
+    `<div class="vec-ota-host">${urlObj.hostname}</div>` +
     `</div>` +
+    icon("chevron-down", "chev") +
     `</div>`
   );
+}
+
+function icon(name, extraClass = "") {
+  return `<svg class="icon ${extraClass}" aria-hidden="true"><use href="/assets/icons.svg#${name}"></use></svg>`;
 }
 
 function getOtaUrl() {
@@ -267,9 +268,10 @@ function connectToWifi(ssid, pw, auth) {
   });
 }
 
-function toggleIcon(icon, on) {
-  $("#" + icon).removeClass("vec-icon-active");
-  $("#" + icon).addClass("vec-icon-done");
+// Marks a step done (on) or not done (off, e.g. the pairing step after a disconnect).
+function toggleIcon(iconId, on) {
+  $("#" + iconId).removeClass("vec-icon-active");
+  $("#" + iconId).toggleClass("vec-icon-done", on);
 }
 
 function setPhase(phase) {
@@ -289,18 +291,17 @@ function setPhase(phase) {
   $("#" + phase).css("opacity", 1);
 }
 
+function setProgress(bar, percent) {
+  let value = Math.round(Math.min(Math.max(percent, 0), 1) * 100);
+  $(bar).attr("aria-valuenow", value).children(".vec-progress-bar-fill").css("width", value + "%");
+}
+
 function setOtaProgress(percent) {
-  let maskWidth = (1 - percent) * 100;
-  $("#progressBarOta")
-    .children(".vec-progress-bar-mask")
-    .css("width", maskWidth + "%");
+  setProgress("#progressBarOta", percent);
 }
 
 function setLogProgress(percent) {
-  let maskWidth = (1 - percent) * 100;
-  $("#progressBarLogs")
-    .children(".vec-progress-bar-mask")
-    .css("width", maskWidth + "%");
+  setProgress("#progressBarLogs", percent);
 }
 
 function generateWifiRow(hex, auth, strength) {
@@ -312,11 +313,11 @@ function generateWifiRow(hex, auth, strength) {
   if (strength > 65) {
     n = "3";
   }
-  let img = "images/settings_icon_wifilife_" + n + "bars_mini.svg";
   return (
-    `<div class="vec-wifi-row" authType="${auth}" hexId="${hex}">` +
-    `<img class="vec-wifi-signal" src="${img}" />` +
+    `<div class="vec-wifi-row pick-row" role="button" tabindex="0" authType="${auth}" hexId="${hex}">` +
+    `<span class="signal s${n}" title="Signal ${n}/3"><i></i><i></i><i></i></span>` +
     `<div class="vec-wifi-ssid">${ssid}</div>` +
+    icon("chevron-down", "chev") +
     "</div>"
   );
 }
@@ -364,30 +365,19 @@ function doOta() {
   }
 }
 
+// DDL's three views (1: setup only, 2: setup and terminal, 3: terminal only, Alt+1/2/3) map to the collapsed or open
+// "Advanced: terminal" panel; the setup cards always stay on the page.
 function setView(mode, animate) {
   _sessions.setViewMode(mode);
   _sessions.save();
+  showTerminal(mode == 2 || mode == 3, animate);
+}
 
-  if (!animate) {
-    $(".vec-panel").addClass("pterm-no-transition");
-  }
-
-  if (mode == 1) {
-    $(".vec-panel-ui").css("flex", "1 0 50%");
-    $(".vec-shell").css("flex", "0");
-  } else if (mode == 2) {
-    $(".vec-panel-ui").css("flex", "1 0 50%");
-    $(".vec-shell").css("flex", "1 0 50%");
-  } else if (mode == 3) {
-    $(".vec-panel-ui").css("flex", "0");
-    $(".vec-shell").css("flex", "1 0 50%");
-  }
-
-  // Reading offsetHeight forces a layout, so the transition change above applies before it is restored.
-  void $(".vec-panel")[0].offsetHeight;
-
-  if (!animate) {
-    $(".vec-panel").removeClass("pterm-no-transition");
+function showTerminal(open, scroll) {
+  let panel = document.getElementById("terminalPanel");
+  panel.open = open;
+  if (open && scroll) {
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 }
 
@@ -471,12 +461,18 @@ $(document).ready(function () {
     setPhase("containerWifiConfig");
   });
 
-  $(".vec-container").bind("keypress", function (e) {
-    if (e.which == 13) {
-      let buttons = $(this).children('[type="button"]');
-      buttons.first().trigger("click");
-      return false;
+  $("#btnBackToWifi").click(function () {
+    setPhase("containerWifi");
+  });
+
+  // Enter picks the focused row, or presses the card's first visible button (a focused button handles it itself).
+  $(".vec-container").on("keypress", function (e) {
+    if (e.which != 13 || $(e.target).is("button, a")) {
+      return true;
     }
+    let row = $(e.target).closest(".vec-wifi-row, .vec-ota-row");
+    (row.length ? row : $(this).find(".actions button:visible").first()).trigger("click");
+    return false;
   });
 
   pterm_on("cmd", function (args) {
@@ -672,6 +668,7 @@ function HandleHandshake(version) {
   });
 
   rtsHandler.onEncryptedConnection(function () {
+    toggleIcon("iconPin", true);
     $("#discoverFirstTime").addClass("vec-hidden");
     $("#discoverReconnect").removeClass("vec-hidden");
 
@@ -688,9 +685,8 @@ function HandleHandshake(version) {
       updateStatusBox(m);
 
       if (!_enableAutoFlow) {
-        // early out of auto update flow
-        $(".vec-panel-ui").css("flex", "0");
-        $(".vec-shell").css("flex", "1 0 50%");
+        // early out of auto update flow: the rest is done in the terminal
+        showTerminal(true, true);
         return;
       }
 

@@ -305,7 +305,9 @@ function processLine(line) {
 
 $(document).ready(function() {
   $(document).keydown(function(event) {
-    if($("*").is(":focus")) {
+    // v3ctor: the terminal sits in a collapsible panel; it reads keys only while it is shown, so the page keeps
+    // its keys (space and arrows scroll) while it is collapsed.
+    if($("*").is(":focus") || !pterm_shown()) {
       return;
     }
     
@@ -455,7 +457,16 @@ function pterm_process_key(event) {
   $(".pterm-cursor").css("left", w * pterm_current_pos);
 }
 
+// Inside a closed <details> (Chromium hides it with content-visibility, so jQuery's :visible stays true).
+function pterm_shown() {
+  let panel = $(".pterm-main").closest("details");
+  return panel.length == 0 || panel.prop("open");
+}
+
 $(document).on("paste", function(event){
+  if($("*").is(":focus") || !pterm_shown()) {
+    return;
+  }
   // get clipboard data
   let data = event.originalEvent.clipboardData.getData('text');
   pterm_current_line = pterm_current_line.substring(0, pterm_current_pos) + 

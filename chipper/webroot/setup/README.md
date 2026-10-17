@@ -27,12 +27,22 @@ It is Digital Dream Labs' [vector-web-setup](https://github.com/digital-dream-la
   URL comes from `/api/setup/otas`). Removed: Google Fonts (system fonts instead), the stack chooser, the sign-in and
   sign-up forms, the Alexa and analytics checkboxes, the Bootstrap JS bundle (nothing used it), the DDL, Vector and
   Chrome logos.
+- Look: the page is on the v3ctor design system (`/css/style.css`, `/js/shell.js`, `/assets/icons.svg`) like the rest
+  of the UI: shared top bar, light and dark themes, a step indicator (Pair, PIN, Wi-Fi, Update only for robots in
+  recovery mode, Link, Settings), one card per step, a robot card and the terminal in a collapsed "Advanced: terminal"
+  panel. DDL's dark theme (`vecSetup.css`), Bootstrap CSS and the Font Awesome icons are gone; `css/setup.css` holds
+  what the page adds. The element ids and the `vec-*` classes `app.js` drives are DDL's, so the flow is unchanged.
 - `app.js` is `rts-js/main.js` as an ES module (strict): `_build` is declared, the jQuery/pterm globals it uses are
   listed, and `js/sodium.js` is loaded only after `window.sodium.onload` is set (with `async` it could run first).
   Fixed on the way: the OTA rows had a stray quote that dropped their `data-value`, so choosing one of several OTAs
   threw; the locale came from `navigator.locale`, which browsers do not have, and is now `navigator.language`.
-- `css/pterm.css` is `less/pterm.less` compiled by hand (`@size: 8px`); `css/vecSetup.css` only swaps Open Sans for
-  system fonts.
+  UI-only changes for the new look: the Wi-Fi and OTA rows use our icons and signal bars, progress bars set their fill
+  width, a PIN step and a "Back to the list" button on the Wi-Fi password card were added, `toggleIcon(id, false)`
+  now clears a step (DDL marked it done either way), and DDL's three views (Alt+1/2/3) open or close the terminal
+  panel instead of resizing side-by-side panes.
+- `css/pterm.css` is `less/pterm.less` compiled by hand (`@size: 8px`) and restyled with the design system's tokens.
+- `js/pterm.js` reads keys and pastes only while the terminal panel is open and nothing else has focus (DDL's read
+  every key on the page, so space and arrows could not scroll and a pasted Wi-Fi password also landed in it).
 - `rts/`: the setup protocol (BLE framing, CLAD messages, RTS v2-v6 handlers), unchanged except that CommonJS
   `require`/`module.exports` became `import`/`export`. Known upstream bug kept: `doConnectionId()` in the v3-v6
   handlers reads an undeclared `url` and throws if called; nothing calls it.
@@ -41,16 +51,17 @@ It is Digital Dream Labs' [vector-web-setup](https://github.com/digital-dream-la
 
 | File | Origin | License |
 |------|--------|---------|
-| `index.html`, `app.js`, `rts/`, `css/vecSetup.css`, `css/pterm.css`, `js/pterm.js`, `images/*.svg` | vector-web-setup `0637cf7` | MIT, Digital Dream Labs (`LICENSE`) |
+| `index.html`, `app.js`, `rts/`, `css/pterm.css`, `js/pterm.js`, `images/*.svg` (the onboarding drawings, painted in the accent color through a CSS mask) | vector-web-setup `0637cf7` | MIT, Digital Dream Labs (`LICENSE`) |
+| `css/setup.css` | v3ctor | same as wire-pod |
 | `js/jquery.min.3.3.1.js` | jQuery 3.3.1, as bundled by vector-web-setup | MIT (header in the file) |
 | `js/sodium.js` | libsodium.js, as bundled by vector-web-setup | ISC (`js/sodium.LICENSE`) |
-| `css/bootstrap.min.css` | Bootstrap 4.5.0, as bundled by vector-web-setup | MIT (header in the file) |
-| `images/fontawesome/*.svg` | Font Awesome Free 5, as bundled by vector-web-setup | CC BY 4.0 (`images/fontawesome/LICENSE.txt`) |
 
 ## Tests
 
 - `node --test chipper/webtest/setup_protocol.test.mjs`: protocol modules (module graph, BLE framing, CLAD).
 - `chipper/webtest/test_ui.py`: the page loads from this server only, its modules resolve, and without Web
-  Bluetooth it shows the Chrome message; Robot setup links here.
+  Bluetooth it shows the Chrome message; Robot setup links here; it uses the shared top bar and stylesheet, follows
+  the dark theme, shows the pairing card and steps with (faked) Web Bluetooth, keeps the terminal collapsed and deaf
+  until opened, and fits a 390 px phone.
 - `go test ./pkg/wirepod/config-ws/` (from `chipper/`): `/api/setup/sessions` and `/api/setup/otas`.
 - Pairing a real robot is manual: Chrome on this PC, `http://localhost:8080/setup/`.
