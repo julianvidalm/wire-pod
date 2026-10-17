@@ -124,3 +124,15 @@ require (
 )
 
 replace github.com/kercre123/vosk-api/go => ./third_party/vosk-api-go
+
+replace (
+	github.com/currantlabs/ble => ./third_party/currantlabs-ble
+	github.com/digital-dream-labs/api => ./third_party/ddl-api
+	github.com/digital-dream-labs/hugh => ./third_party/ddl-hugh
+	github.com/digital-dream-labs/opus-go => ./third_party/ddl-opus-go
+	github.com/digital-dream-labs/vector-bluetooth => ./third_party/ddl-vector-bluetooth
+	github.com/fforchino/vector-go-sdk => ./third_party/vector-go-sdk
+	github.com/jamesruan/sodium => ./third_party/sodium
+	github.com/kercre123/whisper.cpp/bindings/go => ./third_party/whisper-go
+	github.com/kercre123/zeroconf => ./third_party/zeroconf
+)
