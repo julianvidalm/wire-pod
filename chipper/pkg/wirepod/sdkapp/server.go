@@ -43,18 +43,6 @@ func SdkapiHandler(w http.ResponseWriter, r *http.Request) {
 		// getRobot does connection check and will return error if failed
 		fmt.Fprint(w, "success")
 		return
-	case r.URL.Path == "/api-sdk/alexa_sign_in":
-		robot.Conn.AlexaOptIn(ctx, &vectorpb.AlexaOptInRequest{
-			OptIn: true,
-		})
-		fmt.Fprintf(w, "success")
-		return
-	case r.URL.Path == "/api-sdk/alexa_sign_out":
-		robot.Conn.AlexaOptIn(ctx, &vectorpb.AlexaOptInRequest{
-			OptIn: false,
-		})
-		fmt.Fprintf(w, "success")
-		return
 	case r.URL.Path == "/api-sdk/cloud_intent":
 		intent := r.FormValue("intent")
 		robot.Conn.AppIntent(ctx,
@@ -229,10 +217,6 @@ func SdkapiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	case r.URL.Path == "/api-sdk/button_hey_vector":
 		setSettingSDKintbool(robotObj, "button_wakeword", "0")
-		fmt.Fprintf(w, "done")
-		return
-	case r.URL.Path == "/api-sdk/button_alexa":
-		setSettingSDKintbool(robotObj, "button_wakeword", "1")
 		fmt.Fprintf(w, "done")
 		return
 	case r.URL.Path == "/api-sdk/assume_behavior_control":

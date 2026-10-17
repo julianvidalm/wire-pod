@@ -294,7 +294,6 @@ function getCurrentSettings() {
     var localeS = jdocSdk["locale"];
     var timeSetS = jdocSdk["clock_24_hour"];
     var tempFormatS = jdocSdk["temp_is_fahrenheit"];
-    var buttonS = jdocSdk["button_wakeword"];
     var location = jdocSdk["default_location"];
     var timezone = jdocSdk["time_zone"];
     if (jdocSdk["custom_eye_color"]) {
@@ -368,11 +367,6 @@ function getCurrentSettings() {
     } else {
       var tempFormatT = "Celsius";
     }
-    if (`${buttonS}` == 0) {
-      var buttonT = "Hey Vector";
-    } else {
-      var buttonT = "Alexa";
-    }
 
     var s1 = document.getElementById("currentVolume");
     const s1P = document.createElement("p");
@@ -395,10 +389,6 @@ function getCurrentSettings() {
     var s5 = document.getElementById("currentTempFormat");
     const s5P = document.createElement("p");
     document.getElementById(tempFormatT).checked = true;
-
-    var s6 = document.getElementById("currentButton");
-    const s6P = document.createElement("p");
-    document.getElementById(buttonT).checked = true;
 
     var s10 = document.getElementById("currentLocation");
     const s10P = document.createElement("p");

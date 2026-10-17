@@ -46,10 +46,6 @@
               class="fa-solid fa-clock" id="icon-time" name="icon"></i><br />Time</a></div>
         <div class="main-nav-child"><a href="#" onclick="showSection('section-temp'); return false;"><i
               class="fa-solid fa-temperature-half" id="icon-temp" name="icon"></i><br />Units</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-button'); return false;"><i
-              class="fa-solid fa-circle-dot" id="icon-button" name="icon"></i><br />Button</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-alexa'); return false;"><i
-              class="fa-solid fa-house-signal" id="icon-alexa" name="icon"></i><br />Alexa</a></div>
         <div class="main-nav-child"><a href="#" onclick="showSection('section-location'); return false;"><i
               class="fa-solid fa-location-crosshairs" id="icon-location" name="icon"></i><br />Location</a></div>
         <div class="main-nav-child"><a href="#" onclick="showSection('section-timezone'); return false;"><i
@@ -283,38 +279,6 @@
           </label>
         </div>
         <br>
-        <hr>
-      </div>
-
-      <div id="section-button" class="toggleable-section" style="display:none;">
-        <h2 class="center">Button Action</h2>
-        <hr class="small-hr">
-        <div id="currentButton" class="center"></div>
-        <div style="text-align: left;" class="center">
-          <label>
-            <input type="radio" name="but" id="Hey Vector" value="Hey Vector"
-              onclick="sendForm('/api-sdk/button_hey_vector')">Hey Vector<br>
-          </label>
-          <label>
-            <input type="radio" name="but" id="Alexa" value="Alexa"
-              onclick="sendForm('/api-sdk/button_alexa')">Alexa<br>
-          </label>
-        </div>
-        <br>
-        <hr>
-      </div>
-
-      <div id="section-alexa" class="toggleable-section" style="display:none;">
-        <h2 class="center">Alexa</h2>
-        <hr class="small-hr">
-        <div id="alexaStatus" class="center"></div>
-        <a class="center" target="_blank" rel="noopener noreferrer"
-          href="https://amazon.com/code">https://amazon.com/code</a>
-        <hr class="small-hr">
-        <div class="center">
-          <button onclick="sendForm('/api-sdk/alexa_sign_in')">Signin Alexa</button>
-          <button onclick="sendForm('/api-sdk/alexa_sign_out')">Signout Alexa</button>
-        </div>
         <hr>
       </div>
 
