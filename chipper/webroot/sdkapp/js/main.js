@@ -20,38 +20,18 @@ function revealSdkActions() {
   x.style.display = "block";
 }
 
-const stimChart = document.getElementById("stimChart");
-let myChart = new Chart(stimChart, {
-  type: "line",
-  data: {
-    labels: [],
-    datasets: [
-      {
-        label: "Stimulation",
-        data: [],
-        //backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        backgroundColor: "rgba(51, 237, 109, 1)",
-        borderColor: "rgba(51, 237, 109, 1)",
-        borderWidth: 1,
-      },
-    ],
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: {
-        display: false,
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        min: 0.0,
-        max: 1.0,
-      },
-    },
-  },
-});
+// Draws the last stimulation values (0..1) as a line in the #stimChart SVG (viewBox 110 x 40).
+function drawStim(values) {
+  const line = document.querySelector("#stimChart .sparkline-line");
+  if (!line) {
+    return;
+  }
+  const step = values.length > 1 ? 110 / (values.length - 1) : 0;
+  line.setAttribute(
+    "points",
+    values.map((v, i) => `${(i * step).toFixed(1)},${(40 - Math.max(0, Math.min(1, Number(v) || 0)) * 38).toFixed(1)}`).join(" ")
+  );
+}
 
 function stimHandler() {
   // array to store data
@@ -74,16 +54,10 @@ function stimHandler() {
           stimData.shift();
         }
 
-        // update the chart with the new data
-        myChart.data.labels = [];
-        myChart.data.datasets[0].data = [];
-        //var time = new Date().toLocaleTimeString([], {hour12: false});
-        stimData.forEach((datapoint) => {
-          myChart.data.labels.push(" ");
-          myChart.data.datasets[0].data.push(datapoint);
-        });
-
-        myChart.update();
+        drawStim(stimData);
+      })
+      .catch(() => {
+        // robot unreachable: keep the last line
       });
   }, 500);
 }
@@ -131,22 +105,35 @@ function getPhotos() {
     photoSection.innerHTML = "";
     if (xhr.response == "null") {
       var noPhotos = document.createElement("p");
-      noPhotos.innerHTML =
-        "No photos found. Tell Vector to take a photo, then refresh the list.";
+      noPhotos.className = "empty-state";
+      noPhotos.innerHTML = "No photos yet. Ask the robot to take one, then refresh.";
       photoSection.appendChild(noPhotos);
       return;
     }
-    imageIds = JSON.parse(xhr.response);
-    for (var i = 0; i < imageIds.length; i++) {
-      imgId = imageIds[i];
+    try {
+      imageIds = JSON.parse(xhr.response);
+    } catch {
+      var unreachable = document.createElement("p");
+      unreachable.className = "empty-state";
+      unreachable.textContent = "Can't read the photos: the robot is not answering.";
+      photoSection.appendChild(unreachable);
+      return;
+    }
+    for (let i = 0; i < imageIds.length; i++) {
+      // let, not var: each Delete button must keep its own photo id.
+      const imgId = imageIds[i];
       var thumb = document.createElement("div");
+      thumb.className = "photo";
       var thumbLink = document.createElement("a");
       var thumbPic = document.createElement("img");
       var thumbDelete = document.createElement("button");
       thumbPic.src = "/api-sdk/get_image_thumb?serial=" + esn + "&id=" + imgId;
       //thumb.classList = "center"
-      thumbLink.classList = "center";
-      thumbDelete.classList = "center";
+      thumbPic.alt = "Photo " + imgId;
+      thumbPic.loading = "lazy";
+      thumbDelete.type = "button";
+      thumbDelete.className = "secondary";
+      thumbLink.target = "_blank";
       thumbLink.href = "/api-sdk/get_image?serial=" + esn + "&id=" + imgId;
       thumbLink.appendChild(thumbPic);
       thumbDelete.onclick = function () {
@@ -235,6 +222,9 @@ function updateStats() {
   xhr.responseType = "json";
   xhr.send();
   xhr.onload = function () {
+    if (xhr.status !== 200 || !xhr.response) {
+      return; // robot unreachable; the offline notice says so
+    }
     var statsJson = JSON.stringify(xhr.response);
     var jdocthing = JSON.parse(statsJson);
     var jdocSecs = jdocthing["Alive.seconds"];
@@ -247,21 +237,23 @@ function updateStats() {
 
     var s1 = document.getElementById("statsSection");
     s1.innerHTML = "";
-    var s1p1 = document.createElement("p");
-    s1p1.textContent = "Days alive: " + jdocDays;
-    var s1p2 = document.createElement("p");
-    s1p2.textContent = "Reacted to trigger word: " + jdocTrigger + " times";
-    var s1p3 = document.createElement("p");
-    s1p3.textContent = "Utility features used: " + featuresUsed;
-    var s1p4 = document.createElement("p");
-    s1p4.textContent = "Seconds petted: " + Math.round(petMs / 1000);
-    var s1p5 = document.createElement("p");
-    s1p5.textContent = "Distance moved (cm): " + Math.round(cmMoved / 100);
-    s1.appendChild(s1p1);
-    s1.appendChild(s1p2);
-    s1.appendChild(s1p3);
-    s1.appendChild(s1p4);
-    s1.appendChild(s1p5);
+    var list = document.createElement("dl");
+    list.className = "kv";
+    [
+      ["Days alive", jdocDays],
+      ["Woke up to its name", jdocTrigger + " times"],
+      ["Utility features used", featuresUsed],
+      ["Time petted", Math.round(petMs / 1000) + " s"],
+      ["Distance driven", Math.round(cmMoved / 100) + " cm"],
+    ].forEach(([name, value]) => {
+      var dt = document.createElement("dt");
+      dt.textContent = name;
+      var dd = document.createElement("dd");
+      dd.textContent = value;
+      list.appendChild(dt);
+      list.appendChild(dd);
+    });
+    s1.appendChild(list);
     //{
     //    "Alive.seconds" : 1619,
     //    "BStat.ReactedToTriggerWord" : 17,
@@ -281,6 +273,13 @@ function getCurrentSettings() {
   xhr.responseType = "json";
   xhr.send();
   xhr.onload = function () {
+    // An unreachable robot answers with an error text, which a "json" request turns into null.
+    const offline = document.getElementById("robotOffline");
+    if (xhr.status !== 200 || !xhr.response) {
+      if (offline) offline.style.display = "";
+      return;
+    }
+    if (offline) offline.style.display = "none";
     var jdocSdkSettingsResponse1 = JSON.stringify(xhr.response);
     jdocSdk = JSON.parse(jdocSdkSettingsResponse1);
     let xhr2 = new XMLHttpRequest();

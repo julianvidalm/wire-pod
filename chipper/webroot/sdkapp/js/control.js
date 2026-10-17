@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function toggleKeyboard() {
   if (useKeyboardControl == false) {
     useKeyboardControl = true;
-    keysKey.style.display = "block";
+    keysKey.style.display = "";
   } else {
     useKeyboardControl = false;
     keysKey.style.display = "none";
@@ -127,7 +127,7 @@ function stopCamStream() {
 
 function sayText() {
   sayTextValue = document.getElementById("textSay").value;
-  sendForm("/api-sdk/say_text?text=" + sayTextValue);
+  sendForm("/api-sdk/say_text?text=" + encodeURIComponent(sayTextValue));
 }
 
 keysPressed["w"] = false;

@@ -1,361 +1,271 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-  <title>Vector Web App</title>
-  <!-- Meta Apple tags for a PWA like experience. -->
+  <meta charset="utf-8">
+  <title>Robot · v3ctor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="theme-color" content="#1e1e1e">
-  <link rel="stylesheet" type="text/css" href="../css/style.css">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://kit.fontawesome.com/7508f396ac.js" crossorigin="anonymous"></script>
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="Thu, 01 Jan 1970 00:00:00 GMT">
+  <link rel="icon" href="/favicon.png">
+  <link rel="stylesheet" href="../css/style.css" />
+  <script src="../js/shell.js"></script>
 </head>
 
 <body>
-
   <div id="outer">
-    <div id="content" class="">
-      <h1 class="center">Vector Configuration</h1>
+    <main id="content">
+      <div class="page-head">
+        <div>
+          <h1>Robot</h1>
+          <p>Settings, faces and activity of this robot.</p>
+        </div>
+        <button type="button" onclick="goToControlPage()"><svg class="icon"><use href="/assets/icons.svg#gamepad"></use></svg>Control</button>
+      </div>
+
       <div id="botStats"></div>
-      <hr>
-      <div class="main-nav-parent">
-        <div class="main-nav-child"><a href="/sdkapp"><i class="fa-solid fa-reply"></i><br />Back</a></div>
-        <div class="main-nav-child"><a href="#" onclick="goToControlPage()"><i
-              class="fa-solid fa-gamepad"></i><br />Control<br /></a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-volume'); return false;"><i
-              class="fa-solid fa-volume-high" id="icon-volume" name="icon"></i><br />Volume</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-eyes'); return false;"><i
-              class="fa-solid fa-eye" id="icon-eyes" name="icon"></i><br />Eye Color</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-face'); return false;"><i
-              class="fa-solid fa-user" id="icon-face" name="icon"></i><br />Faces</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-actions'); return false;"><i
-              class="fa-solid fa-person-running" id="icon-actions" name="icon"></i><br />Actions</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-stim'); return false;"><i
-              class="fa-solid fa-face-laugh-beam" id="icon-stim" name="icon"></i><br />Stim</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-stats'); return false;"><i
-              class="fa-solid fa-chart-simple" id="icon-stim" name="icon"></i><br />Statistics</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-photos'); getPhotos(); return false;"><i
-              class="fa-solid fa-images" id="icon-photos" name="icon"></i><br />Photos</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-locale'); return false;"><i
-              class="fa-solid fa-earth-americas" id="icon-locale" name="icon"></i><br />Locale</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-time'); return false;"><i
-              class="fa-solid fa-clock" id="icon-time" name="icon"></i><br />Time</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-temp'); return false;"><i
-              class="fa-solid fa-temperature-half" id="icon-temp" name="icon"></i><br />Units</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-location'); return false;"><i
-              class="fa-solid fa-location-crosshairs" id="icon-location" name="icon"></i><br />Location</a></div>
-        <div class="main-nav-child"><a href="#" onclick="showSection('section-timezone'); return false;"><i
-              class="fa-solid fa-hourglass" id="icon-timezone" name="icon"></i><br />Time Zone</a></div>
-      </div>
-      <hr>
 
-      <div id="section-volume" class="toggleable-section" style="display:none;">
-        <h2 class="center">Volume</h2>
-        <hr class="small-hr">
-        <div id="currentVolume" class="center"></div>
-        <div style="text-align: left;" class="center">
-          <label>
-            <input type="radio" name="vol" id="Mute" value="Mute" onclick="sendForm('/api-sdk/volume?volume=0')">Mute
-          </label>
-          <label>
-            <input type="radio" name="vol" id="Low" value="Low" onclick="sendForm('/api-sdk/volume?volume=1')">Low
-          </label>
-          <label>
-            <input type="radio" name="vol" id="Medium Low" value="Medium Low"
-              onclick="sendForm('/api-sdk/volume?volume=2')">Medium Low
-          </label>
-          <label>
-            <input type="radio" name="vol" id="Medium" value="Medium"
-              onclick="sendForm('/api-sdk/volume?volume=3')">Medium
-          </label>
-          <label>
-            <input type="radio" name="vol" id="Medium High" value="Medium High"
-              onclick="sendForm('/api-sdk/volume?volume=4')">Medium High
-          </label>
-          <label>
-            <input type="radio" name="vol" id="High" value="High" onclick="sendForm('/api-sdk/volume?volume=5')">High
-          </label>
-        </div>
-        <br>
-        <hr>
+      <div id="robotOffline" class="notice warning" style="display: none; margin-bottom: 18px">
+        <svg class="icon"><use href="/assets/icons.svg#wifi"></use></svg>
+        <span>Can't reach this robot. Check that it is on and connected to the network; its settings show once it
+          answers.</span>
       </div>
 
-      <div id="section-eyes" class="toggleable-section" style="display:none;">
-        <h2 style="margin-bottom: 0px;">Eye Color</h2>
-        <hr class="small-hr">
-        <h4 style="margin-bottom: 0px; margin-top:0px;">Preset Eye Colors:</h4>
-        <div style="text-align: left;" class="center">
-          <label>
-            <input type="radio" name="eye" id="Teal" value="Teal"
-              onclick="sendForm('/api-sdk/eye_color?color=0')">Teal<br>
-          </label>
-          <label>
-            <input type="radio" name="eye" id="Orange" value="Orange"
-              onclick="sendForm('/api-sdk/eye_color?color=1')">Orange<br>
-          </label>
-          <label>
-            <input type="radio" name="eye" id="Yellow" value="Yellow"
-              onclick="sendForm('/api-sdk/eye_color?color=2')">Yellow<br>
-          </label>
-          <label>
-            <input type="radio" name="eye" id="Lime Green" value="Lime Green"
-              onclick="sendForm('/api-sdk/eye_color?color=3')">Lime Green<br>
-          </label>
-          <label>
-            <input type="radio" name="eye" id="Azure Blue" value="Azure Blue"
-              onclick="sendForm('/api-sdk/eye_color?color=4')">Azure Blue<br>
-          </label>
-          <label>
-            <input type="radio" name="eye" id="Purple" value="Purple"
-              onclick="sendForm('/api-sdk/eye_color?color=5')">Purple<br>
-          </label>
-          <label>
-            <input type="radio" name="eye" id="Other Green" value="Other Green"
-              onclick="sendForm('/api-sdk/eye_color?color=6')">Other Green<br>
-          </label>
-        </div>
-        <br />
-        <hr class="small-hr">
-        <h4 style="margin-top: 0px;" class="center">Custom Eye Color:</h4>
-        <div class="center" id="picker"></div><br />
-        <div class="center">
-          <button class="settings" onclick="sendCustomColor()">Submit</button>
-        </div>
-        <hr>
-      </div>
+      <nav class="tabs" aria-label="Sections">
+        <a class="tab" data-tab="settings" href="#settings" onclick="showSection('section-general'); return false;">
+          <svg class="icon" id="icon-general"><use href="/assets/icons.svg#sliders"></use></svg>Settings</a>
+        <a class="tab" data-tab="faces" href="#faces" onclick="showSection('section-face'); return false;">
+          <svg class="icon" id="icon-face"><use href="/assets/icons.svg#user"></use></svg>Faces</a>
+        <a class="tab" data-tab="actions" href="#actions" onclick="showSection('section-actions'); return false;">
+          <svg class="icon" id="icon-actions"><use href="/assets/icons.svg#zap"></use></svg>Actions</a>
+        <a class="tab" data-tab="activity" href="#activity" onclick="showSection('section-stim'); return false;">
+          <svg class="icon" id="icon-stim"><use href="/assets/icons.svg#chart"></use></svg>Activity</a>
+        <a class="tab" data-tab="photos" href="#photos" onclick="showSection('section-photos'); getPhotos(); return false;">
+          <svg class="icon" id="icon-photos"><use href="/assets/icons.svg#image"></use></svg>Photos</a>
+      </nav>
 
-      <div id="section-face" class="toggleable-section" style="display:none;">
-        <h2 class="center">Face Manager</h2>
-        <hr class="small-hr">
-        <h3 class="center">Modify existing faces:</h3>
-        <p class="center">Choose the face you would like to modify.</p>
-        <div class="center">
-          <select id="faceList" name="faceList"></select>
-        </div>
-        <div class="center">
-          <button class="center" onclick="refreshFaceList()">Refresh list</button>
-        </div>
-        <div class="center">
-          <div id="faceButtons">
-            <button onclick="deleteFace()">Delete</button>
-            <button onclick="renameFace()">Rename</button>
+      <section id="section-general" class="toggleable-section" style="display: none">
+        <div class="grid-cards">
+          <div class="section" id="section-volume">
+            <h2><svg class="icon"><use href="/assets/icons.svg#volume"></use></svg> Volume</h2>
+            <div id="currentVolume"></div>
+            <div class="choices">
+              <label><input type="radio" name="vol" id="Mute" value="Mute" onclick="sendForm('/api-sdk/volume?volume=0')">Mute</label>
+              <label><input type="radio" name="vol" id="Low" value="Low" onclick="sendForm('/api-sdk/volume?volume=1')">Low</label>
+              <label><input type="radio" name="vol" id="Medium Low" value="Medium Low" onclick="sendForm('/api-sdk/volume?volume=2')">Medium low</label>
+              <label><input type="radio" name="vol" id="Medium" value="Medium" onclick="sendForm('/api-sdk/volume?volume=3')">Medium</label>
+              <label><input type="radio" name="vol" id="Medium High" value="Medium High" onclick="sendForm('/api-sdk/volume?volume=4')">Medium high</label>
+              <label><input type="radio" name="vol" id="High" value="High" onclick="sendForm('/api-sdk/volume?volume=5')">High</label>
+            </div>
+          </div>
+
+          <div class="section" id="section-eyes">
+            <h2><svg class="icon"><use href="/assets/icons.svg#eye"></use></svg> Eye color</h2>
+            <div id="currentEyeColor"></div>
+            <div class="choices">
+              <label><input type="radio" name="eye" id="Teal" value="Teal" onclick="sendForm('/api-sdk/eye_color?color=0')"><span class="swatch" style="background:#00d8c4"></span>Teal</label>
+              <label><input type="radio" name="eye" id="Orange" value="Orange" onclick="sendForm('/api-sdk/eye_color?color=1')"><span class="swatch" style="background:#ff7a1a"></span>Orange</label>
+              <label><input type="radio" name="eye" id="Yellow" value="Yellow" onclick="sendForm('/api-sdk/eye_color?color=2')"><span class="swatch" style="background:#ffd800"></span>Yellow</label>
+              <label><input type="radio" name="eye" id="Lime Green" value="Lime Green" onclick="sendForm('/api-sdk/eye_color?color=3')"><span class="swatch" style="background:#8ce600"></span>Lime green</label>
+              <label><input type="radio" name="eye" id="Azure Blue" value="Azure Blue" onclick="sendForm('/api-sdk/eye_color?color=4')"><span class="swatch" style="background:#2e9cff"></span>Azure blue</label>
+              <label><input type="radio" name="eye" id="Purple" value="Purple" onclick="sendForm('/api-sdk/eye_color?color=5')"><span class="swatch" style="background:#b04dff"></span>Purple</label>
+              <label><input type="radio" name="eye" id="Other Green" value="Other Green" onclick="sendForm('/api-sdk/eye_color?color=6')"><span class="swatch" style="background:#29d65c"></span>Green</label>
+            </div>
+            <details class="subsection">
+              <summary>Custom color</summary>
+              <div id="picker"></div>
+              <div class="actions">
+                <button type="button" class="secondary" onclick="sendCustomColor()">Use this color</button>
+              </div>
+            </details>
+          </div>
+
+          <div class="section" id="section-locale">
+            <h2><svg class="icon"><use href="/assets/icons.svg#globe"></use></svg> Robot language</h2>
+            <div id="currentLocale"></div>
+            <div class="choices">
+              <label><input type="radio" name="locale" id="en-US" value="English (US)" onclick="sendForm('/api-sdk/locale?locale=en-US')">English (US)</label>
+              <label><input type="radio" name="locale" id="en-GB" value="English (GB)" onclick="sendForm('/api-sdk/locale?locale=en-GB')">English (GB)</label>
+              <label><input type="radio" name="locale" id="en-AU" value="English (AU)" onclick="sendForm('/api-sdk/locale?locale=en-AU')">English (AU)</label>
+              <label><input type="radio" name="locale" id="de-DE" value="German" onclick="sendForm('/api-sdk/locale?locale=de-DE')">German</label>
+              <label><input type="radio" name="locale" id="fr-FR" value="French" onclick="sendForm('/api-sdk/locale?locale=fr-FR')">French</label>
+              <label><input type="radio" name="locale" id="ja-FP" value="Japanese" onclick="sendForm('/api-sdk/locale?locale=ja-JP')">Japanese</label>
+            </div>
+          </div>
+
+          <div class="section" id="section-time">
+            <h2><svg class="icon"><use href="/assets/icons.svg#clock"></use></svg> Clock and units</h2>
+            <div id="currentTimeSet"></div>
+            <label>Time format</label>
+            <div class="choices">
+              <label><input type="radio" name="time" id="12 Hour" value="12 Hour" onclick="sendForm('/api-sdk/time_format_12')">12 hour</label>
+              <label><input type="radio" name="time" id="24 Hour" value="24 Hour" onclick="sendForm('/api-sdk/time_format_24')">24 hour</label>
+            </div>
+            <div id="section-temp">
+              <div id="currentTempFormat"></div>
+              <label>Temperature</label>
+              <div class="choices">
+                <label><input type="radio" name="temp" id="Celsius" value="Celsius" onclick="sendForm('/api-sdk/temp_c')">Celsius</label>
+                <label><input type="radio" name="temp" id="Fahrenheit" value="Fahrenheit" onclick="sendForm('/api-sdk/temp_f')">Fahrenheit</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="section" id="section-location">
+            <h2><svg class="icon"><use href="/assets/icons.svg#map-pin"></use></svg> Location</h2>
+            <div id="currentLocation" class="desc"></div>
+            <label for="locationInput">City</label>
+            <div class="field-row">
+              <input id="locationInput" name="locationInput" type="text" placeholder="San Francisco, California">
+              <div style="flex: 0 0 auto"><button type="button" onclick="sendLocation()">Save</button></div>
+            </div>
+          </div>
+
+          <div class="section" id="section-timezone">
+            <h2><svg class="icon"><use href="/assets/icons.svg#hourglass"></use></svg> Time zone</h2>
+            <div id="currentTimeZone" class="desc"></div>
+            <label for="tzInput">Time zone</label>
+            <div class="field-row">
+              <select id="tzInput">
+                <option value="Pacific/Honolulu">Pacific/Honolulu</option>
+                <option value="America/Juneau">America/Juneau</option>
+                <option value="America/Los_Angeles">America/Los_Angeles</option>
+                <option value="America/Phoenix">America/Phoenix</option>
+                <option value="America/Denver">America/Denver</option>
+                <option value="America/Lima">America/Lima</option>
+                <option value="America/Chicago">America/Chicago</option>
+                <option value="America/Bogota">America/Bogota</option>
+                <option value="America/New_York">America/New_York</option>
+                <option value="America/Toronto">America/Toronto</option>
+                <option value="America/Montreal">America/Montreal</option>
+                <option value="America/Argentina/Buenos_Aires">America/Argentina/Buenos_Aires</option>
+                <option value="America/Santiago">America/Santiago</option>
+                <option value="America/Sao_Paulo">America/Sao_Paulo</option>
+                <option value="America/Halifax">America/Halifax</option>
+                <option value="America/St_Johns">America/St_Johns</option>
+                <option value="GMT">GMT</option>
+                <option value="Europe/Lisbon">Europe/Lisbon</option>
+                <option value="Europe/London">Europe/London</option>
+                <option value="Europe/Madrid">Europe/Madrid</option>
+                <option value="Europe/Paris">Europe/Paris</option>
+                <option value="Europe/Athens">Europe/Athens</option>
+                <option value="Europe/Istanbul">Europe/Istanbul</option>
+                <option value="Europe/Moscow">Europe/Moscow</option>
+                <option value="Africa/Lagos">Africa/Lagos</option>
+                <option value="Africa/Harare">Africa/Harare</option>
+                <option value="Africa/Addis_Ababa">Africa/Addis_Ababa</option>
+                <option value="Asia/Dubai">Asia/Dubai</option>
+                <option value="Asia/Tehran">Asia/Tehran</option>
+                <option value="Asia/Karachi">Asia/Karachi</option>
+                <option value="Asia/Kolkata">Asia/Kolkata</option>
+                <option value="Asia/Dhaka">Asia/Dhaka</option>
+                <option value="Asia/Bangkok">Asia/Bangkok</option>
+                <option value="Asia/Jakarta">Asia/Jakarta</option>
+                <option value="Asia/Hong_Kong">Asia/Hong_Kong</option>
+                <option value="Asia/Singapore">Asia/Singapore</option>
+                <option value="Asia/Manila">Asia/Manila</option>
+                <option value="Asia/Seoul">Asia/Seoul</option>
+                <option value="Asia/Tokyo">Asia/Tokyo</option>
+                <option value="Australia/Perth">Australia/Perth</option>
+                <option value="Australia/Darwin">Australia/Darwin</option>
+                <option value="Australia/Adelaide">Australia/Adelaide</option>
+                <option value="Australia/Brisbane">Australia/Brisbane</option>
+                <option value="Australia/Sydney">Australia/Sydney</option>
+                <option value="Australia/Auckland">Australia/Auckland</option>
+              </select>
+              <div style="flex: 0 0 auto"><button type="button" onclick="sendTimeZone()">Save</button></div>
+            </div>
           </div>
         </div>
-        <hr class="small-hr">
-        <h3 class="center">Add a new face:</h3>
-        <p class="center">Enter a name you'd like to add:</p>
-        <div class="center">
-          <input class="tinput" id="faceInput" name="faceInput" type="text" placeholder="Put name here">
-        </div>
-        <div class="center">
-          <button onclick="addFace()">Add Face</button>
-        </div>
-        <hr>
-      </div>
+      </section>
 
-      <div id="section-actions" class="toggleable-section" style="display:none;">
-        <h2 class="center">Quick Actions</h2>
-        <hr class="small-hr">
-        <div class="center">
-          <button onclick="sendForm('/api-sdk/cloud_intent?intent=explore_start')">Explore
-            Start</button>
-          <button onclick="sendForm('/api-sdk/cloud_intent?intent=intent_imperative_dance')">Listen for
-            Beat</button>
-          <button onclick="sendForm('/api-sdk/cloud_intent?intent=intent_system_sleep')">Go to
-            Sleep</button>
-          <button onclick="sendForm('/api-sdk/cloud_intent?intent=intent_imperative_fetchcube')">Fetch
-            Cube</button>
-          <button onclick="sendForm('/api-sdk/cloud_intent?intent=intent_system_charger')">Go
-            Home</button>
+      <section id="section-face" class="toggleable-section" style="display: none">
+        <div class="grid-cards">
+          <div class="section">
+            <h2>People it knows</h2>
+            <p class="desc">Faces the robot has learned. Rename or forget them.</p>
+            <label for="faceList">Face</label>
+            <select id="faceList" name="faceList"></select>
+            <div class="actions" id="faceButtons">
+              <button type="button" class="secondary" onclick="renameFace()"><svg class="icon"><use href="/assets/icons.svg#pencil"></use></svg>Rename</button>
+              <button type="button" class="secondary" onclick="deleteFace()"><svg class="icon"><use href="/assets/icons.svg#trash"></use></svg>Forget</button>
+              <button type="button" class="ghost" onclick="refreshFaceList()"><svg class="icon"><use href="/assets/icons.svg#refresh"></use></svg>Refresh</button>
+            </div>
+          </div>
+          <div class="section">
+            <h2>Learn a new face</h2>
+            <p class="desc">Type the person's name, then have them look at the robot.</p>
+            <label for="faceInput">Name</label>
+            <div class="field-row">
+              <input id="faceInput" name="faceInput" type="text" placeholder="Name">
+              <div style="flex: 0 0 auto"><button type="button" onclick="addFace()"><svg class="icon"><use href="/assets/icons.svg#plus"></use></svg>Learn</button></div>
+            </div>
+          </div>
         </div>
-        <hr class="small-hr">
-        <h3 class="center">Trigger Hey Vector</h3>
-        <p class="center">Trigger the "Hey Vector" wakeword remotely</p>
-        <p class="center">(Only Dev firmware and 2.0.1.6085ep or later)</p>
-        <div id="heyVectorStatus" class="center"></div>
-        <div class="center">
-          <button onclick="triggerHeyVector()">Trigger "Hey Vector"</button>
-        </div>
-        <hr>
-      </div>
+      </section>
 
-      <div id="section-stim" class="toggleable-section" style="display:none;">
-        <h2 class="center">Stimulation</h2>
-        <hr class="small-hr">
-        <div class="center">
-          <canvas id="stimChart"></canvas>
+      <section id="section-actions" class="toggleable-section" style="display: none">
+        <div class="section">
+          <h2>Quick actions</h2>
+          <p class="desc">Ask the robot to do something right now.</p>
+          <div class="action-grid">
+            <button type="button" class="secondary" onclick="sendForm('/api-sdk/cloud_intent?intent=explore_start')"><svg class="icon"><use href="/assets/icons.svg#map-pin"></use></svg>Explore</button>
+            <button type="button" class="secondary" onclick="sendForm('/api-sdk/cloud_intent?intent=intent_imperative_dance')"><svg class="icon"><use href="/assets/icons.svg#volume"></use></svg>Listen for a beat</button>
+            <button type="button" class="secondary" onclick="sendForm('/api-sdk/cloud_intent?intent=intent_imperative_fetchcube')"><svg class="icon"><use href="/assets/icons.svg#cube"></use></svg>Fetch the cube</button>
+            <button type="button" class="secondary" onclick="sendForm('/api-sdk/cloud_intent?intent=intent_system_charger')"><svg class="icon"><use href="/assets/icons.svg#home"></use></svg>Go to the charger</button>
+            <button type="button" class="secondary" onclick="sendForm('/api-sdk/cloud_intent?intent=intent_system_sleep')"><svg class="icon"><use href="/assets/icons.svg#moon"></use></svg>Go to sleep</button>
+          </div>
         </div>
-        <hr>
-      </div>
-
-      <div id="section-stats" class="toggleable-section" style="display:none;">
-        <h2 class="center">Statistics</h2>
-        <hr class="small-hr">
-        <button onclick="updateStats()">Refresh</button><br>
-        <div id="statsSection"></div>
-        <hr>
-      </div>
-
-      <div id="section-photos" class="toggleable-section" style="display:none;">
-        <h2 class="center">Photos</h2>
-        <hr class="small-hr">
-        <div class="center">
-          <button onclick="getPhotos()">Refresh List</button>
+        <div class="section">
+          <h2>Wake the robot</h2>
+          <p class="desc">Starts listening as if you had said its wake word. Needs dev firmware or 2.0.1.6085ep and newer.</p>
+          <div class="actions">
+            <button type="button" onclick="triggerHeyVector()"><svg class="icon"><use href="/assets/icons.svg#mic"></use></svg>Wake it</button>
+          </div>
+          <div id="heyVectorStatus"></div>
         </div>
-        <div class="center">
-          <div id="photoSection"></div>
-        </div>
-        <hr>
-      </div>
+      </section>
 
-      <div id="section-locale" class="toggleable-section" style="display:none;">
-        <h2 class="center">Locale</h2>
-        <hr class="small-hr">
-        <div id="currentLocale" class="center"></div>
-        <div style="text-align: left;" class="center">
-          <label>
-            <input type="radio" name="locale" id="en-US" value="English (US)"
-              onclick="sendForm('/api-sdk/locale?locale=en-US')">English (US)<br>
-          </label>
-          <label>
-            <input type="radio" name="locale" id="en-GB" value="English (GB)"
-              onclick="sendForm('/api-sdk/locale?locale=en-GB')">English (GB)<br>
-          </label>
-          <label>
-            <input type="radio" name="locale" id="en-AU" value="English (AU)"
-              onclick="sendForm('/api-sdk/locale?locale=en-AU')">English (AU)<br>
-          </label>
-          <label>
-            <input type="radio" name="locale" id="de-DE" value="German"
-              onclick="sendForm('/api-sdk/locale?locale=de-DE')">German<br>
-          </label>
-          <label>
-            <input type="radio" name="locale" id="fr-FR" value="French"
-              onclick="sendForm('/api-sdk/locale?locale=fr-FR')">French<br>
-          </label>
-          <label>
-            <input type="radio" name="locale" id="ja-FP" value="Japanese"
-              onclick="sendForm('/api-sdk/locale?locale=ja-JP')">Japanese<br>
-          </label>
+      <section id="section-stim" class="toggleable-section" style="display: none">
+        <div class="grid-cards">
+          <div class="section">
+            <h2>Excitement</h2>
+            <p class="desc">How stimulated the robot is right now, updated twice a second.</p>
+            <svg id="stimChart" class="sparkline" viewBox="0 0 110 40" preserveAspectRatio="none" role="img" aria-label="Stimulation over the last seconds">
+              <line x1="0" y1="40" x2="110" y2="40" class="sparkline-base"></line>
+              <polyline points="" class="sparkline-line"></polyline>
+            </svg>
+            <div id="stimStatus"></div>
+          </div>
+          <div class="section">
+            <div class="card-head">
+              <h2>Statistics</h2>
+              <button type="button" class="ghost" onclick="updateStats()"><svg class="icon"><use href="/assets/icons.svg#refresh"></use></svg>Refresh</button>
+            </div>
+            <div id="statsSection"><p class="desc">Press Refresh to read them from the robot.</p></div>
+          </div>
         </div>
-        <br>
-        <hr>
-      </div>
+      </section>
 
-      <div id="section-time" class="toggleable-section" style="display:none;">
-        <h2 class="center">Time Format</h2>
-        <hr class="small-hr">
-        <div id="currentTimeSet" class="center"></div>
-        <div style="text-align: left;" class="center">
-          <label>
-            <input type="radio" name="time" id="12 Hour" value="12 Hour"
-              onclick="sendForm('/api-sdk/time_format_12')">12 Hour<br>
-          </label>
-          <label>
-            <input type="radio" name="time" id="24 Hour" value="24 Hour"
-              onclick="sendForm('/api-sdk/time_format_24')">24 Hour<br>
-          </label>
+      <section id="section-photos" class="toggleable-section" style="display: none">
+        <div class="section">
+          <div class="card-head">
+            <div>
+              <h2>Photos</h2>
+              <p>Pictures the robot took. Ask it to "take a photo".</p>
+            </div>
+            <button type="button" class="ghost" onclick="getPhotos()"><svg class="icon"><use href="/assets/icons.svg#refresh"></use></svg>Refresh</button>
+          </div>
+          <div id="photoSection" class="photo-grid"></div>
         </div>
-        <br>
-        <hr>
-      </div>
-
-      <div id="section-temp" class="toggleable-section" style="display:none;">
-        <h2 class="center">Temp Format</h2>
-        <hr class="small-hr">
-        <div id="currentTempFormat" class="center"></div>
-        <div style="text-align: left;" class="center">
-          <label>
-            <input type="radio" name="temp" id="Celsius" value="Celsius"
-              onclick="sendForm('/api-sdk/temp_c')">Celsius<br>
-          </label>
-          <label>
-            <input type="radio" name="temp" id="Fahrenheit" value="Fahrenheit"
-              onclick="sendForm('/api-sdk/temp_f')">Fahrenheit<br>
-          </label>
-        </div>
-        <br>
-        <hr>
-      </div>
-
-      <div id="section-location" class="toggleable-section" style="display:none;">
-        <h2 class="center">Set Location</h2>
-        <hr class="small-hr">
-        <div id="currentLocation"></div>
-        <small class="desc">Example: San Francisco, California</small>
-        <div class="center">
-          <input class="tinput" id="locationInput" name="locationInput" type="text" placeholder="Put location here">
-        </div>
-        <hr class="small-hr">
-        <button onclick="sendLocation()">Submit Location</button>
-        <hr>
-      </div>
-
-      <div id="section-timezone" class="toggleable-section" style="display:none;">
-        <h2 style="margin-bottom:0px;">Set Time Zone</h2>
-        <hr class="small-hr">
-        <div id="currentTimeZone" class="center"></div>
-        <div class="center">
-          <!--<input class="tinput" id="tzInput" name="tzInput" type="text" placeholder="Put time zone here">-->
-          <select id="tzInput" value="" class="vec-field">
-            <option value="Pacific/Honolulu">Pacific/Honolulu</option>
-            <option value="America/Juneau">America/Juneau</option>
-            <option value="America/Los_Angeles">America/Los_Angeles</option>
-            <option value="America/Phoenix">America/Phoenix</option>
-            <option value="America/Denver">America/Denver</option>
-            <option value="America/Lima">America/Lima</option>
-            <option value="America/Chicago">America/Chicago</option>
-            <option value="America/Bogota">America/Bogota</option>
-            <option value="America/New_York">America/New_York</option>
-            <option value="America/Argentina/Buenos_Aires">America/Argentina/Buenos_Aires</option>
-            <option value="America/Santiago">America/Santiago</option>
-            <option value="America/Sao_Paulo">America/Sao_Paulo</option>
-            <option value="America/Halifax">America/Halifax</option>
-            <option value="America/St_Johns">America/St_Johns</option>
-            <option value="GMT">GMT</option>
-            <option value="Europe/Lisbon">Europe/Lisbon</option>
-            <option value="Europe/London">Europe/London</option>
-            <option value="Europe/Paris">Europe/Paris</option>
-            <option value="Europe/Athens">Europe/Athens</option>
-            <option value="Europe/Istanbul">Europe/Istanbul</option>
-            <option value="Europe/Moscow">Europe/Moscow</option>
-            <option value="Africa/Lagos">Africa/Lagos</option>
-            <option value="Africa/Harare">Africa/Harare</option>
-            <option value="Africa/Addis_Ababa">Africa/Addis_Ababa</option>
-            <option value="Asia/Dubai">Asia/Dubai</option>
-            <option value="Asia/Tehran">Asia/Tehran</option>
-            <option value="Asia/Karachi">Asia/Karachi</option>
-            <option value="Asia/Kolkata">Asia/Kolkata</option>
-            <option value="Asia/Dhaka">Asia/Dhaka</option>
-            <option value="Asia/Bangkok">Asia/Bangkok</option>
-            <option value="Asia/Jakarta">Asia/Jakarta</option>
-            <option value="Asia/Hong_Kong">Asia/Hong_Kong</option>
-            <option value="Asia/Singapore">Asia/Singapore</option>
-            <option value="Asia/Manila">Asia/Manila</option>
-            <option value="Asia/Seoul">Asia/Seoul</option>
-            <option value="Asia/Tokyo">Asia/Tokyo</option>
-            <option value="Australia/Perth">Australia/Perth</option>
-            <option value="Australia/Darwin">Australia/Darwin</option>
-            <option value="Australia/Adelaide">Australia/Adelaide</option>
-            <option value="Australia/Brisbane">Australia/Brisbane</option>
-            <option value="Australia/Sydney">Australia/Sydney</option>
-            <option value="Australia/Auckland">Australia/Auckland</option>
-          </select>
-        </div>
-        <br />
-        <hr class="small-hr">
-        <button onclick="sendTimeZone()">Submit Time Zone</button>
-        <hr>
-      </div>
-
-    </div>
+      </section>
+    </main>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <iframe name="hiddenFrame" width="0" height="0" style="display: none" title="hidden"></iframe>
   <script src="./js/settings.js"></script>
   <script src="./js/httprequest.js"></script>
   <script src="./js/iro.min.js"></script>
@@ -365,8 +275,6 @@
   <script src="./js/faces.js"></script>
   <script src="../js/ui.js"></script>
   <script src="./js/heyvector.js"></script>
-  <iframe name="hiddenFrame" width="0" height="0" border="0" style="display: none;"></iframe>
-
 </body>
 
 </html>

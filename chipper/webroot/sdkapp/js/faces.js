@@ -32,7 +32,7 @@ function refreshFaceList() {
           x.add(option);
         }
         if (showFaceButtons == true) {
-          document.getElementById("faceButtons").style.display = "block";
+          document.getElementById("faceButtons").style.display = "";
         } else {
           document.getElementById("faceButtons").style.display = "none";
         }
