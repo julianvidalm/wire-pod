@@ -536,7 +536,7 @@ function scpToBot() {
     rm -f /tmp/scpTest
     echo "Vector has been reset to Onboarding mode, but no user data has actually been erased."
     echo
-    echo "Everything has been copied to the bot! Use https://keriganc.com/vector-epod-setup on any device with Bluetooth to finish setting up your Vector!"
+    echo "Everything has been copied to the bot! Open http://localhost:8080/setup/ (wire-pod's Bluetooth setup page; use your WEBSERVER_PORT if you changed it) in Google Chrome on this PC to finish setting up your Vector!"
     echo
     echo "Everything is now setup! You should be ready to run chipper. sudo ./chipper/start.sh"
     echo

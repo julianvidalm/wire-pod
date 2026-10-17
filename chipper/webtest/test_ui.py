@@ -51,8 +51,9 @@ def browser():
 class Api:
     """Answers the pages' API calls and records them as (method, path, query, body)."""
 
-    def __init__(self, page: Page, robot_online=True, photos=None, kg=None):
+    def __init__(self, page: Page, robot_online=True, photos=None, kg=None, answers=None):
         self.calls = []
+        self.answers = answers or {}
         self.robot_online = robot_online
         self.photos = photos or []
         self.kg = kg or {"provider": "", "key": ""}
@@ -77,6 +78,8 @@ class Api:
             "/api-sdk/get_faces": "null",
             "/api-sdk/get_stim_status": 0.5,
         }
+        if path in self.answers:
+            return self.answers[path]
         if path in robot:
             return (200, robot[path]) if self.robot_online else (200, "error: robot unreachable")
         return {
@@ -88,6 +91,9 @@ class Api:
             "/api/get_weather_api": (200, {"provider": "", "key": ""}),
             "/api/get_logs": (200, "log line"),
             "/api/get_stt_info": (200, {"provider": "whisper.cpp", "language": "en-US"}),
+            "/api/setup/sessions": (200, {"session": {"session_token": "2vMhFgktH3Jrbemm2WHkfGN",
+                                                      "user_id": "wire-pod", "scope": "user"}}),
+            "/api/setup/otas": (200, {"base_url": "http://192.168.68.20:8080/api/get_ota/", "files": []}),
         }.get(path, (200, "success"))
 
     def sent(self, path):
@@ -276,4 +282,44 @@ def test_keyboard_driving_shows_the_keys(page, server):
     page.click("label:has(#assume_control)")
     page.click("label:has(#key_control_on)")
     expect(page.locator("#keysKey")).to_be_visible()
+    assert page.errors == []
+
+
+def test_robot_setup_tab_links_to_the_local_setup_page(page, server):
+    api = Api(page, answers={"/api-ble/init": (200, "error: no bluetooth adapter")})
+    page.goto(f"{server}/index.html#setup")
+    link = page.locator("#botAuth a")
+    expect(link).to_have_attribute("href", "/setup/")
+    expect(page.locator("#botAuth")).to_contain_text("Chrome")
+    assert api.sent("/api-ble/init")
+    assert page.errors == []
+
+
+def test_setup_page_runs_from_this_server_and_needs_web_bluetooth(page, server):
+    Api(page)
+    hosts, failed, bad = set(), [], []
+    page.on("request", lambda r: hosts.add(urllib.parse.urlparse(r.url).hostname))
+    page.on("requestfailed", lambda r: failed.append(r.url))
+    page.on("response", lambda r: r.status >= 400 and bad.append(f"{r.status} {r.url}"))
+    page.goto(f"{server}/setup/")
+    # Headless Chromium has no navigator.bluetooth. The text below is set by app.js, so it also proves that the
+    # module and all its imports loaded.
+    assert page.evaluate("navigator.bluetooth") is None
+    expect(page.locator("#incompatibleMessage")).to_have_text(
+        "Vector setup needs Google Chrome (or another Chromium browser) with Web Bluetooth. Open this page in "
+        "Chrome on the PC that runs wire-pod.")
+    expect(page.locator("#containerIncompatible")).to_have_class("vec-container vec-current")
+    page.wait_for_function("window.sodium && typeof window.sodium.crypto_box_keypair === 'function'")
+    assert hosts == {"127.0.0.1"}
+    assert failed == [] and bad == []
+    assert page.errors == []
+
+
+def test_setup_page_with_web_bluetooth_starts_at_pairing_on_the_wire_pod_stack(page, server):
+    Api(page)
+    page.add_init_script("Object.defineProperty(navigator, 'bluetooth', {value: {}, configurable: true})")
+    page.goto(f"{server}/setup/")
+    expect(page.locator("#containerDiscover")).to_have_class("vec-container vec-current")
+    expect(page.locator("#vecEnv")).to_have_text("wire-pod")
+    expect(page.locator("#btnDiscoverVector")).to_be_visible()
     assert page.errors == []

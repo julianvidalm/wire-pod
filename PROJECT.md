@@ -113,6 +113,10 @@ alphacephei.com) with pinned sha256 sums; English and Spanish are pinned. A lang
 a message that says where to copy it. The Vosk Go binding is kept in `chipper/third_party/vosk-api-go` (Apache-2.0)
 and used through a `replace`. CI and the Dockerfile still download libvosk from alphacep with the pinned sum.
 
+Bluetooth setup is served by wire-pod itself at `http://localhost:8080/setup/` (open it in Chrome on this PC; Home →
+Robot setup links to it): Digital Dream Labs' vector-web-setup (MIT) with its Node server and accounts cloud replaced
+by `/api/setup/sessions` and `/api/setup/otas` (which lists `robot/ota/*.ota`). See `chipper/webroot/setup/README.md`.
+
 ## Releasing
 
 ```sh
