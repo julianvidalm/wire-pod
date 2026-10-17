@@ -76,17 +76,35 @@ func InstallVoskModel(language string) {
 		fail(err.Error())
 		return
 	}
-	// The zip holds one directory named like the file; it becomes <language>/model.
+	// The zip holds one directory named like the file; it becomes <language>/model. Check that before touching
+	// an installed model, and swap the old one out only once the new one is in place.
+	unpacked := filepath.Join(staging, strings.TrimSuffix(file, ".zip"))
+	if info, err := os.Stat(unpacked); err != nil || !info.IsDir() {
+		os.RemoveAll(staging)
+		fail("unexpected layout in " + file + ": no " + filepath.Base(unpacked) + " directory")
+		return
+	}
 	if err := os.MkdirAll(dest, 0o755); err != nil {
+		os.RemoveAll(staging)
 		fail(err.Error())
 		return
 	}
-	os.RemoveAll(filepath.Join(dest, "model"))
-	if err := os.Rename(filepath.Join(staging, strings.TrimSuffix(file, ".zip")), filepath.Join(dest, "model")); err != nil {
+	model, old := filepath.Join(dest, "model"), filepath.Join(dest, "model.old")
+	os.RemoveAll(old)
+	if _, err := os.Stat(model); err == nil {
+		if err := os.Rename(model, old); err != nil {
+			os.RemoveAll(staging)
+			fail(err.Error())
+			return
+		}
+	}
+	if err := os.Rename(unpacked, model); err != nil {
+		os.Rename(old, model) // put the previous model back
 		os.RemoveAll(staging)
-		fail("unexpected layout in " + file + ": " + err.Error())
+		fail(err.Error())
 		return
 	}
+	os.RemoveAll(old)
 	os.RemoveAll(staging)
 
 	vars.DownloadedVoskModels = append(vars.DownloadedVoskModels, language)

@@ -111,7 +111,8 @@ live in one local data directory, `$V3CTOR_DATA` or `~/.local/share/v3ctor` (a D
 `scripts/seed-local-data.sh [language ...]` fills it once from the original publishers (alphacep releases and
 alphacephei.com) with pinned sha256 sums; English and Spanish are pinned. A language whose zip is missing fails with
 a message that says where to copy it. The Vosk Go binding is kept in `chipper/third_party/vosk-api-go` (Apache-2.0)
-and used through a `replace`. CI and the Dockerfile still download libvosk from alphacep with the pinned sum.
+and used through a `replace`. CI (`.github/scripts/setup-vosk.sh`, with the pinned sum) and the Dockerfile (without a sum check) still download
+libvosk from alphacep.
 
 Bluetooth setup is served by wire-pod itself at `http://localhost:8080/setup/` (open it in Chrome on this PC; Home →
 Robot setup links to it): Digital Dream Labs' vector-web-setup (MIT) with its Node server and accounts cloud replaced

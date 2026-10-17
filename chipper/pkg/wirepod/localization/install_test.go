@@ -153,3 +153,25 @@ func TestUnknownLanguageEndsWithAnError(t *testing.T) {
 		t.Fatalf("status %q", DownloadStatus)
 	}
 }
+
+func TestAZipWithTheWrongLayoutKeepsTheInstalledModel(t *testing.T) {
+	source, models := setup(t)
+	installed := filepath.Join(models, "es-ES", "model", "am", "final.mdl")
+	os.MkdirAll(filepath.Dir(installed), 0o755)
+	os.WriteFile(installed, []byte("working model"), 0o644)
+	writeZip(t, filepath.Join(source, "vosk-model-small-es-0.42.zip"), map[string]string{
+		"some-other-name/am/final.mdl": "wrong layout",
+	})
+
+	InstallVoskModel("es-ES")
+
+	if !strings.HasPrefix(DownloadStatus, "error: unexpected layout in vosk-model-small-es-0.42.zip") {
+		t.Fatalf("status %q", DownloadStatus)
+	}
+	if got, err := os.ReadFile(installed); err != nil || string(got) != "working model" {
+		t.Fatalf("installed model changed: %q, %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(models, "es-ES.partial")); !os.IsNotExist(err) {
+		t.Fatalf("staging directory left behind: %v", err)
+	}
+}

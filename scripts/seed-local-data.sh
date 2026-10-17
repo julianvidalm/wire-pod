@@ -51,6 +51,8 @@ done
 # SHA256SUMS lets the server check every model it installs.
 (cd "$MODEL_DIR" && for lang in "${!MODELS[@]}"; do
   read -r zip sum <<<"${MODELS[$lang]}"
-  [[ -f "$zip" ]] && echo "$sum  $zip"
+  if [[ -f "$zip" ]]; then
+    echo "$sum  $zip"
+  fi
 done | sort -k2 >SHA256SUMS)
 echo "data directory: $DATA"
