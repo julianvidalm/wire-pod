@@ -22,8 +22,18 @@ function refreshFaceList() {
         areThereFaces = false;
         x.add(option);
       } else {
+        try {
+          jsonResp = JSON.parse(response);
+        } catch {
+          // the robot is not answering: say so instead of failing
+          var option = document.createElement("option");
+          option.text = "Can't reach the robot";
+          option.value = "none";
+          x.add(option);
+          document.getElementById("faceButtons").style.display = "none";
+          return;
+        }
         areThereFaces = true;
-        jsonResp = JSON.parse(response);
         showFaceButtons = true;
         for (var i = 0; i < jsonResp.length; i++) {
           var option = document.createElement("option");
@@ -32,7 +42,7 @@ function refreshFaceList() {
           x.add(option);
         }
         if (showFaceButtons == true) {
-          document.getElementById("faceButtons").style.display = "block";
+          document.getElementById("faceButtons").style.display = "";
         } else {
           document.getElementById("faceButtons").style.display = "none";
         }

@@ -62,11 +62,11 @@ go build -tags nolibopusfile -o wakeword-eval ./cmd/wakeword-eval
 
 ## Anthropic (Claude) provider
 
-Select **Anthropic (Claude)** under *Knowledge Graph API Provider* in the web UI (`http://localhost:8080`) and enter:
+In the web UI (`http://localhost:8080`) open **Server → Assistant**, choose the provider **Anthropic (Claude)** and enter:
 
-- **Anthropic API Key**: a workspace-scoped key from console.anthropic.com. If left blank, `ANTHROPIC_API_KEY` from the chipper process environment is used.
-- **Claude Model**: blank uses `claude-haiku-5-5` (fast, suited to spoken replies); `claude-opus-5-5` gives better answers at higher cost and latency.
-- **LLM Prompt**: optional system prompt, cached on Anthropic's side.
+- **API key**: a workspace-scoped key from console.anthropic.com. If left blank, `ANTHROPIC_API_KEY` from the chipper process environment is used.
+- **Model**: blank uses `claude-haiku-5-5` (fast, suited to spoken replies); `claude-opus-5-5` gives better answers at higher cost and latency.
+- **Personality prompt**: optional system prompt, cached on Anthropic's side.
 
 It uses the official Go SDK (`github.com/anthropics/anthropic-sdk-go`) for knowledge-graph, intent-graph and camera (`getImage`) requests. Requests use effort `low`, disable thinking (except on models that cannot turn it off, such as `claude-opus-5-5`) and send no sampling parameters, which current Claude models reject. One client is reused per API key, failed requests are retried at most once, and the request starts while wire-pod is still connecting to the robot. The adapter lives in `chipper/pkg/wirepod/ttr/llm_anthropic.go`.
 
@@ -79,6 +79,22 @@ ANTHROPIC_API_KEY=... go test -tags "nolibopusfile anthropic_live" -run Live ./p
 ```
 
 chipper requires Go 1.26 and pins the `go1.26.9` toolchain (`go.mod`); `setup.sh` installs Go 1.26.9 on fresh machines, and an older local Go downloads the pinned toolchain on first build (`GOTOOLCHAIN=auto`). CI runs `govulncheck` on the vosk build.
+
+## Web UI
+
+The pages in `chipper/webroot` share one design system: `css/style.css` (color tokens, light and dark themes, accent
+colors), `assets/icons.svg` (our icons; use them as `<svg class="icon"><use href="/assets/icons.svg#name"></use></svg>`)
+and `js/shell.js` (top bar, theme, toasts that replace `alert()`, and section tabs that open from the URL hash, for
+example `index.html#log`). No page loads scripts from other hosts. The upstream update check is gone: **Home → About**
+shows the commit the server was built from (`/api/get_version_info` returns `{"commit", "version"}` without network
+calls).
+
+Browser tests serve the pages with the API answered by fixtures, so they need neither the server nor a robot:
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install playwright pytest && .venv/bin/playwright install chromium
+.venv/bin/pytest chipper/webtest
+```
 
 ## Releasing
 

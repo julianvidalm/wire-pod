@@ -78,7 +78,7 @@ function checkConn() {
 }
 
 function setConn() {
-  updateSetupStatus("Setting connection type (ep or ip)...");
+  updateSetupStatus("Saving the connection settings...");
   const connValue = document.getElementById("connSelection").value;
   let port = document.getElementById("portInput").value;
   port = port ? port : "443";
@@ -88,10 +88,10 @@ function setConn() {
     .then((response) => response.text())
     .then((response) => {
       if (response) {
-        updateSetupStatus("Setup is complete! Wire-pod has started. Redirecting to main page...");
+        updateSetupStatus("Setup is complete and the server is running. Opening the home page...");
         setTimeout(() => window.location.href = "/", 3000);
       } else {
-        updateSetupStatus("Error setting up wire-pod, check the logs");
+        updateSetupStatus("Setup failed. Check the server log and try again.");
         document.getElementById("config-options").style.display = "block";
       }
     });

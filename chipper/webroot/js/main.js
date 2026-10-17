@@ -1,5 +1,5 @@
 const intentsJson = JSON.parse(
-  '["intent_greeting_hello", "intent_names_ask", "intent_imperative_eyecolor", "intent_character_age", "intent_explore_start", "intent_system_charger", "intent_system_sleep", "intent_greeting_goodmorning", "intent_greeting_goodnight", "intent_greeting_goodbye", "intent_seasonal_happynewyear", "intent_seasonal_happyholidays", "intent_amazon_signin", "intent_imperative_forward", "intent_imperative_turnaround", "intent_imperative_turnleft", "intent_imperative_turnright", "intent_play_rollcube", "intent_play_popawheelie", "intent_play_fistbump", "intent_play_blackjack", "intent_imperative_affirmative", "intent_imperative_negative", "intent_photo_take_extend", "intent_imperative_praise", "intent_imperative_abuse", "intent_weather_extend", "intent_imperative_apologize", "intent_imperative_backup", "intent_imperative_volumedown", "intent_imperative_volumeup", "intent_imperative_lookatme", "intent_imperative_volumelevel_extend", "intent_imperative_shutup", "intent_names_username_extend", "intent_imperative_come", "intent_imperative_love", "intent_knowledge_promptquestion", "intent_clock_checktimer", "intent_global_stop_extend", "intent_clock_settimer_extend", "intent_clock_time", "intent_imperative_quiet", "intent_imperative_dance", "intent_play_pickupcube", "intent_imperative_fetchcube", "intent_imperative_findcube", "intent_play_anytrick", "intent_message_recordmessage_extend", "intent_message_playmessage_extend", "intent_blackjack_hit", "intent_blackjack_stand", "intent_play_keepaway"]'
+  '["intent_greeting_hello", "intent_names_ask", "intent_imperative_eyecolor", "intent_character_age", "intent_explore_start", "intent_system_charger", "intent_system_sleep", "intent_greeting_goodmorning", "intent_greeting_goodnight", "intent_greeting_goodbye", "intent_seasonal_happynewyear", "intent_seasonal_happyholidays", "intent_imperative_forward", "intent_imperative_turnaround", "intent_imperative_turnleft", "intent_imperative_turnright", "intent_play_rollcube", "intent_play_popawheelie", "intent_play_fistbump", "intent_play_blackjack", "intent_imperative_affirmative", "intent_imperative_negative", "intent_photo_take_extend", "intent_imperative_praise", "intent_imperative_abuse", "intent_weather_extend", "intent_imperative_apologize", "intent_imperative_backup", "intent_imperative_volumedown", "intent_imperative_volumeup", "intent_imperative_lookatme", "intent_imperative_volumelevel_extend", "intent_imperative_shutup", "intent_names_username_extend", "intent_imperative_come", "intent_imperative_love", "intent_knowledge_promptquestion", "intent_clock_checktimer", "intent_global_stop_extend", "intent_clock_settimer_extend", "intent_clock_time", "intent_imperative_quiet", "intent_imperative_dance", "intent_play_pickupcube", "intent_imperative_fetchcube", "intent_imperative_findcube", "intent_play_anytrick", "intent_message_recordmessage_extend", "intent_message_playmessage_extend", "intent_blackjack_hit", "intent_blackjack_stand", "intent_play_keepaway"]'
 );
 
 var GetLog = false;
@@ -25,14 +25,15 @@ function updateIntentSelection(element) {
           }
         });
         const label = document.createElement("label");
-        label.innerHTML = "Choose the intent: ";
+        label.innerHTML = "Your intents";
         label.htmlFor = `${element}intents`;
         container.appendChild(label).appendChild(select);
 
         select.addEventListener("change", hideEditIntents);
       } else {
         const error = document.createElement("p");
-        error.innerHTML = "No intents found, you must add one first";
+        error.className = "empty-state";
+        error.innerHTML = "No custom intents yet. Add one above.";
         container.appendChild(error);
       }
     }).catch(() => {
@@ -44,7 +45,7 @@ function checkInited() {
   fetch("/api/is_api_v3").then((response) => {
     if (!response.ok) {
       alert(
-        "This webroot does not match with the wire-pod binary. Some functionality will be broken. There was either an error during the last update, or you did not precisely follow the update guide. https://github.com/kercre123/wire-pod/wiki/Things-to-Know#updating-wire-pod"
+        "This page does not match the running wire-pod server, so some functions will not work. Restart the server and reload the page."
       );
     }
   });
@@ -69,7 +70,7 @@ function createIntentSelect(element) {
     select.appendChild(option);
   });
   const label = document.createElement("label");
-  label.innerHTML = "Intent to send to robot after script executed:";
+  label.innerHTML = "Intent sent to the robot";
   label.htmlFor = `${element}intents`;
   getE(element).innerHTML = "";
   getE(element).appendChild(label).appendChild(select);
@@ -102,7 +103,7 @@ function editFormCreate() {
           <label for="exec">Exec:<br><input type="text" id="exec" value="${intent.exec}"></label><br>
           <label for="execargs">Exec Args:<br><input type="text" id="execargs" value="${intent.execargs.join(",")}"></label><br>
           <label for="luascript">Lua code to run:</label><br><textarea id="luascript">${intent.luascript}</textarea>
-          <button onclick="editIntent(${intentNumber})">Submit</button>
+          <div class="actions"><button type="button" onclick="editIntent(${intentNumber})">Save changes</button></div>
         `;
         //form.querySelector("#submit").onclick = () => editIntent(intentNumber);
         getE("editIntentForm").innerHTML = "";
@@ -503,18 +504,13 @@ function closeSection(sectionID) {
   sectionID.style.display = "none";
 }
 
-function updateColor(id) {
-  const l_id = id.replace("section", "icon");
-  const elements = document.getElementsByName("icon");
-
-  elements.forEach((element) => {
-    element.classList.remove("selectedicon");
-    element.classList.add("nowselectedicon");
-  });
-
-  const targetElement = document.getElementById(l_id);
-  targetElement.classList.remove("notselectedicon");
-  targetElement.classList.add("selectedicon");
+// Marks the tab that holds the given icon as the active one (the tabs are in js/shell.js).
+function updateColor(iconId) {
+  const tab = getE(iconId)?.closest(".tab");
+  if (!tab) {
+    return;
+  }
+  tab.parentElement.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
 }
 
 
@@ -541,59 +537,18 @@ function showLog() {
   }, 500);
 }
 
-function checkUpdate() {
-  displayMessage("cVersion", "Checking for updates...");
-  displayMessage("aUpdate", "");
-  displayMessage("cCommit", "");
+function showVersionInfo() {
+  displayMessage("cVersion", "Loading...");
   fetch("/api/get_version_info")
-    // type VersionInfo struct {
-    // 	FromSource      bool   `json:"fromsource"`
-    // 	InstalledVer    string `json:"installedversion"`
-    // 	InstalledCommit string `json:"installedcommit"`
-    // 	CurrentVer      string `json:"currentver"`
-    // 	CurrentCommit   string `json:"currentcommit"`
-    // 	UpdateAvailable bool   `json:"avail"`
-    // }
-    .then((response) => response.text())
-    .then((response) => {
-      if (response.includes("error")) {
-        // <p id="cVersion"></p>
-        // <p style="display: none;" id="cCommit"></p>
-        // <p id="aUpdate"></p>
-        displayMessage(
-          "cVersion",
-          "There was an error: " + response
-        );
-        getE("updateGuideLink").style.display = "none";
-      } else {
-        const parsed = JSON.parse(response);
-        if (parsed.fromsource) {
-          if (!parsed.avail) {
-            displayMessage("aUpdate", `You are on the latest version.`);
-            getE("updateGuideLink").style.display = "none";
-          } else {
-            displayMessage("aUpdate", `A newer version of WirePod (commit: ${parsed.currentcommit}) is available! Use this guide to update WirePod: `);
-            getE("updateGuideLink").style.display = "block";
-          }
-          displayMessage("cVersion", `Installed Commit: ${parsed.installedcommit}`);
-        } else {
-          displayMessage("cVersion", `Installed Version: ${parsed.installedversion}`);
-          displayMessage("cCommit", `Based on wire-pod commit: ${parsed.installedcommit}`);
-          getE("cCommit").style.display = "block";
-          if (parsed.avail) {
-            displayMessage("aUpdate", `A newer version of WirePod (${parsed.currentversion}) is available! Use this guide to update WirePod: `);
-            getE("updateGuideLink").style.display = "block";
-          } else {
-            displayMessage("aUpdate", "You are on the latest version.");
-            getE("updateGuideLink").style.display = "none";
-          }
-        }
-      }
-    });
+    .then((response) => response.json())
+    .then((info) => {
+      displayMessage("cVersion", info.version ? `Version ${info.version} (commit ${info.commit || "unknown"})` : `Commit ${info.commit || "unknown"}`);
+    })
+    .catch(() => displayMessage("cVersion", "Could not read the version."));
 }
 
 function showLanguage() {
-  toggleVisibility(["section-weather", "section-restart", "section-kg", "section-language"], "section-language", "icon-Language");
+  toggleVisibility(["section-weather", "section-kg", "section-language"], "section-language", "icon-Language");
   fetch("/api/get_stt_info")
     .then((response) => response.json())
     .then((parsed) => {
@@ -609,7 +564,7 @@ function showLanguage() {
 
 function showVersion() {
   toggleVisibility(["section-log", "section-botauth", "section-intents", "section-version", "section-uicustomizer"], "section-version", "icon-Version");
-  checkUpdate();
+  showVersionInfo();
 }
 
 function showIntents() {
@@ -617,11 +572,11 @@ function showIntents() {
 }
 
 function showWeather() {
-  toggleVisibility(["section-weather", "section-restart", "section-language", "section-kg"], "section-weather", "icon-Weather");
+  toggleVisibility(["section-weather", "section-language", "section-kg"], "section-weather", "icon-Weather");
 }
 
 function showKG() {
-  toggleVisibility(["section-weather", "section-restart", "section-language", "section-kg"], "section-kg", "icon-KG");
+  toggleVisibility(["section-weather", "section-language", "section-kg"], "section-kg", "icon-KG");
 }
 
 function toggleVisibility(sections, sectionToShow, iconId) {

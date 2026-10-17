@@ -167,7 +167,6 @@ COPY --from=builder /build/.wirepod-version /opt/wire-pod/.wirepod-version
 
 RUN chmod +x \
         /opt/wire-pod/setup.sh \
-        /opt/wire-pod/update.sh \
         /opt/wire-pod/chipper/start.sh \
         /opt/wire-pod/docker/entrypoint.sh
 

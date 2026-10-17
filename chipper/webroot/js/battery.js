@@ -43,6 +43,15 @@ function getBatteryPercentage(voltage) {
 }
 
 
+// "On the charger · ~80% · 3.95 V"; the voltage is missing when the robot started off the charger.
+function batterySummary(batteryStatus, percentage) {
+  const parts = [batteryStatus["is_on_charger_platform"] ? "On the charger" : "Off the charger", `~${percentage}%`];
+  if (typeof batteryStatus["battery_volts"] === "number") {
+    parts.push(`${batteryStatus["battery_volts"].toFixed(2)} V`);
+  }
+  return parts.join(" · ");
+}
+
 async function updateBatteryInfo(serial, i) {
   var batteryContainer = document.getElementsByClassName("batteryContainer")[i];
   if (!batteryContainer) {
@@ -72,7 +81,7 @@ async function updateBatteryInfo(serial, i) {
     }
     batteryLevel.className = "batteryLevel batteryUnknown";
     vectorFace.style.backgroundImage = "url(/assets/wififace.gif)";
-    tooltip.innerHTML = `<b>${serial}</b><br/>??%<br/> (Unable to connect)`;
+    tooltip.innerHTML = `<b>${serial}</b>Offline`;
     setTimeout(async () => {
       // Re-render the battery information
       updateBatteryInfo(serial, i);
@@ -106,7 +115,7 @@ async function updateBatteryInfo(serial, i) {
   batteryLevel.style.width = batteryPercentage + "%";
 
   // Clear tooltip, and replace serial number and the latest voltage
-  tooltip.innerHTML = `<b>${serial}</b><br/>~${batteryPercentage}%<br/> (${batteryStatus["battery_volts"].toFixed(2)}V)`;
+  tooltip.innerHTML = `<b>${serial}</b>${batterySummary(batteryStatus, batteryPercentage)}`;
 
   // Update the charging status
   if (batteryStatus["is_on_charger_platform"]) {
@@ -208,7 +217,7 @@ async function renderBatteryInfo(serial, i = 0) {
   if (!batteryStatus) {
     batteryLevel.className = "batteryLevel batteryUnknown";
     vectorFace.style.backgroundImage = "url(/assets/wififace.gif)";
-    tooltip.innerHTML = `<b>${serial}</b><br/>??<br/> (Unable to connect)`;
+    tooltip.innerHTML = `<b>${serial}</b>Offline`;
     setTimeout(async () => {
       // Re-render the battery information
       updateBatteryInfo(serial, i);
@@ -231,10 +240,7 @@ async function renderBatteryInfo(serial, i = 0) {
   const batteryPercentage = getBatteryPercentage(batteryStatus["battery_volts"]);
   batteryLevel.style.width = batteryPercentage + "%";
 
-  tooltip.innerHTML += `<br/>~${batteryPercentage}%`;
-
-  // Add the battery voltage to the tooltip
-  tooltip.innerHTML += `<br/> (${batteryStatus["battery_volts"].toFixed(2)}V)`;
+  tooltip.innerHTML += `${batterySummary(batteryStatus, batteryPercentage)}`;
 
   setTimeout(async () => {
     // Re-render the battery information
