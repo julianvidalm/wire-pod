@@ -221,9 +221,7 @@ function getSTT() {
             export CGO_CFLAGS="-I${ROOT}/.vosk/libvosk"
             export CGO_LDFLAGS="-L ${ROOT}/.vosk/libvosk -lvosk -ldl -lpthread"
             export LD_LIBRARY_PATH="${ROOT}/.vosk/libvosk:$LD_LIBRARY_PATH"
-            /usr/local/go/bin/go get -u github.com/kercre123/vosk-api/go/...
-            /usr/local/go/bin/go get github.com/kercre123/vosk-api
-            /usr/local/go/bin/go install github.com/kercre123/vosk-api/go
+            # The Vosk Go binding lives in chipper/third_party/vosk-api-go (replace in go.mod); nothing to fetch.
             cd ${origDir}
         fi
         elif [[ ${sttService} == "whisper" ]]; then
