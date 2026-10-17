@@ -28,13 +28,14 @@
       <!-- One card per robot, filled by js/battery.js. Click a card for its settings. -->
       <div id="botStats"></div>
 
+      <!-- The first tab opens by default, so it must not have side effects (Robot setup starts Bluetooth). -->
       <nav class="tabs" aria-label="Sections">
-        <a class="tab" data-tab="setup" href="#setup" onclick="showBotAuth(); return false;">
-          <svg class="icon" id="icon-BotAuth"><use href="/assets/icons.svg#robot"></use></svg>Robot setup</a>
         <a class="tab" data-tab="intents" href="#intents" onclick="showIntents(); return false;">
           <svg class="icon" id="icon-Intents"><use href="/assets/icons.svg#mic"></use></svg>Custom intents</a>
         <a class="tab" data-tab="log" href="#log" onclick="showLog(); return false;">
           <svg class="icon" id="icon-Logs"><use href="/assets/icons.svg#terminal"></use></svg>Log</a>
+        <a class="tab" data-tab="setup" href="#setup" onclick="showBotAuth(); return false;">
+          <svg class="icon" id="icon-BotAuth"><use href="/assets/icons.svg#robot"></use></svg>Robot setup</a>
         <a class="tab" data-tab="about" href="#about" onclick="showVersion(); return false;">
           <svg class="icon" id="icon-Version"><use href="/assets/icons.svg#info"></use></svg>About</a>
         <a class="tab" data-tab="appearance" href="#appearance" onclick="showUICustomizer(); return false;">
