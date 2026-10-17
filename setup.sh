@@ -469,8 +469,8 @@ function scpToBot() {
     if [[ ! -n ${keyPath} ]]; then
         echo
         if [[ ! -f ./ssh_root_key ]]; then
-            echo "Key not provided, downloading ssh_root_key..."
-            wget http://wire.my.to:81/ssh_root_key
+            echo "Key not provided and ./ssh_root_key is missing. Pass the robot's SSH key path (it is not downloaded)."
+            exit 1
         else
             echo "Key not provided, using ./ssh_root_key (already there)..."
         fi

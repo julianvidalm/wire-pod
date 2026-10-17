@@ -338,10 +338,14 @@ func BluetoothSetupAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	case r.URL.Path == "/api-ble/start_ota":
 		otaUrl := r.FormValue("url")
-		if strings.TrimSpace(otaUrl) == "local" {
-			logger.Println("Starting proxy download from archive.org")
-			otaUrl = "http://" + vars.GetOutboundIP().String() + ":" + vars.WebPort + "/api/get_ota/vicos-2.0.1.6076ep.ota"
-			logger.Println("(" + otaUrl + ")")
+		// "local" or "local:<file>.ota": the robot downloads the file from this server's OTA directory.
+		if name, ok := strings.CutPrefix(strings.TrimSpace(otaUrl), "local"); ok {
+			name = strings.TrimPrefix(name, ":")
+			if name == "" {
+				name = "vicos-2.0.1.6076ep.ota"
+			}
+			otaUrl = "http://" + vars.GetOutboundIP().String() + ":" + vars.WebPort + "/api/get_ota/" + name
+			logger.Println("Robot OTA from the local data directory: " + otaUrl)
 		}
 		if strings.Contains(otaUrl, "https://") {
 			fmt.Fprint(w, "error: ota URL must be http")

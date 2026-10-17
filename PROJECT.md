@@ -105,6 +105,8 @@ live in one local data directory, `$V3CTOR_DATA` or `~/.local/share/v3ctor` (a D
 |------|------|---------|
 | `vosk/lib/vosk-linux-x86_64-0.3.45.zip` | libvosk | `setup.sh` |
 | `vosk/models/vosk-model-small-*.zip` + `SHA256SUMS` | Vosk models | Server settings → Language (installed into `vosk/models/<lang>/model`, checked against `SHA256SUMS`) |
+| `robot/ota/*.ota` | Robot firmware files | `/api/get_ota/<file>` (robots updating or recovering through this server) |
+| `robot/vic-cloud` | vic-cloud binary | SSH robot setup in packaged builds (source builds use `../vector-cloud/build/vic-cloud`) |
 
 `scripts/seed-local-data.sh [language ...]` fills it once from the original publishers (alphacep releases and
 alphacephei.com) with pinned sha256 sums; English and Spanish are pinned. A language whose zip is missing fails with

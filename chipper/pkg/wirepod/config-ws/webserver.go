@@ -3,9 +3,7 @@ package webserver
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -26,6 +24,10 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "*")
 
+	if name, ok := strings.CutPrefix(r.URL.Path, "/api/get_ota/"); ok {
+		handleGetOTA(w, r, name)
+		return
+	}
 	switch strings.TrimPrefix(r.URL.Path, "/api/") {
 	case "add_custom_intent":
 		handleAddCustomIntent(w, r)
@@ -59,8 +61,6 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 		handleIsRunning(w)
 	case "delete_chats":
 		handleDeleteChats(w)
-	case "get_ota":
-		handleGetOTA(w, r)
 	case "get_version_info":
 		handleGetVersionInfo(w)
 	case "generate_certs":
@@ -290,39 +290,26 @@ func handleDeleteChats(w http.ResponseWriter) {
 	fmt.Fprint(w, "done")
 }
 
-func handleGetOTA(w http.ResponseWriter, r *http.Request) {
-	otaName := strings.Split(r.URL.Path, "/")[3]
-	targetURL, err := url.Parse("https://archive.org/download/vector-pod-firmware/" + strings.TrimSpace(otaName))
-	if err != nil {
-		http.Error(w, "failed to parse URL", http.StatusInternalServerError)
+// handleGetOTA serves a robot firmware file (.ota) from <data dir>/robot/ota, for robots that update from this
+// server. Nothing is fetched from elsewhere: copy the files you need into that directory.
+func handleGetOTA(w http.ResponseWriter, r *http.Request, name string) {
+	dir := filepath.Join(vars.DataDir(), "robot", "ota")
+	if name == "" || name != filepath.Base(name) || strings.HasPrefix(name, ".") {
+		http.Error(w, "invalid OTA name", http.StatusBadRequest)
 		return
 	}
-	req, err := http.NewRequest(r.Method, targetURL.String(), nil)
+	f, err := os.Open(filepath.Join(dir, name))
 	if err != nil {
-		http.Error(w, "failed to create request", http.StatusInternalServerError)
+		http.Error(w, name+" is not in "+dir+"; copy it there to serve it", http.StatusNotFound)
 		return
 	}
-	for key, values := range r.Header {
-		for _, value := range values {
-			req.Header.Add(key, value)
-		}
-	}
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		http.Error(w, "failed to perform request", http.StatusInternalServerError)
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || info.IsDir() {
+		http.Error(w, "invalid OTA file", http.StatusBadRequest)
 		return
 	}
-	defer resp.Body.Close()
-	for key, values := range resp.Header {
-		for _, value := range values {
-			w.Header().Add(key, value)
-		}
-	}
-	_, err = io.Copy(w, resp.Body)
-	if err != nil {
-		http.Error(w, "failed to copy response body", http.StatusInternalServerError)
-	}
+	http.ServeContent(w, r, name, info.ModTime(), f)
 }
 
 // handleGetVersionInfo reports the running build: the commit it was built from and, for packaged builds, the

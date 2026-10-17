@@ -231,7 +231,7 @@ function whatToDo() {
           doOTA("local");
           break;
         case "in_recovery_dev":
-          doOTA("http://wpsetup.keriganc.com:81/1.6.0.3331.ota");
+          doOTA("local:1.6.0.3331.ota"); // served from the server's OTA directory
           break;
         case "in_firmware_nonep":
           showRecoveryInstructions();
