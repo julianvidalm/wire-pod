@@ -28,6 +28,10 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 		handleGetOTA(w, r, name)
 		return
 	}
+	if name, ok := strings.CutPrefix(r.URL.Path, "/api/setup/"); ok {
+		handleSetup(w, name)
+		return
+	}
 	switch strings.TrimPrefix(r.URL.Path, "/api/") {
 	case "add_custom_intent":
 		handleAddCustomIntent(w, r)
