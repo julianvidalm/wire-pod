@@ -44,7 +44,7 @@ function checkInited() {
   fetch("/api/is_api_v3").then((response) => {
     if (!response.ok) {
       alert(
-        "This webroot does not match with the wire-pod binary. Some functionality will be broken. There was either an error during the last update, or you did not precisely follow the update guide. https://github.com/kercre123/wire-pod/wiki/Things-to-Know#updating-wire-pod"
+        "This page does not match the running wire-pod server, so some functions will not work. Restart the server and reload the page."
       );
     }
   });
@@ -541,55 +541,14 @@ function showLog() {
   }, 500);
 }
 
-function checkUpdate() {
-  displayMessage("cVersion", "Checking for updates...");
-  displayMessage("aUpdate", "");
-  displayMessage("cCommit", "");
+function showVersionInfo() {
+  displayMessage("cVersion", "Loading...");
   fetch("/api/get_version_info")
-    // type VersionInfo struct {
-    // 	FromSource      bool   `json:"fromsource"`
-    // 	InstalledVer    string `json:"installedversion"`
-    // 	InstalledCommit string `json:"installedcommit"`
-    // 	CurrentVer      string `json:"currentver"`
-    // 	CurrentCommit   string `json:"currentcommit"`
-    // 	UpdateAvailable bool   `json:"avail"`
-    // }
-    .then((response) => response.text())
-    .then((response) => {
-      if (response.includes("error")) {
-        // <p id="cVersion"></p>
-        // <p style="display: none;" id="cCommit"></p>
-        // <p id="aUpdate"></p>
-        displayMessage(
-          "cVersion",
-          "There was an error: " + response
-        );
-        getE("updateGuideLink").style.display = "none";
-      } else {
-        const parsed = JSON.parse(response);
-        if (parsed.fromsource) {
-          if (!parsed.avail) {
-            displayMessage("aUpdate", `You are on the latest version.`);
-            getE("updateGuideLink").style.display = "none";
-          } else {
-            displayMessage("aUpdate", `A newer version of WirePod (commit: ${parsed.currentcommit}) is available! Use this guide to update WirePod: `);
-            getE("updateGuideLink").style.display = "block";
-          }
-          displayMessage("cVersion", `Installed Commit: ${parsed.installedcommit}`);
-        } else {
-          displayMessage("cVersion", `Installed Version: ${parsed.installedversion}`);
-          displayMessage("cCommit", `Based on wire-pod commit: ${parsed.installedcommit}`);
-          getE("cCommit").style.display = "block";
-          if (parsed.avail) {
-            displayMessage("aUpdate", `A newer version of WirePod (${parsed.currentversion}) is available! Use this guide to update WirePod: `);
-            getE("updateGuideLink").style.display = "block";
-          } else {
-            displayMessage("aUpdate", "You are on the latest version.");
-            getE("updateGuideLink").style.display = "none";
-          }
-        }
-      }
-    });
+    .then((response) => response.json())
+    .then((info) => {
+      displayMessage("cVersion", info.version ? `Version ${info.version} (commit ${info.commit || "unknown"})` : `Commit ${info.commit || "unknown"}`);
+    })
+    .catch(() => displayMessage("cVersion", "Could not read the version."));
 }
 
 function showLanguage() {
@@ -609,7 +568,7 @@ function showLanguage() {
 
 function showVersion() {
   toggleVisibility(["section-log", "section-botauth", "section-intents", "section-version", "section-uicustomizer"], "section-version", "icon-Version");
-  checkUpdate();
+  showVersionInfo();
 }
 
 function showIntents() {

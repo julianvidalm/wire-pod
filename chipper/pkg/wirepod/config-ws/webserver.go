@@ -325,50 +325,18 @@ func handleGetOTA(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleGetVersionInfo reports the running build: the commit it was built from and, for packaged builds, the
+// version in VersionFile. It never asks a remote for updates.
 func handleGetVersionInfo(w http.ResponseWriter) {
-	var installedVer string
-	ver, err := os.ReadFile(vars.VersionFile)
-	if err == nil {
-		installedVer = strings.TrimSpace(string(ver))
-	}
-	currentVer, err := GetLatestReleaseTag("kercre123", "WirePod")
-	if err != nil {
-		http.Error(w, "error communicating with github (ver): "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	currentCommit, err := GetLatestCommitSha()
-	if err != nil {
-		http.Error(w, "error communicating with github (commit): "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	type VersionInfo struct {
-		FromSource      bool   `json:"fromsource"`
-		InstalledVer    string `json:"installedversion"`
-		InstalledCommit string `json:"installedcommit"`
-		CurrentVer      string `json:"currentversion"`
-		CurrentCommit   string `json:"currentcommit"`
-		UpdateAvailable bool   `json:"avail"`
-	}
-	var fromSource bool
-	if installedVer == "" {
-		fromSource = true
-	}
-	var uAvail bool
-	if fromSource {
-		uAvail = vars.CommitSHA != strings.TrimSpace(currentCommit)
-	} else {
-		uAvail = installedVer != strings.TrimSpace(currentVer)
-	}
-	verInfo := VersionInfo{
-		FromSource:      fromSource,
-		InstalledVer:    installedVer,
-		InstalledCommit: vars.CommitSHA,
-		CurrentVer:      strings.TrimSpace(currentVer),
-		CurrentCommit:   strings.TrimSpace(currentCommit),
-		UpdateAvailable: uAvail,
+	var version string
+	if v, err := os.ReadFile(vars.VersionFile); err == nil {
+		version = strings.TrimSpace(string(v))
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(verInfo)
+	json.NewEncoder(w).Encode(struct {
+		Commit  string `json:"commit"`
+		Version string `json:"version"`
+	}{vars.CommitSHA, version})
 }
 
 func handleGenerateCerts(w http.ResponseWriter) {
@@ -417,58 +385,6 @@ func StartWebServer() {
 		}
 		os.Exit(1)
 	}
-}
-
-func GetLatestCommitSha() (string, error) {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://api.github.com/repos/kercre123/wire-pod/commits", nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get commits: %s", resp.Status)
-	}
-	type Commit struct {
-		Sha string `json:"sha"`
-	}
-	var commits []Commit
-	if err := json.NewDecoder(resp.Body).Decode(&commits); err != nil {
-		return "", err
-	}
-	if len(commits) == 0 {
-		return "", fmt.Errorf("no commits found")
-	}
-	return commits[0].Sha[:7], nil
-}
-
-func GetLatestReleaseTag(owner, repo string) (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	type Release struct {
-		TagName string `json:"tag_name"`
-	}
-	var release Release
-	if err := json.Unmarshal(body, &release); err != nil {
-		return "", err
-	}
-
-	return release.TagName, nil
 }
 
 func certHandler(w http.ResponseWriter, r *http.Request) {

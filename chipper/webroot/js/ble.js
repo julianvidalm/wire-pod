@@ -311,13 +311,7 @@ function doAuth() {
 }
 
 function showAuthError() {
-  updateAuthel("Authentication failure. Try again in ~15 seconds. If it happens again, check the troubleshooting guide:");
-  const troubleshootingLink = document.createElement("a");
-  troubleshootingLink.href = "https://github.com/kercre123/wire-pod/wiki/Troubleshooting#error-logging-in-the-bot-is-likely-unable-to-communicate-with-your-wire-pod-instance";
-  troubleshootingLink.target = "_blank";
-  troubleshootingLink.innerText = "https://github.com/kercre123/wire-pod/wiki/Troubleshooting";
-  authEl.appendChild(document.createElement("br"));
-  authEl.appendChild(troubleshootingLink);
+  updateAuthel("Authentication failure. Try again in ~15 seconds. If it happens again, check that the robot and this server are on reachable networks (the robot connects to this server on port 443) and look at the server log.");
 }
 
 function showWakeOptions() {
