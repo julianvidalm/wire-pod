@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -137,49 +138,36 @@ func SetupBotViaSSH(ip string, key []byte) error {
 		}
 		scpClient.Close()
 		if doCloud {
-			if runtime.GOOS != "android" && !vars.Packaged {
-				cloud, err := os.Open("../vector-cloud/build/vic-cloud")
-				if err != nil {
-					return doErr(err, "transferring new vic-cloud")
+			// vic-cloud comes from this machine, never from the network: the source tree's build, or for
+			// packaged builds the local data directory.
+			cloudPath := "../vector-cloud/build/vic-cloud"
+			if runtime.GOOS == "android" || vars.Packaged {
+				cloudPath = filepath.Join(vars.DataDir(), "robot", "vic-cloud")
+			}
+			cloud, err := os.Open(cloudPath)
+			if err != nil {
+				return doErr(fmt.Errorf("%s is missing; build or copy vic-cloud there: %w", cloudPath, err), "transferring new vic-cloud")
+			}
+			defer cloud.Close()
+			SetupSSHStatus = "Transferring new vic-cloud..."
+			scpClient, err = scp.NewClientBySSH(client)
+			if err != nil {
+				return doErr(err, "new scp client 3")
+			}
+			err = scpClient.CopyFile(context.Background(), cloud, "/anki/bin/vic-cloud", "0755")
+			if err != nil {
+				time.Sleep(time.Second * 1)
+				// The failed attempt may have read part of the file.
+				if _, err := cloud.Seek(0, io.SeekStart); err != nil {
+					return doErr(err, "copying vic-cloud")
 				}
-				SetupSSHStatus = "Transferring new vic-cloud..."
 				scpClient, err = scp.NewClientBySSH(client)
 				if err != nil {
-					return doErr(err, "new scp client 3")
+					return doErr(err, "copying vic-cloud")
 				}
 				err = scpClient.CopyFile(context.Background(), cloud, "/anki/bin/vic-cloud", "0755")
 				if err != nil {
-					time.Sleep(time.Second * 1)
-					scpClient, err = scp.NewClientBySSH(client)
-					if err != nil {
-						return doErr(err, "copying vic-cloud")
-					}
-					err = scpClient.CopyFile(context.Background(), cloud, "/anki/bin/vic-cloud", "0755")
-					if err != nil {
-						return doErr(err, "copying vic-cloud")
-					}
-				}
-			} else {
-				resp, err := http.Get("https://github.com/kercre123/wire-pod/raw/main/vector-cloud/build/vic-cloud")
-				if err != nil {
-					return doErr(err, "transferring new vic-cloud (download)")
-				}
-				SetupSSHStatus = "Transferring new vic-cloud..."
-				scpClient, err = scp.NewClientBySSH(client)
-				if err != nil {
-					return doErr(err, "new scp client 3")
-				}
-				err = scpClient.CopyFile(context.Background(), resp.Body, "/anki/bin/vic-cloud", "0755")
-				if err != nil {
-					time.Sleep(time.Second * 1)
-					scpClient, err = scp.NewClientBySSH(client)
-					if err != nil {
-						return doErr(err, "copying vic-cloud")
-					}
-					err = scpClient.CopyFile(context.Background(), resp.Body, "/anki/bin/vic-cloud", "0755")
-					if err != nil {
-						return doErr(err, "copying vic-cloud")
-					}
+					return doErr(err, "copying vic-cloud")
 				}
 			}
 		}

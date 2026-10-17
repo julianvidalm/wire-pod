@@ -34,6 +34,7 @@ require (
 	golang.org/x/crypto v0.58.0
 	golang.org/x/text v0.43.0
 	google.golang.org/grpc v1.84.0
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/ini.v1 v1.67.3
 )
 
@@ -116,9 +117,10 @@ require (
 	google.golang.org/genproto v0.0.0-20231002182017-d307bd883b97 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260706201446-f0a921348800 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
 	gopkg.in/hraban/opus.v2 v2.0.0-20201025103112-d779bb1cc5a2 // indirect
 	gopkg.in/xmlpath.v2 v2.0.0-20150820204837-860cbeca3ebc // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/kercre123/vosk-api/go => ./third_party/vosk-api-go

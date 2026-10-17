@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!-- Copyright (c) 2019-2020 Digital Dream Labs (MIT, see LICENSE). Adapted for wire-pod: see README.md. -->
+  <!-- Made from vector-web-setup's templates/main.ejs, on the v3ctor design system; everything loads from this server. -->
+
+  <head>
+    <meta charset="UTF-8" />
+    <title>Robot setup · v3ctor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="css/setup.css" />
+    <link rel="stylesheet" href="css/pterm.css" />
+    <script src="/js/shell.js"></script>
+  </head>
+
+  <body>
+    <div id="outer">
+      <main id="content">
+        <div class="page-head">
+          <div>
+            <h1>Set up a robot</h1>
+            <p>Pair a Vector over Bluetooth, put it on your Wi-Fi and link it to this server.</p>
+          </div>
+          <a class="button secondary" href="/index.html#setup"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#arrow-left"></use></svg>Back to wire-pod</a>
+        </div>
+
+        <!-- app.js marks the step of the current card active (the card's icon attribute) and finished steps done. -->
+        <ol class="steps" aria-label="Setup steps">
+          <li id="iconBle" class="vec-icon step"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#bluetooth"></use></svg><span>Pair</span></li>
+          <li id="iconPin" class="vec-icon step"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#key"></use></svg><span>PIN</span></li>
+          <li id="iconWifi" class="vec-icon step"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#wifi"></use></svg><span>Wi-Fi</span></li>
+          <li id="iconOta" class="vec-icon step" hidden><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#upload"></use></svg><span>Update</span></li>
+          <li id="iconAccount" class="vec-icon step"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#link"></use></svg><span>Link</span></li>
+          <li id="iconSettings" class="vec-icon step"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#sliders"></use></svg><span>Settings</span></li>
+        </ol>
+
+        <div class="setup-layout">
+          <div class="setup-main">
+            <section id="containerIncompatible" class="vec-container vec-current" style="opacity: 1;">
+              <div class="notice warning">
+                <svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#alert"></use></svg>
+                <p id="incompatibleMessage">
+                  Vector setup needs Google Chrome (or another Chromium browser) with Web Bluetooth.
+                </p>
+              </div>
+            </section>
+
+            <section id="containerDiscover" class="vec-container" icon="iconBle">
+              <div class="card-head">
+                <div>
+                  <h2>Pair with Vector</h2>
+                  <p>Chrome lists the robots it finds; pick yours.</p>
+                </div>
+              </div>
+              <ol id="discoverFirstTime" class="instructions">
+                <li><span class="illus illus-charger" aria-hidden="true"></span><span>Place Vector on his charger.</span></li>
+                <li><span class="illus illus-backpack" aria-hidden="true"></span><span>Double-press Vector's button, then click <b>Pair with Vector</b>.</span></li>
+              </ol>
+              <ol id="discoverReconnect" class="instructions single vec-hidden">
+                <li><span class="illus illus-lights" aria-hidden="true"></span><span>Wait until Vector finishes restarting, then click <b>Pair with Vector</b>. If he doesn't connect, double-press his button.</span></li>
+              </ol>
+              <div class="actions">
+                <button type="button" id="btnDiscoverVector"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#bluetooth"></use></svg>Pair with Vector</button>
+              </div>
+            </section>
+
+            <section id="containerLoading" class="vec-container" aria-live="polite">
+              <div class="vec-spinner-container">
+                <div class="vec-spinner" aria-hidden="true"></div>
+                <p>Talking to Vector…</p>
+              </div>
+            </section>
+
+            <section id="containerEnterPin" class="vec-container" icon="iconPin">
+              <div class="card-head">
+                <div>
+                  <h2>Enter the PIN</h2>
+                  <p>Vector shows a 6-digit PIN on his face.</p>
+                </div>
+              </div>
+              <label for="txtPin">PIN</label>
+              <input type="text" id="txtPin" value="" class="pin-field" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+              <label class="check">
+                <input type="checkbox" id="checkboxEnableAutoFlow" name="enableAutoFlow" value="autoFlow" checked />
+                <span>Continue automatically<span class="hint">Wi-Fi, update if needed, link to this server and settings. Off: stop after pairing and use the terminal.</span></span>
+              </label>
+              <div class="actions">
+                <button type="button" id="btnEnterPin">Continue</button>
+              </div>
+            </section>
+
+            <section id="containerWifi" class="vec-container" icon="iconWifi">
+              <div class="card-head">
+                <div>
+                  <h2>Choose a Wi-Fi network</h2>
+                  <p>The networks Vector can see.</p>
+                </div>
+              </div>
+              <div id="wifiConnectErrorLabel" class="vec-error vec-hidden" role="alert">
+                Vector could not join that network. Check the password and try again.
+              </div>
+              <div id="wifiScanTable" class="vec-table pick-list"></div>
+              <div class="actions">
+                <button type="button" id="btnCustomWifi" class="secondary">Join another network</button>
+              </div>
+            </section>
+
+            <section id="containerWifiConfig" class="vec-container" icon="iconWifi">
+              <div class="card-head">
+                <div>
+                  <h2>Join the network</h2>
+                  <p>Vector stores the password and connects on his own.</p>
+                </div>
+              </div>
+              <label for="txtWifiSsid">Network name</label>
+              <input type="text" id="txtWifiSsid" value="" placeholder="SSID" autocomplete="off" />
+              <label for="txtWifiPw">Password</label>
+              <input type="password" id="txtWifiPw" value="" placeholder="Password" autocomplete="off" />
+              <div class="actions">
+                <button type="button" id="btnConnectWifi"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#wifi"></use></svg>Connect Vector</button>
+                <button type="button" id="btnBackToWifi" class="secondary">Back to the list</button>
+              </div>
+            </section>
+
+            <!-- No account sign-in: Vector is linked to this wire-pod server with its local session (/api/setup/sessions). -->
+            <section id="containerAccount" class="vec-container" icon="iconAccount">
+              <div id="accountAuth">
+                <div class="card-head">
+                  <div>
+                    <h2>Link to this server</h2>
+                    <p>Linking Vector to this wire-pod server…</p>
+                  </div>
+                </div>
+                <div id="accountErrorLabel" class="vec-error vec-hidden" role="alert">Error.</div>
+                <div class="actions">
+                  <button type="button" id="btnConnectCloud" class="vec-hidden"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#refresh"></use></svg>Try again</button>
+                </div>
+              </div>
+            </section>
+
+            <section id="containerSettings" class="vec-container" icon="iconSettings">
+              <div class="card-head">
+                <div>
+                  <h2>Robot settings</h2>
+                  <p>You can change these later on the robot's page.</p>
+                </div>
+              </div>
+              <label for="selectTimeZone">Time zone</label>
+              <select id="selectTimeZone">
+                <option value="Pacific/Honolulu">Pacific/Honolulu</option>
+                <option value="America/Juneau">America/Juneau</option>
+                <option value="America/Los_Angeles">America/Los_Angeles</option>
+                <option value="America/Phoenix">America/Phoenix</option>
+                <option value="America/Denver">America/Denver</option>
+                <option value="America/Lima">America/Lima</option>
+                <option value="America/Chicago">America/Chicago</option>
+                <option value="America/Bogota">America/Bogota</option>
+                <option value="America/New_York">America/New_York</option>
+                <option value="America/Argentina/Buenos_Aires">America/Argentina/Buenos_Aires</option>
+                <option value="America/Santiago">America/Santiago</option>
+                <option value="America/Sao_Paolo">America/Sao_Paolo</option>
+                <option value="America/St_Johns">America/St_Johns</option>
+                <option value="GMT">GMT</option>
+                <option value="Europe/Lisbon">Europe/Lisbon</option>
+                <option value="Europe/London">Europe/London</option>
+                <option value="Europe/Paris">Europe/Paris</option>
+                <option value="Europe/Athens">Europe/Athens</option>
+                <option value="Europe/Istanbul">Europe/Istanbul</option>
+                <option value="Europe/Moscow">Europe/Moscow</option>
+                <option value="Africa/Lagos">Africa/Lagos</option>
+                <option value="Africa/Harare">Africa/Harare</option>
+                <option value="Africa/Addis_Ababa">Africa/Addis_Ababa</option>
+                <option value="Asia/Dubai">Asia/Dubai</option>
+                <option value="Asia/Tehran">Asia/Tehran</option>
+                <option value="Asia/Karachi">Asia/Karachi</option>
+                <option value="Asia/Kolkata">Asia/Kolkata</option>
+                <option value="Asia/Dhaka">Asia/Dhaka</option>
+                <option value="Asia/Bangkok">Asia/Bangkok</option>
+                <option value="Asia/Jakarta">Asia/Jakarta</option>
+                <option value="Asia/Hong_Kong">Asia/Hong_Kong</option>
+                <option value="Asia/Singapore">Asia/Singapore</option>
+                <option value="Asia/Manila">Asia/Manila</option>
+                <option value="Asia/Seoul">Asia/Seoul</option>
+                <option value="Asia/Tokyo">Asia/Tokyo</option>
+                <option value="Australia/Perth">Australia/Perth</option>
+                <option value="Australia/Darwin">Australia/Darwin</option>
+                <option value="Australia/Adelaide">Australia/Adelaide</option>
+                <option value="Australia/Brisbane">Australia/Brisbane</option>
+                <option value="Australia/Sydney">Australia/Sydney</option>
+                <option value="Australia/Auckland">Australia/Auckland</option>
+              </select>
+              <div class="grid-2">
+                <div>
+                  <label for="selectTemperature">Temperature</label>
+                  <select id="selectTemperature">
+                    <option value="fahrenheit">Fahrenheit</option>
+                    <option value="celsius">Celsius</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="selectDistance">Distance</label>
+                  <select id="selectDistance">
+                    <option value="imperial">Imperial</option>
+                    <option value="metric">Metric</option>
+                  </select>
+                </div>
+              </div>
+              <div class="actions">
+                <button type="button" id="btnFinishSetup"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#check-circle"></use></svg>Save and finish</button>
+              </div>
+            </section>
+
+            <section id="containerOta" class="vec-container" icon="iconOta">
+              <div class="card-head">
+                <div>
+                  <h2>Update the firmware</h2>
+                  <p>Vector is in recovery mode and needs firmware before setup can go on. He downloads it from this server over Wi-Fi.</p>
+                </div>
+              </div>
+              <div id="containerOtaSelection">
+                <p class="hint">Choose the firmware to install.</p>
+                <div id="otaSelection" class="vec-table vec-ota-table pick-list"></div>
+              </div>
+              <div id="containerOtaNoImage" class="vec-hidden">
+                <div class="notice warning">
+                  <svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#alert"></use></svg>
+                  <p id="otaNoImageMessage">
+                    No firmware (.ota) files on this wire-pod server. Copy one into
+                    <code>&lt;data dir&gt;/robot/ota</code> (by default <code>~/.local/share/v3ctor/robot/ota</code>) and pair again.
+                  </p>
+                </div>
+              </div>
+              <div id="otaUpdate" class="vec-hidden">
+                <div id="otaErrorLabel" class="vec-error vec-hidden" role="alert">Error while updating Vector.</div>
+                <p>Updating Vector… Keep him on the charger.</p>
+                <div id="progressBarOta" class="vec-progress-bar" role="progressbar" aria-label="Firmware update" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                  <div class="vec-progress-bar-fill"></div>
+                </div>
+                <div class="actions">
+                  <button type="button" id="btnTryAgain" class="vec-hidden"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#refresh"></use></svg>Try again</button>
+                </div>
+              </div>
+            </section>
+
+            <section id="containerComplete" class="vec-container">
+              <div class="done">
+                <svg id="iconComplete" class="icon" aria-hidden="true"><use href="/assets/icons.svg#check-circle"></use></svg>
+                <h2>Vector is set up</h2>
+                <p>He is linked to this server. Find him under Robots.</p>
+                <div class="actions">
+                  <a class="button" href="/sdkapp/"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#robot"></use></svg>Open Robots</a>
+                </div>
+              </div>
+            </section>
+
+            <section id="containerOtaComplete" class="vec-container">
+              <p>Update completed. After Vector reboots, pair with him again.</p>
+              <div class="actions">
+                <button type="button" id="btnDiscoverVectorAgain">Pair with Vector</button>
+              </div>
+            </section>
+          </div>
+
+          <aside class="setup-side">
+            <div class="card robot-card">
+              <h3><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#robot"></use></svg> <span id="vecStatusTitle">Robot</span></h3>
+              <div id="boxVectorStatus" class="vec-hidden">
+                <dl class="robot-info">
+                  <div id="vecInfoWifi"><dt>Wi-Fi</dt><dd id="vecStatusSsid"></dd></div>
+                  <div><dt>Firmware</dt><dd id="vecInfoBuild"></dd></div>
+                  <div><dt>ESN</dt><dd id="vecInfoEsn"></dd></div>
+                </dl>
+                <div id="boxStatusLogs" class="vec-hidden">
+                  <button type="button" id="btnDownloadLogs" class="ghost"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg>Download logs</button>
+                  <div id="panelLogs" class="vec-hidden">
+                    <p class="hint">Downloading logs…</p>
+                    <div id="progressBarLogs" class="vec-progress-bar vec-sm" role="progressbar" aria-label="Log download" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                      <div class="vec-progress-bar-fill"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="robot-empty">No robot connected yet.</p>
+              <dl id="boxVectorEnv" class="robot-info vec-hidden">
+                <div id="vecInfoEnv"><dt>Server</dt><dd id="vecEnv"></dd></div>
+              </dl>
+            </div>
+
+          </aside>
+        </div>
+
+        <details id="terminalPanel" class="card terminal-card">
+          <summary>Advanced: terminal</summary>
+          <p class="hint">Click the terminal and type <code>help</code>. <kbd>Alt</kbd>+<kbd>1</kbd> hides it, <kbd>Alt</kbd>+<kbd>2</kbd> shows it.</p>
+          <div class="vec-shell">
+            <div class="pterm-main">
+              <div class="pterm-line">
+                <div class="pterm-prompt">$</div>
+                <div class="pterm-row pterm-current">
+                  <span class="pterm-text"></span>
+                  <div class="pterm-cursor"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <p class="setup-credits">
+          Based on Digital Dream Labs' <a href="https://github.com/digital-dream-labs/vector-web-setup">vector-web-setup</a> (MIT).
+        </p>
+      </main>
+    </div>
+    <script src="js/jquery.min.3.3.1.js"></script>
+    <script src="js/pterm.js"></script>
+    <!-- app.js loads js/sodium.js itself, after it has set the window.sodium.onload hook sodium.js calls. -->
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

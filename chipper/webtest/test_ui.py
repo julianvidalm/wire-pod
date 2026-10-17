@@ -51,8 +51,9 @@ def browser():
 class Api:
     """Answers the pages' API calls and records them as (method, path, query, body)."""
 
-    def __init__(self, page: Page, robot_online=True, photos=None, kg=None):
+    def __init__(self, page: Page, robot_online=True, photos=None, kg=None, answers=None):
         self.calls = []
+        self.answers = answers or {}
         self.robot_online = robot_online
         self.photos = photos or []
         self.kg = kg or {"provider": "", "key": ""}
@@ -77,6 +78,8 @@ class Api:
             "/api-sdk/get_faces": "null",
             "/api-sdk/get_stim_status": 0.5,
         }
+        if path in self.answers:
+            return self.answers[path]
         if path in robot:
             return (200, robot[path]) if self.robot_online else (200, "error: robot unreachable")
         return {
@@ -88,6 +91,9 @@ class Api:
             "/api/get_weather_api": (200, {"provider": "", "key": ""}),
             "/api/get_logs": (200, "log line"),
             "/api/get_stt_info": (200, {"provider": "whisper.cpp", "language": "en-US"}),
+            "/api/setup/sessions": (200, {"session": {"session_token": "2vMhFgktH3Jrbemm2WHkfGN",
+                                                      "user_id": "wire-pod", "scope": "user"}}),
+            "/api/setup/otas": (200, {"base_url": "http://192.168.68.20:8080/api/get_ota/", "files": []}),
         }.get(path, (200, "success"))
 
     def sent(self, path):
@@ -277,3 +283,109 @@ def test_keyboard_driving_shows_the_keys(page, server):
     page.click("label:has(#key_control_on)")
     expect(page.locator("#keysKey")).to_be_visible()
     assert page.errors == []
+
+
+def test_robot_setup_tab_links_to_the_local_setup_page(page, server):
+    api = Api(page, answers={"/api-ble/init": (200, "error: no bluetooth adapter")})
+    page.goto(f"{server}/index.html#setup")
+    link = page.locator("#botAuth a")
+    expect(link).to_have_attribute("href", "/setup/")
+    expect(page.locator("#botAuth")).to_contain_text("Chrome")
+    assert api.sent("/api-ble/init")
+    assert page.errors == []
+
+
+def test_setup_page_runs_from_this_server_and_needs_web_bluetooth(page, server):
+    Api(page)
+    hosts, failed, bad = set(), [], []
+    page.on("request", lambda r: hosts.add(urllib.parse.urlparse(r.url).hostname))
+    page.on("requestfailed", lambda r: failed.append(r.url))
+    page.on("response", lambda r: r.status >= 400 and bad.append(f"{r.status} {r.url}"))
+    page.goto(f"{server}/setup/")
+    # Headless Chromium has no navigator.bluetooth. The text below is set by app.js, so it also proves that the
+    # module and all its imports loaded.
+    assert page.evaluate("navigator.bluetooth") is None
+    expect(page.locator("#incompatibleMessage")).to_have_text(
+        "Vector setup needs Google Chrome (or another Chromium browser) with Web Bluetooth. Open this page in "
+        "Chrome on the PC that runs wire-pod.")
+    expect(page.locator("#containerIncompatible")).to_have_class("vec-container vec-current")
+    page.wait_for_function("window.sodium && typeof window.sodium.crypto_box_keypair === 'function'")
+    assert hosts == {"127.0.0.1"}
+    assert failed == [] and bad == []
+    assert page.errors == []
+
+
+def test_setup_page_with_web_bluetooth_starts_at_pairing_on_the_wire_pod_stack(page, server):
+    Api(page)
+    page.add_init_script("Object.defineProperty(navigator, 'bluetooth', {value: {}, configurable: true})")
+    page.goto(f"{server}/setup/")
+    expect(page.locator("#containerDiscover")).to_have_class("vec-container vec-current")
+    expect(page.locator("#vecEnv")).to_have_text("wire-pod")
+    expect(page.locator("#btnDiscoverVector")).to_be_visible()
+    assert page.errors == []
+
+
+FAKE_BLUETOOTH = "Object.defineProperty(navigator, 'bluetooth', {value: {}, configurable: true})"
+
+
+def test_setup_page_uses_the_shared_shell_and_stylesheet(page, server):
+    Api(page)
+    page.goto(f"{server}/setup/")
+    expect(page.locator(".topbar")).to_have_count(1)
+    expect(page.locator(".topbar .brand")).to_be_visible()
+    sheets = page.evaluate("[...document.styleSheets].map((s) => new URL(s.href).pathname)")
+    assert "/css/style.css" in sheets
+    assert not [s for s in sheets if "bootstrap" in s or "vecSetup" in s]
+    expect(page.locator("h1")).to_have_text("Set up a robot")
+    expect(page.locator("#containerIncompatible .notice.warning")).to_be_visible()
+    assert page.errors == []
+
+
+def test_setup_page_follows_the_dark_theme(page, server):
+    Api(page)
+    page.add_init_script("localStorage.setItem('v3ctor.theme', 'dark')")
+    page.goto(f"{server}/setup/")
+    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(14, 16, 21)"
+    card = page.evaluate("getComputedStyle(document.querySelector('#containerIncompatible')).backgroundColor")
+    assert card == "rgb(22, 25, 32)"
+
+
+def test_setup_page_with_web_bluetooth_shows_the_pairing_card_and_steps(page, server):
+    Api(page)
+    page.add_init_script(FAKE_BLUETOOTH)
+    page.goto(f"{server}/setup/")
+    expect(page.locator("#containerDiscover")).to_be_visible()
+    expect(page.locator("#containerIncompatible")).to_be_hidden()
+    expect(page.locator("#incompatibleMessage")).to_be_hidden()
+    expect(page.locator("#iconBle")).to_have_class("vec-icon step vec-icon-active")
+    expect(page.locator(".steps .step:visible")).to_have_text(["Pair", "PIN", "Wi-Fi", "Link", "Settings"])
+    assert page.errors == []
+
+
+def test_setup_terminal_is_collapsed_and_only_reads_keys_when_open(page, server):
+    Api(page)
+    page.add_init_script(FAKE_BLUETOOTH)
+    page.goto(f"{server}/setup/")
+    expect(page.locator(".pterm-main")).to_be_hidden()
+    page.keyboard.press("h")
+    assert page.evaluate("document.querySelector('.pterm-current .pterm-text').textContent") == ""
+    page.click("#terminalPanel > summary")
+    expect(page.locator(".pterm-main")).to_be_visible()
+    page.click(".pterm-main")
+    page.keyboard.press("h")
+    expect(page.locator(".pterm-current .pterm-text")).to_have_text("h")
+    assert page.errors == []
+
+
+@pytest.mark.parametrize("bluetooth", [False, True])
+def test_setup_page_fits_a_phone(browser, server, bluetooth):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844})
+    pg = ctx.new_page()
+    Api(pg)
+    if bluetooth:
+        pg.add_init_script(FAKE_BLUETOOTH)
+    pg.goto(f"{server}/setup/")
+    pg.wait_for_timeout(300)
+    assert pg.evaluate("document.documentElement.scrollWidth") <= 390
+    ctx.close()

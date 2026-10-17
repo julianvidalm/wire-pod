@@ -41,3 +41,7 @@
 /whisper.cpp
 .DS_Store
 /chipper/openaiChats.json
+
+# Python bytecode from the browser tests
+__pycache__/
+*.pyc

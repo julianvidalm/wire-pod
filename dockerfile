@@ -54,6 +54,8 @@ RUN set -eux; \
 WORKDIR /src
 
 COPY chipper/go.mod chipper/go.sum ./chipper/
+# Local modules named by replace directives in go.mod must exist before go mod download.
+COPY chipper/third_party ./chipper/third_party
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \

@@ -1,4 +1,6 @@
-const vectorEpodSetup = "https://wpsetup.keriganc.com";
+// The Bluetooth setup page this server hosts (webroot/setup). Web Bluetooth needs a secure page, so it is opened
+// at localhost on the PC that runs wire-pod.
+const vectorEpodSetup = "/setup/";
 let authEl = document.getElementById("botAuth");
 let statusP = document.createElement("p");
 let OTAUpdating = false;
@@ -35,8 +37,8 @@ function checkBLECapability() {
 
 function showExternalSetupInstructions() {
   authEl.innerHTML = `
-    <p>Head to the following site on any device with Bluetooth support to set up your Vector.</p>
-    <a href="${vectorEpodSetup}" target="_blank">${vectorEpodSetup}</a>
+    <p>Open the setup page in Google Chrome on this PC (the one that runs wire-pod) to set up your Vector over Bluetooth.</p>
+    <a href="${vectorEpodSetup}" target="_blank">http://localhost:${location.port || "80"}${vectorEpodSetup}</a>
     <br>
     <small class="desc">Note: with OSKR/dev robots, it might give a warning about firmware. This can be ignored.</small>
   `;
@@ -231,7 +233,7 @@ function whatToDo() {
           doOTA("local");
           break;
         case "in_recovery_dev":
-          doOTA("http://wpsetup.keriganc.com:81/1.6.0.3331.ota");
+          doOTA("local:1.6.0.3331.ota"); // served from the server's OTA directory
           break;
         case "in_firmware_nonep":
           showRecoveryInstructions();

@@ -211,7 +211,13 @@ function getSTT() {
                 VOSK_DIR="vosk-linux-armv7l-${VOSK_VER}"
             fi
             VOSK_ARCHIVE="$VOSK_DIR.zip"
-            wget -q --show-progress --no-check-certificate "https://github.com/alphacep/vosk-api/releases/download/v${VOSK_VER}/${VOSK_ARCHIVE}"
+            # libvosk comes from the local data directory, never from the network: scripts/seed-local-data.sh puts it there.
+            LOCAL_VOSK="${V3CTOR_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/v3ctor}/vosk/lib/${VOSK_ARCHIVE}"
+            if [[ ! -f "$LOCAL_VOSK" ]]; then
+                echo "${VOSK_ARCHIVE} is not in the local data directory. Run scripts/seed-local-data.sh, or copy it to $LOCAL_VOSK."
+                exit 1
+            fi
+            cp "$LOCAL_VOSK" "$VOSK_ARCHIVE"
             unzip "$VOSK_ARCHIVE"
             mv "$VOSK_DIR" libvosk
             rm -fr "$VOSK_ARCHIVE"
@@ -221,9 +227,7 @@ function getSTT() {
             export CGO_CFLAGS="-I${ROOT}/.vosk/libvosk"
             export CGO_LDFLAGS="-L ${ROOT}/.vosk/libvosk -lvosk -ldl -lpthread"
             export LD_LIBRARY_PATH="${ROOT}/.vosk/libvosk:$LD_LIBRARY_PATH"
-            /usr/local/go/bin/go get -u github.com/kercre123/vosk-api/go/...
-            /usr/local/go/bin/go get github.com/kercre123/vosk-api
-            /usr/local/go/bin/go install github.com/kercre123/vosk-api/go
+            # The Vosk Go binding lives in chipper/third_party/vosk-api-go (replace in go.mod); nothing to fetch.
             cd ${origDir}
         fi
         elif [[ ${sttService} == "whisper" ]]; then
@@ -465,8 +469,8 @@ function scpToBot() {
     if [[ ! -n ${keyPath} ]]; then
         echo
         if [[ ! -f ./ssh_root_key ]]; then
-            echo "Key not provided, downloading ssh_root_key..."
-            wget http://wire.my.to:81/ssh_root_key
+            echo "Key not provided and ./ssh_root_key is missing. Pass the robot's SSH key path (it is not downloaded)."
+            exit 1
         else
             echo "Key not provided, using ./ssh_root_key (already there)..."
         fi
@@ -532,7 +536,7 @@ function scpToBot() {
     rm -f /tmp/scpTest
     echo "Vector has been reset to Onboarding mode, but no user data has actually been erased."
     echo
-    echo "Everything has been copied to the bot! Use https://keriganc.com/vector-epod-setup on any device with Bluetooth to finish setting up your Vector!"
+    echo "Everything has been copied to the bot! Open http://localhost:8080/setup/ (wire-pod's Bluetooth setup page; use your WEBSERVER_PORT if you changed it) in Google Chrome on this PC to finish setting up your Vector!"
     echo
     echo "Everything is now setup! You should be ready to run chipper. sudo ./chipper/start.sh"
     echo

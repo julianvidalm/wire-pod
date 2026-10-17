@@ -1,0 +1,57 @@
+/* Copyright (c) 2019-2020 Digital Dream Labs. See LICENSE file for details */
+/* The setup page's debug terminal (js/pterm.js). From less/pterm.less (@size: 8px), restyled for the v3ctor design
+ * system: monospace token, a dark panel in both themes (like the server log view), the accent for the prompt. */
+
+.vec-shell { border-radius: var(--radius-sm); overflow: hidden; background: #0b0d12; }
+
+.pterm-main {
+  font-family: var(--font-mono);
+  padding: 14px 16px;
+  color: #d7dde8;
+  height: 340px;
+  box-sizing: border-box;
+  overflow: auto;
+  cursor: text;
+}
+
+.pterm-line { display: flex; margin-bottom: 4px; }
+.pterm-text { white-space: pre; }
+.pterm-text::selection { color: #0b0d12; background: #d7dde8; }
+.pterm-prompt { font-size: 14px; line-height: 16px; margin-right: 8px; color: #2dd4bf; white-space: nowrap; }
+
+.pterm-row {
+  font-size: 14px;
+  line-height: 16px;
+  height: 16px;
+  overflow: hidden;
+  position: relative;
+  min-width: 8px;
+}
+
+.pterm-cursor {
+  background-color: #2dd4bf;
+  width: 8px;
+  height: 16px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  animation: pterm-cursor-blink 1s ease-in infinite alternate;
+}
+
+.pterm-red { line-height: 16px; color: #f97066; }
+.pterm-yellow { line-height: 16px; color: #fdb022; }
+.pterm-green { line-height: 16px; color: #47cd89; }
+.pterm-blue { line-height: 16px; color: #53b1fd; }
+
+.pterm-row.pterm-full { width: 100%; }
+.pterm-progress-bar { height: 10px; margin-top: 3px; width: 100%; border-radius: 999px; background-color: #1d2129; overflow: hidden; }
+.pterm-progress-bar-track { height: 100%; width: 0%; background-color: #2dd4bf; transition: width 0.5s; }
+
+.pterm-button { background-color: #2dd4bf; color: #062a26; height: 16px; border-radius: 4px; }
+
+.pterm-no-transition { transition: none !important; }
+
+@keyframes pterm-cursor-blink {
+  from { background-color: rgba(45, 212, 191, 0.85); }
+  to { background-color: rgba(45, 212, 191, 0); }
+}
