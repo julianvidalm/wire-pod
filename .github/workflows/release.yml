@@ -34,7 +34,7 @@ jobs:
         working-directory: chipper
         run: |
           go build -tags "$GO_TAGS" -trimpath \
-            -ldflags "-X 'github.com/kercre123/wire-pod/chipper/pkg/vars.CommitSHA=${GITHUB_SHA::7}'" \
+            -ldflags "-X 'github.com/julianvidalm/wire-pod/chipper/pkg/vars.CommitSHA=${GITHUB_SHA::7}'" \
             -o "$RUNNER_TEMP/dist/chipper" ./cmd/vosk
 
       - name: Package

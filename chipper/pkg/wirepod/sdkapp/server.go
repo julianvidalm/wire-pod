@@ -17,9 +17,9 @@ import (
 	"time"
 
 	"github.com/fforchino/vector-go-sdk/pkg/vectorpb"
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/scripting"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/scripting"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 )
 
 var serverFiles string = "./webroot/sdkapp"

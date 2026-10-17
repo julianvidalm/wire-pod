@@ -8,11 +8,11 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
+	sr "github.com/julianvidalm/wire-pod/chipper/pkg/wirepod/speechrequest"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/wirepod/stt/whisperlang"
 	whisper "github.com/kercre123/whisper.cpp/bindings/go"
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
-	sr "github.com/kercre123/wire-pod/chipper/pkg/wirepod/speechrequest"
-	"github.com/kercre123/wire-pod/chipper/pkg/wirepod/stt/whisperlang"
 )
 
 var Name string = "whisper.cpp"

@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
+	sr "github.com/julianvidalm/wire-pod/chipper/pkg/wirepod/speechrequest"
 	vosk "github.com/kercre123/vosk-api/go"
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
-	sr "github.com/kercre123/wire-pod/chipper/pkg/wirepod/speechrequest"
 )
 
 var GrammerEnable bool = false

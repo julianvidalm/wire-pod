@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 )
 
 // setupSessionToken is the fixed token the page hands the robot (doAnkiAuth); the robot then authenticates against

@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/mictap/mictappb"
-	mictapserver "github.com/kercre123/wire-pod/chipper/pkg/servers/mictap"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap/mictappb"
+	mictapserver "github.com/julianvidalm/wire-pod/chipper/pkg/servers/mictap"
 )
 
 type recordingSender struct {

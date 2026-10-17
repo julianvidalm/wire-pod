@@ -127,7 +127,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     export CGO_CFLAGS="-I/opt/vosk/libvosk"; \
     export CGO_LDFLAGS="-L/opt/vosk/libvosk -L${LIB_DIR} -lvosk -lopus -lopusfile -lsodium -lasound -ldl -lpthread"; \
     GOOS=${GOOS_VALUE} GOARCH=${GOARCH_VALUE} \
-    go build -tags "nolibopusfile" -ldflags "-s -w -X github.com/kercre123/wire-pod/chipper/pkg/vars.CommitSHA=${BUILD_COMMIT}" \
+    go build -tags "nolibopusfile" -ldflags "-s -w -X github.com/julianvidalm/wire-pod/chipper/pkg/vars.CommitSHA=${BUILD_COMMIT}" \
         -o /build/chipper ./cmd/vosk; \
     echo "${BUILD_COMMIT}" >/build/.wirepod-version
 

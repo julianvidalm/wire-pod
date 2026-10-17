@@ -3,7 +3,7 @@ package sdkapp
 import (
 	"testing"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 )
 
 func useBotInfo(t *testing.T, info vars.RobotInfoStore, cached []Robot) {

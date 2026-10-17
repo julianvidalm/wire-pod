@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 )
 
 func TestVersionInfoReportsTheRunningBuildWithoutAskingGitHub(t *testing.T) {

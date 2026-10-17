@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 )
 
 // setup points the model source, the installed models and the config file at temp dirs, and fails the test on

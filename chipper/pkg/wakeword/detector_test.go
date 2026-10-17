@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/mictap"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap"
 )
 
 // scriptedRecognizer returns the next scripted result once it has received `every` samples since the previous

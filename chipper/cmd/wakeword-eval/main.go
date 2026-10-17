@@ -16,9 +16,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/mictap"
-	"github.com/kercre123/wire-pod/chipper/pkg/wakeword"
-	"github.com/kercre123/wire-pod/chipper/pkg/wakeword/voskrec"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/wakeword"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/wakeword/voskrec"
 )
 
 func main() {

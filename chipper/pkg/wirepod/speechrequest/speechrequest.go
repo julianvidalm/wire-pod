@@ -11,8 +11,8 @@ import (
 
 	pb "github.com/digital-dream-labs/api/go/chipperpb"
 	"github.com/digital-dream-labs/opus-go/opus"
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/vtt"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vtt"
 	"github.com/maxhawkins/go-webrtcvad"
 )
 

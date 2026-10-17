@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kercre123/wire-pod/chipper/pkg/logger"
-	"github.com/kercre123/wire-pod/chipper/pkg/vars"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 )
 
 // ModelSourceDir holds the Vosk model zips (vosk-model-small-*.zip) that can be installed, and optionally a
