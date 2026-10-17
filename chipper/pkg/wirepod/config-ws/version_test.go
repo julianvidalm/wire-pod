@@ -13,6 +13,8 @@ func TestVersionInfoReportsTheRunningBuildWithoutAskingGitHub(t *testing.T) {
 	vars.CommitSHA = "abc1234"
 	vars.VersionFile = t.TempDir() + "/version" // no packaged version file: a source build
 	// Any outbound request fails the test: the version comes from the build, not from the network.
+	defaultTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = defaultTransport })
 	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		t.Fatalf("unexpected request to %s", r.URL)
 		return nil, nil
