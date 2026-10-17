@@ -231,8 +231,8 @@ func handleSetSTTInfo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !isDownloadedLanguage(request.Language, vars.DownloadedVoskModels) {
-			go localization.DownloadVoskModel(request.Language)
-			fmt.Fprint(w, "downloading language model...")
+			go localization.InstallVoskModel(request.Language)
+			fmt.Fprint(w, "downloading language model...") // the UI waits on "downloading"; the model is installed from the local directory
 			return
 		}
 	} else if vars.APIConfig.STT.Service == "whisper.cpp" {

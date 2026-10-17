@@ -211,7 +211,13 @@ function getSTT() {
                 VOSK_DIR="vosk-linux-armv7l-${VOSK_VER}"
             fi
             VOSK_ARCHIVE="$VOSK_DIR.zip"
-            wget -q --show-progress --no-check-certificate "https://github.com/alphacep/vosk-api/releases/download/v${VOSK_VER}/${VOSK_ARCHIVE}"
+            # libvosk comes from the local data directory, never from the network: scripts/seed-local-data.sh puts it there.
+            LOCAL_VOSK="${V3CTOR_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/v3ctor}/vosk/lib/${VOSK_ARCHIVE}"
+            if [[ ! -f "$LOCAL_VOSK" ]]; then
+                echo "${VOSK_ARCHIVE} is not in the local data directory. Run scripts/seed-local-data.sh, or copy it to $LOCAL_VOSK."
+                exit 1
+            fi
+            cp "$LOCAL_VOSK" "$VOSK_ARCHIVE"
             unzip "$VOSK_ARCHIVE"
             mv "$VOSK_DIR" libvosk
             rm -fr "$VOSK_ARCHIVE"
