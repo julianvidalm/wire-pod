@@ -119,7 +119,8 @@ func owwDetector() (mictap.Sink, string, error) {
 	python := envOr(owwPythonEnv, "python3")
 	sidecar := envOr(owwSidecarEnv, "oww-sidecar/oww_sidecar.py")
 	detector := oww.New(oww.Config{
-		Command:      []string{python, sidecar, "--model", model, "--in-rate", strconv.Itoa(int(rate))},
+		Command: []string{python, sidecar, "--model", model, "--in-rate", strconv.Itoa(int(rate)),
+			"--report", strconv.FormatFloat(threshold, 'f', -1, 64)},
 		Word:         "hey jarvis",
 		Threshold:    threshold,
 		RefractoryMs: owwRefractoryMs,
