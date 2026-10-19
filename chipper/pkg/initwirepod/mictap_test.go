@@ -64,10 +64,24 @@ func TestWakeDetectorSelectsOpenWakeWord(t *testing.T) {
 	if _, ok := sink.(*oww.Detector); !ok {
 		t.Fatalf("got %T, want *oww.Detector", sink)
 	}
-	for _, want := range []string{"openWakeWord", model, "threshold 0.70", "mic 15625 Hz", "/venv/bin/python"} {
+	for _, want := range []string{"openWakeWord", model, "threshold 0.70", "mic 15662 Hz", "/venv/bin/python"} {
 		if !strings.Contains(desc, want) {
 			t.Errorf("description %q lacks %q", desc, want)
 		}
+	}
+}
+
+func TestWakeDetectorMicRateOverride(t *testing.T) {
+	t.Setenv(wakeDetectorEnv, "oww")
+	t.Setenv(owwModelEnv, writeFile(t, "hey_jarvis.onnx"))
+	t.Setenv(owwThresholdEnv, "")
+	t.Setenv(owwMicRateEnv, "16000")
+	_, desc, err := wakeDetector()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(desc, "mic 16000 Hz") {
+		t.Errorf("description %q lacks the OWW_MIC_RATE override", desc)
 	}
 }
 

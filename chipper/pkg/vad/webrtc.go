@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	rate        = 16000 // the rate MicTap announces; Vector's true 15625 Hz is close enough for the detector
+	rate        = 16000 // the rate MicTap announces; Vector's true ~15662 Hz is close enough for the detector
 	chunkLength = 160   // 10 ms at rate, a frame length the detector accepts
 )
 

@@ -27,10 +27,10 @@ const (
 	owwThresholdEnv = "OWW_THRESHOLD" // lowest score that wakes, default 0.7
 	owwPythonEnv    = "OWW_PYTHON"    // python with openwakeword, onnxruntime, soxr and numpy, default python3
 	owwSidecarEnv   = "OWW_SIDECAR"   // sidecar script, default oww-sidecar/oww_sidecar.py (wire-pod runs in chipper)
-	owwMicRateEnv   = "OWW_MIC_RATE"  // true mic rate the sidecar resamples from, default 15625 (MicTap says 16000)
+	owwMicRateEnv   = "OWW_MIC_RATE"  // true mic rate the sidecar resamples from, default 15662 (MicTap says 16000)
 
 	owwDefaultThreshold = 0.7
-	owwDefaultMicRate   = 15625
+	owwDefaultMicRate   = 15662
 	owwRefractoryMs     = 2000
 )
 

@@ -45,7 +45,7 @@ func main() {
 	sidecar := flag.String("sidecar", "oww-sidecar/oww_sidecar.py", "openWakeWord sidecar script")
 	owwModel := flag.String("oww-model", "", "openWakeWord .onnx model")
 	threshold := flag.Float64("threshold", 0.7, "lowest wake score")
-	micRate := flag.Int("mic-rate", 15625, "true rate of the recording (MicTap labels it 16000)")
+	micRate := flag.Int("mic-rate", 15662, "true rate of the recording (MicTap labels it 16000)")
 	clockPath := flag.String("clock", "", "the session's _clock.jsonl")
 	labelsPath := flag.String("labels", "", "labels .jsonl")
 	ids := flag.String("ids", "s", "replay the labels whose id starts with this")

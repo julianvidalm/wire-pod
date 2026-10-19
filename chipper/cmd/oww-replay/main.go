@@ -2,7 +2,7 @@
 // sidecar) exactly as wire-pod runs it for a live robot, and prints every wake, to check the detector offline.
 //
 //	oww-replay -python ~/.cache/v3ctor/corpus-venv/bin/python -model hey_jarvis_v3ctor.onnx \
-//	    [-threshold 0.7] [-mic-rate 15625] [-speed 20] session_mic.wav
+//	    [-threshold 0.7] [-mic-rate 15662] [-speed 20] session_mic.wav
 //
 // The WAV's samples are sent as 10 ms MicTap mic frames (160 samples), timestamped at the true mic rate, paced
 // at -speed times real time. Each wake is printed with its time and mic sample position in the file.
@@ -29,7 +29,7 @@ func main() {
 	sidecar := flag.String("sidecar", "oww-sidecar/oww_sidecar.py", "sidecar script")
 	model := flag.String("model", "", "openWakeWord .onnx model")
 	threshold := flag.Float64("threshold", 0.7, "lowest score that wakes")
-	micRate := flag.Int("mic-rate", 15625, "true rate of the recording (MicTap labels it 16000)")
+	micRate := flag.Int("mic-rate", 15662, "true rate of the recording (MicTap labels it 16000)")
 	speed := flag.Float64("speed", 20, "replay speed, times real time")
 	flag.Parse()
 	if *model == "" || flag.NArg() != 1 || *speed <= 0 {

@@ -51,12 +51,12 @@ class SidecarTest(unittest.TestCase):
         self.assertFalse(any(r["score"] >= THRESHOLD for r in reports), reports)
 
     def test_resamples_the_robot_rate_and_maps_positions_back_to_input_samples(self):
-        pcm = bytes(2 * 15625 * 3)  # 3 s of silence at the robot's true rate: no reports, clean exit
-        out = subprocess.run([sys.executable, SIDECAR, "--model", MODEL, "--in-rate", "15625", "--report", "0"],
+        pcm = bytes(2 * 15662 * 3)  # 3 s of silence at the robot's true rate: no reports, clean exit
+        out = subprocess.run([sys.executable, SIDECAR, "--model", MODEL, "--in-rate", "15662", "--report", "0"],
                              input=pcm, capture_output=True, check=True, timeout=120)
         reports = [json.loads(l) for l in out.stdout.decode().splitlines() if l.strip()]
         self.assertEqual(len(reports), 3 * RATE // 1280)
-        self.assertAlmostEqual(reports[-1]["sample"], len(reports) * 1280 * 15625 / RATE, delta=1)
+        self.assertAlmostEqual(reports[-1]["sample"], len(reports) * 1280 * 15662 / RATE, delta=1)
 
 
 if __name__ == "__main__":

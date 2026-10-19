@@ -38,7 +38,7 @@ func (u Utterance) Duration() time.Duration {
 // CaptureConfig sets how an utterance is cut out of the mic stream. Every duration is audio time, counted in
 // samples at MicRate, so a capture behaves the same live and in a faster-than-real-time replay.
 type CaptureConfig struct {
-	MicRate    int           // true mic rate (Vector: 15625, although MicTap announces 16000)
+	MicRate    int           // true mic rate (Vector: about 15662, although MicTap announces 16000)
 	PreRoll    time.Duration // mic audio always kept, so a wake that arrives late still finds its start
 	WakeMargin time.Duration // the capture starts this long before the wake's position
 	// MinSpeech is the consecutive speech after the wake needed before the user counts as speaking. Audio up to
@@ -57,7 +57,7 @@ type CaptureConfig struct {
 // DefaultCaptureConfig is the capture the live cortex uses.
 func DefaultCaptureConfig() CaptureConfig {
 	return CaptureConfig{
-		MicRate:    15625,
+		MicRate:    15662,
 		PreRoll:    time.Second,
 		WakeMargin: 100 * time.Millisecond,
 		MinSpeech:  200 * time.Millisecond,

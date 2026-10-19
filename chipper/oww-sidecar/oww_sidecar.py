@@ -1,7 +1,7 @@
 """openWakeWord sidecar for wire-pod's oww wake word detector (pkg/oww).
 
 Reads raw mono s16le mic samples from stdin, resamples them from --in-rate to 16 kHz with soxr (Vector's mic
-really runs at 15625 Hz although MicTap labels it 16000), scores every 1280-sample frame (80 ms at 16 kHz) with
+really runs at about 15662 Hz although MicTap labels it 16000), scores every 1280-sample frame (80 ms at 16 kHz) with
 an openWakeWord model, and writes one JSON line per frame whose score reaches --report:
 
     {"score": 0.93, "sample": 123456}
@@ -24,7 +24,7 @@ FRAME = 1280
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, help="openWakeWord .onnx model")
-    ap.add_argument("--in-rate", type=int, default=15625, help="true rate of the samples on stdin")
+    ap.add_argument("--in-rate", type=int, default=15662, help="true rate of the samples on stdin")
     ap.add_argument("--report", type=float, default=0.1, help="lowest score written to stdout")
     args = ap.parse_args()
 

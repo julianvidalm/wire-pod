@@ -29,7 +29,7 @@ const (
 )
 
 type Config struct {
-	// Command is the sidecar's argv, e.g. python oww_sidecar.py --model m.onnx --in-rate 15625.
+	// Command is the sidecar's argv, e.g. python oww_sidecar.py --model m.onnx --in-rate 15662.
 	Command []string
 	// Word names the wake word in detections (Detection.Word.Text and Detection.Text).
 	Word string

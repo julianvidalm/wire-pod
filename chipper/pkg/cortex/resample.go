@@ -6,7 +6,7 @@ import "math"
 const resampleTaps = 16
 
 // Resample converts s16 samples at rate from into float samples in [-1, 1) at rate to, with a Lanczos-windowed
-// sinc interpolator (low-passed when downsampling). Vector's mic really runs at 15625 Hz although MicTap
+// sinc interpolator (low-passed when downsampling). Vector's mic really runs at about 15662 Hz although MicTap
 // announces 16000; whisper needs 16000.
 func Resample(in []int16, from, to int) []float32 {
 	if from == to || from <= 0 || to <= 0 {
