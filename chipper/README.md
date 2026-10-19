@@ -30,7 +30,7 @@ The detector is picked in `source.sh`:
 | `OWW_THRESHOLD` | `0.7` | lowest score that wakes, in (0, 1] |
 | `OWW_PYTHON` | `python3` | Python with `openwakeword`, `onnxruntime`, `soxr` and `numpy` |
 | `OWW_SIDECAR` | `oww-sidecar/oww_sidecar.py` | sidecar script (relative to `chipper`, where wire-pod runs) |
-| `OWW_MIC_RATE` | `15625` | true rate of Vector's mic; MicTap labels it 16000 |
+| `OWW_MIC_RATE` | `15662` | measured rate of Vector's mic; MicTap labels it 16000 |
 
 Example (the v3 model trained on the user's voice):
 
