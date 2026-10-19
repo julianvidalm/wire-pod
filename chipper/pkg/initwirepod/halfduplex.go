@@ -2,6 +2,7 @@ package initwirepod
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -18,38 +19,53 @@ const (
 	halfDuplexDBEnv       = "CORTEX_HALF_DUPLEX_DB"       // speaker level (dBFS) that counts as talking, default -60
 )
 
+// Lowest and highest CORTEX_HALF_DUPLEX_DB accepted; outside it the default is used.
+const (
+	minHalfDuplexDB = -120
+	maxHalfDuplexDB = 0
+)
+
 // halfDuplexConfig reads the half-duplex settings; it returns nil when half duplex is off, and describes them.
-func halfDuplexConfig() (*cortex.HalfDuplexConfig, string, error) {
+// A bad hangover or threshold does not turn the gate off: it is reported in warnings and its default is used.
+// Only an unknown CORTEX_HALF_DUPLEX value is an error.
+func halfDuplexConfig() (*cortex.HalfDuplexConfig, string, []string, error) {
 	switch v := strings.ToLower(strings.TrimSpace(os.Getenv(halfDuplexEnv))); v {
 	case "", "on":
 	case "off":
-		return nil, "off (" + halfDuplexEnv + "=off): the detector and the conversation hear the robot talk", nil
+		return nil, "off (" + halfDuplexEnv + "=off): the detector and the conversation hear the robot talk", nil, nil
 	default:
-		return nil, "", fmt.Errorf("unknown %s %q (want on or off)", halfDuplexEnv, v)
+		return nil, "", nil, fmt.Errorf("unknown %s %q (want on or off)", halfDuplexEnv, v)
 	}
 	cfg := cortex.DefaultHalfDuplexConfig()
+	var warnings []string
 	if v := os.Getenv(halfDuplexHangoverEnv); v != "" {
 		d, err := time.ParseDuration(v)
-		if err != nil {
-			return nil, "", fmt.Errorf("%s: %w", halfDuplexHangoverEnv, err)
+		switch {
+		case err != nil:
+			warnings = append(warnings, fmt.Sprintf("%s %q is not a Go duration, using the default %v",
+				halfDuplexHangoverEnv, v, cfg.Hangover))
+		case d < 0:
+			warnings = append(warnings, fmt.Sprintf("%s %v is negative, using the default %v",
+				halfDuplexHangoverEnv, d, cfg.Hangover))
+		default:
+			cfg.Hangover = d
 		}
-		if d < 0 {
-			return nil, "", fmt.Errorf("%s %v is negative", halfDuplexHangoverEnv, d)
-		}
-		cfg.Hangover = d
 	}
 	if v := os.Getenv(halfDuplexDBEnv); v != "" {
 		db, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return nil, "", fmt.Errorf("%s: %w", halfDuplexDBEnv, err)
+		switch {
+		case err != nil || math.IsNaN(db) || math.IsInf(db, 0):
+			warnings = append(warnings, fmt.Sprintf("%s %q is not a number, using the default %g dBFS",
+				halfDuplexDBEnv, v, cfg.Threshold))
+		case db < minHalfDuplexDB || db > maxHalfDuplexDB:
+			warnings = append(warnings, fmt.Sprintf("%s %v is outside %d..%d dBFS, using the default %g dBFS",
+				halfDuplexDBEnv, db, minHalfDuplexDB, maxHalfDuplexDB, cfg.Threshold))
+		default:
+			cfg.Threshold = db
 		}
-		if db >= 0 {
-			return nil, "", fmt.Errorf("%s %v is not below 0 dBFS", halfDuplexDBEnv, db)
-		}
-		cfg.Threshold = db
 	}
 	desc := fmt.Sprintf("on: the detector and the conversation hear silence while the robot's speaker is above "+
 		"%g dBFS and for %v after, the mic waits at most %v for the speaker audio", cfg.Threshold, cfg.Hangover,
 		cfg.MaxDelay)
-	return &cfg, desc, nil
+	return &cfg, desc, warnings, nil
 }

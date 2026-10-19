@@ -159,3 +159,23 @@ func TestPlayAddsASilentTail(t *testing.T) {
 		t.Fatalf("%d frames, last %+v", n, s.frames[n-1])
 	}
 }
+
+// MicOnly drops the speaker recording and the frame logs: the replay is timed exactly as before them.
+func TestMicOnlyIgnoresSpeakerAndFrameLogs(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "s")
+	writeWAV(t, base+"_mic.wav", 16000, ramp(1600))
+	writeWAV(t, base+"_speaker.wav", 32000, ramp(4096))
+	os.WriteFile(base+"_mic_frames.jsonl", []byte(`{"seq":1,"ts_ms":5000,"sample":0}`+"\n"), 0o600)
+	os.WriteFile(base+"_speaker_frames.jsonl", []byte(`{"seq":1,"ts_ms":4990,"sample":0}`+"\n"), 0o600)
+	r, err := Load(base+"_mic.wav", 16000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := r.MicOnly()
+	s := &sink{}
+	m.Play(s, "replay", 0, 1600, 0, 1e9)
+	if m.Speaker != nil || m.Alignment != "" || len(s.frames) != 10 || s.frames[3].Timestamp != 30 || m.MicSample(30) != 480 {
+		t.Fatalf("speaker %v alignment %q, %d frames, frame 3 at %d", m.Speaker != nil, m.Alignment, len(s.frames), s.frames[3].Timestamp)
+	}
+}

@@ -131,6 +131,11 @@ silenced frame is zeros of the same length, so the pre-roll and every timestamp 
 | `CORTEX_HALF_DUPLEX_HANGOVER` | `600ms` | Go duration the mic stays silenced after the robot's last sound |
 | `CORTEX_HALF_DUPLEX_DB` | `-60` | speaker level (dBFS, RMS of one 32 ms frame) that counts as talking; the idle speaker is digital zero or dither at -115 to -75 dBFS, speech -45 to -10 |
 
+A bad `CORTEX_HALF_DUPLEX_HANGOVER` (not a duration, or negative) or `CORTEX_HALF_DUPLEX_DB` (not a number, or
+outside -120..0) is logged (`Cortex half duplex: … using the default …`) and its default is used; the gate stays
+on. A robot whose hello has no speaker rate is not gated, and when no speaker frame has come for 2 s of robot
+time the mic passes straight through (no 300 ms wait) until speaker frames resume.
+
 It applies whenever a wake word detector is on. Logs, at startup and when a robot's stream ends:
 
 ```
@@ -183,5 +188,6 @@ next to the mic recording: speaker frames are interleaved by robot time, taken f
 and `<session>_speaker_frames.jsonl` when the recorder wrote them, else by counting samples from the session
 start (recordings made before the frame logs did not fill speaker gaps and drift by seconds, so the gate
 silences the wrong audio there; the replays warn). `-half-duplex=false` turns
-the gate off; `-hangover` and `-half-duplex-db` match `CORTEX_HALF_DUPLEX_HANGOVER` and `CORTEX_HALF_DUPLEX_DB`.
-With frame logs, wakes and labels are on the robot's clock; oww-replay prints each wake's robot time.
+the gate off and replays exactly as before it (same timing and WAKE lines); `-hangover` and `-half-duplex-db` match `CORTEX_HALF_DUPLEX_HANGOVER` and `CORTEX_HALF_DUPLEX_DB`.
+With the gate on and frame logs, wakes and labels are on the robot's clock and oww-replay adds each wake's robot
+time.

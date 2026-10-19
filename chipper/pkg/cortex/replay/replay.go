@@ -121,6 +121,12 @@ func (r *Recording) MicSample(ts uint64) int {
 	return int(p.Sample + (int64(ts)-int64(p.TsMs))*int64(r.MicRate)/1000)
 }
 
+// MicOnly is the recording without its speaker audio and frame logs: it replays timed by mic samples from the
+// file's start, as before the frame logs existed.
+func (r *Recording) MicOnly() *Recording {
+	return &Recording{Mic: r.Mic, MicRate: r.MicRate}
+}
+
 func (r *Recording) speakerTime(j int) uint64 { return timeAt(r.speakerLog, j, SpeakerRate) }
 
 // Play sends mic samples [from, to) as 10 ms mic frames (seq from 0), then tail samples of silence, with the

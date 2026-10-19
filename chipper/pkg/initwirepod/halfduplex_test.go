@@ -77,7 +77,7 @@ func TestHalfDuplexSilencesTheDetectorButNotTheRecorder(t *testing.T) {
 // CORTEX_HALF_DUPLEX=off gives the old sink: every mic frame reaches the detector as it came.
 func TestHalfDuplexOffKeepsTheOldSink(t *testing.T) {
 	t.Setenv(halfDuplexEnv, "off")
-	cfg, desc, err := halfDuplexConfig()
+	cfg, desc, _, err := halfDuplexConfig()
 	if cfg != nil || err != nil || !strings.Contains(desc, "off") {
 		t.Fatalf("got %v %q %v", cfg, desc, err)
 	}
@@ -94,31 +94,51 @@ func TestHalfDuplexOffKeepsTheOldSink(t *testing.T) {
 }
 
 func TestHalfDuplexSettings(t *testing.T) {
+	def := cortex.DefaultHalfDuplexConfig()
 	for _, tc := range []struct {
 		on, hang, db string
 		want         *cortex.HalfDuplexConfig
 		desc         string
 	}{
-		{"", "", "", &cortex.HalfDuplexConfig{Hangover: 600 * time.Millisecond, Threshold: -60, MaxDelay: 300 * time.Millisecond},
-			"while the robot's speaker is above -60 dBFS and for 600ms after"},
-		{"ON", "1s", "-50", &cortex.HalfDuplexConfig{Hangover: time.Second, Threshold: -50, MaxDelay: 300 * time.Millisecond},
-			"above -50 dBFS and for 1s after"},
+		{"", "", "", &def, "while the robot's speaker is above -60 dBFS and for 600ms after"},
+		{"ON", "1s", "-50", &cortex.HalfDuplexConfig{Hangover: time.Second, Threshold: -50, MaxDelay: def.MaxDelay,
+			StallTimeout: def.StallTimeout}, "above -50 dBFS and for 1s after"},
+		{"on", "0s", "-120", &cortex.HalfDuplexConfig{Hangover: 0, Threshold: -120, MaxDelay: def.MaxDelay,
+			StallTimeout: def.StallTimeout}, "above -120 dBFS"},
 		{"off", "bad", "bad", nil, "off"},
 	} {
 		t.Setenv(halfDuplexEnv, tc.on)
 		t.Setenv(halfDuplexHangoverEnv, tc.hang)
 		t.Setenv(halfDuplexDBEnv, tc.db)
-		got, desc, err := halfDuplexConfig()
-		if err != nil || !reflect.DeepEqual(got, tc.want) || !strings.Contains(desc, tc.desc) {
-			t.Fatalf("%+v: got %+v %q %v", tc, got, desc, err)
+		got, desc, warnings, err := halfDuplexConfig()
+		if err != nil || len(warnings) != 0 || !reflect.DeepEqual(got, tc.want) || !strings.Contains(desc, tc.desc) {
+			t.Fatalf("%+v: got %+v %q %q %v", tc, got, desc, warnings, err)
 		}
 	}
-	for _, bad := range [][3]string{{"maybe", "", ""}, {"on", "soon", ""}, {"on", "-1s", ""}, {"on", "", "loud"}, {"on", "", "3"}} {
-		t.Setenv(halfDuplexEnv, bad[0])
-		t.Setenv(halfDuplexHangoverEnv, bad[1])
-		t.Setenv(halfDuplexDBEnv, bad[2])
-		if cfg, _, err := halfDuplexConfig(); err == nil {
-			t.Fatalf("%q: no error, got %+v", bad, cfg)
-		}
+	t.Setenv(halfDuplexEnv, "maybe")
+	if cfg, _, _, err := halfDuplexConfig(); err == nil {
+		t.Fatalf("unknown %s: no error, got %+v", halfDuplexEnv, cfg)
+	}
+}
+
+// A bad hangover or threshold is logged and replaced by its default: the gate stays on.
+func TestBadHalfDuplexValuesFallBackToTheDefaults(t *testing.T) {
+	def := cortex.DefaultHalfDuplexConfig()
+	for _, kv := range [][2]string{{halfDuplexHangoverEnv, "soon"}, {halfDuplexHangoverEnv, "600"}, {halfDuplexHangoverEnv, "-1s"},
+		{halfDuplexDBEnv, "loud"}, {halfDuplexDBEnv, "3"}, {halfDuplexDBEnv, "0.5"}, {halfDuplexDBEnv, "-121"},
+		{halfDuplexDBEnv, "NaN"}, {halfDuplexDBEnv, "-Inf"}, {halfDuplexDBEnv, "+Inf"}} {
+		t.Run(kv[0]+"="+kv[1], func(t *testing.T) {
+			t.Setenv(halfDuplexEnv, "on")
+			t.Setenv(halfDuplexHangoverEnv, "")
+			t.Setenv(halfDuplexDBEnv, "")
+			t.Setenv(kv[0], kv[1])
+			cfg, desc, warnings, err := halfDuplexConfig()
+			if err != nil || cfg == nil || !reflect.DeepEqual(*cfg, def) || !strings.HasPrefix(desc, "on") {
+				t.Fatalf("got %+v %q %v, want the defaults on", cfg, desc, err)
+			}
+			if len(warnings) != 1 || !strings.Contains(warnings[0], kv[0]) || !strings.Contains(warnings[0], "default") {
+				t.Fatalf("warnings %q", warnings)
+			}
+		})
 	}
 }

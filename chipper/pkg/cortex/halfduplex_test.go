@@ -208,7 +208,40 @@ func TestHalfDuplexSilencedFramesKeepTheirLengthAndTime(t *testing.T) {
 
 func TestHalfDuplexDefaults(t *testing.T) {
 	cfg := DefaultHalfDuplexConfig()
-	if cfg.Hangover != 600*time.Millisecond || cfg.Threshold != -60 || cfg.MaxDelay != 300*time.Millisecond {
+	if cfg.Hangover != 600*time.Millisecond || cfg.Threshold != -60 || cfg.MaxDelay != 300*time.Millisecond ||
+		cfg.StallTimeout != 2*time.Second {
 		t.Fatalf("defaults %+v", cfg)
+	}
+}
+
+// Without any speaker frame for StallTimeout of robot time, mic frames pass straight through instead of waiting
+// MaxDelay each; once speaker frames come back, the gate waits for them again.
+func TestHalfDuplexPassesTheMicThroughWhileTheSpeakerStreamIsSilent(t *testing.T) {
+	cfg := DefaultHalfDuplexConfig()
+	g := NewHalfDuplex[Frame](cfg)
+	stall := uint64(cfg.StallTimeout / time.Millisecond)
+	immediate := func(ts uint64) bool {
+		out := g.Mic(mic(ts))
+		return len(out) > 0 && out[len(out)-1].Timestamp == ts
+	}
+	// No speaker frame at all: held at first, straight through after StallTimeout.
+	for ts := uint64(0); ts < 5000; ts += 10 {
+		if got := immediate(ts); ts >= stall+10 && !got {
+			t.Fatalf("mic at %d ms held with no speaker stream for %d ms", ts, ts)
+		}
+	}
+	// Speaker frames resume: the mic waits for them again.
+	g.Speaker(5000, speakerFrame(0), testSpeakerRate)
+	if immediate(5040) {
+		t.Fatal("mic at 5040 ms released before the speaker frames covering it, though they resumed")
+	}
+	// They stop after 5032 ms: straight through again from StallTimeout later.
+	for ts := uint64(5050); ts < 9000; ts += 10 {
+		if got := immediate(ts); ts > 5000+stall+10 && !got {
+			t.Fatalf("mic at %d ms held, speaker silent since 5000 ms", ts)
+		}
+	}
+	if st := g.Stats(); st.Frames+len(g.Flush()) != 896 {
+		t.Fatalf("stats %+v", st)
 	}
 }

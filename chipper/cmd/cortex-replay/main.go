@@ -80,6 +80,9 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
+	if !*halfDuplex {
+		recording = recording.MicOnly() // timed exactly as before the gate
+	}
 	samples := recording.Mic
 	var clock clockFile
 	var labels []label
@@ -155,16 +158,14 @@ func main() {
 	var sink mictap.Sink = replaySink{conv, det}
 	switch {
 	case recording.Speaker == nil:
-		fmt.Fprintln(os.Stderr, "no speaker recording: half duplex off")
-	case *halfDuplex:
+		fmt.Fprintln(os.Stderr, "half duplex off")
+	default:
 		fmt.Fprintf(os.Stderr, "half duplex on (speaker aligned by %s): above %g dBFS, hangover %v\n",
 			recording.Alignment, hd.Threshold, hd.Hangover)
 		if recording.Alignment != "frame logs" {
 			fmt.Fprintln(os.Stderr, replay.SampleClockWarning)
 		}
 		sink = mictapgate.New(sink, hd, *micRate, logf)
-	default:
-		fmt.Fprintln(os.Stderr, "half duplex off")
 	}
 	recording.Play(sink, esn, from, to, 0, *speed)
 	rec.settle(15 * time.Second)

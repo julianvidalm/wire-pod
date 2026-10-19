@@ -50,22 +50,21 @@ func main() {
 		fmt.Fprintln(os.Stderr, "oww-replay:", err)
 		os.Exit(1)
 	}
+	gated := rec.Speaker != nil && *halfDuplex
+	if !*halfDuplex {
+		rec = rec.MicOnly() // timed and printed exactly as before the gate
+	}
 	audio := float64(len(rec.Mic)) / float64(*micRate)
 	fmt.Printf("%s: %.0f s of audio at %d Hz, threshold %.2f, %gx real time\n", flag.Arg(0), audio, *micRate, *threshold, *speed)
 	logf := func(a ...any) { fmt.Fprintln(os.Stderr, a...) }
-	switch {
-	case rec.Speaker == nil:
-		fmt.Println("no speaker recording: half duplex off")
-	case *halfDuplex:
+	if gated {
 		fmt.Printf("half duplex on (speaker aligned by %s): above %g dBFS, hangover %v\n", rec.Alignment, hd.Threshold, hd.Hangover)
 		if rec.Alignment != "frame logs" {
 			fmt.Println(replay.SampleClockWarning)
 		}
-	default:
-		fmt.Println("half duplex off")
 	}
 
-	h := &printingHandler{rec: rec, first: rec.MicTime(0)}
+	h := &printingHandler{rec: rec, gated: gated}
 	det := oww.New(oww.Config{
 		Command: []string{*python, *sidecar, "--model", *model, "--in-rate", strconv.Itoa(*micRate),
 			"--report", strconv.FormatFloat(*threshold, 'f', -1, 64)},
@@ -77,7 +76,7 @@ func main() {
 		Logf:         logf,
 	})
 	var sink mictap.Sink = det
-	if rec.Speaker != nil && *halfDuplex {
+	if gated {
 		sink = mictapgate.New(det, hd, *micRate, logf)
 	}
 	began := time.Now()
@@ -89,7 +88,7 @@ func main() {
 
 type printingHandler struct {
 	rec   *replay.Recording
-	first uint64 // robot time of the recording's first sample
+	gated bool // the timeline is the robot's clock
 	mu    sync.Mutex
 	n     int
 }
@@ -98,8 +97,18 @@ func (h *printingHandler) OnWake(d wakeword.Detection) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.n++
-	fmt.Printf("WAKE at %.2f s (mic sample %d, robot time %d ms) score %.3f\n", float64(d.FrameTimestamp-h.first)/1000,
-		h.rec.MicSample(d.FrameTimestamp), d.FrameTimestamp, d.Word.Conf)
+	fmt.Println(wakeLine(d, h.rec, h.gated))
+}
+
+// wakeLine prints a wake as oww-replay always has; with the gate on (a robot-clock timeline) it adds the
+// robot time.
+func wakeLine(d wakeword.Detection, rec *replay.Recording, gated bool) string {
+	if !gated {
+		return fmt.Sprintf("WAKE at %.2f s (mic sample %d) score %.3f", float64(d.FrameTimestamp)/1000,
+			d.FrameTimestamp*uint64(rec.MicRate)/1000, d.Word.Conf)
+	}
+	return fmt.Sprintf("WAKE at %.2f s (mic sample %d, robot time %d ms) score %.3f",
+		float64(d.FrameTimestamp-rec.MicTime(0))/1000, rec.MicSample(d.FrameTimestamp), d.FrameTimestamp, d.Word.Conf)
 }
 
 func (h *printingHandler) count() int {

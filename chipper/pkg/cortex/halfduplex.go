@@ -22,10 +22,14 @@ type HalfDuplexConfig struct {
 	// MaxDelay is the longest a mic frame waits for the speaker frames covering its time. The robot sends
 	// speaker frames all the time (silence included), so frames normally wait one speaker frame (32 ms).
 	MaxDelay time.Duration
+	// StallTimeout: when no speaker frame has come for this long of robot (mic) time, the speaker stream counts
+	// as absent and mic frames pass straight through, without waiting MaxDelay, until speaker frames resume.
+	StallTimeout time.Duration
 }
 
 func DefaultHalfDuplexConfig() HalfDuplexConfig {
-	return HalfDuplexConfig{Hangover: 600 * time.Millisecond, Threshold: -60, MaxDelay: 300 * time.Millisecond}
+	return HalfDuplexConfig{Hangover: 600 * time.Millisecond, Threshold: -60, MaxDelay: 300 * time.Millisecond,
+		StallTimeout: 2 * time.Second}
 }
 
 // MicFrame is what the gate holds: a mic frame with its robot timestamp (ms) that can return a copy of itself
@@ -61,6 +65,8 @@ type HalfDuplex[T MicFrame[T]] struct {
 	speakerTop uint64 // latest speaker frame start seen
 	hasSpeaker bool
 	newestMic  uint64
+	firstMic   uint64
+	anyMic     bool
 	released   uint64 // timestamp of the last released mic frame
 	anyOut     bool
 	wasGated   bool
@@ -100,7 +106,11 @@ func (h *HalfDuplex[T]) Speaker(ts uint64, samples []int16, rate int) []T {
 // Mic takes one mic frame and returns the frames now released, in order, silenced where the robot talked.
 func (h *HalfDuplex[T]) Mic(f T) []T {
 	h.pending = append(h.pending, f)
-	if ts := f.RobotTime(); ts > h.newestMic {
+	ts := f.RobotTime()
+	if !h.anyMic {
+		h.firstMic, h.newestMic, h.anyMic = ts, ts, true
+	}
+	if ts > h.newestMic {
 		h.newestMic = ts
 	}
 	return h.release(false)
@@ -113,6 +123,9 @@ func (h *HalfDuplex[T]) Stats() HalfDuplexStats { return h.stats }
 
 func (h *HalfDuplex[T]) release(all bool) []T {
 	maxDelay := uint64(h.cfg.MaxDelay / time.Millisecond)
+	stall := uint64(h.cfg.StallTimeout / time.Millisecond)
+	stalled := h.anyMic && stall > 0 && ((!h.hasSpeaker && h.newestMic >= h.firstMic+stall) ||
+		(h.hasSpeaker && h.newestMic > h.speakerTop+stall))
 	var out []T
 	n := 0
 	for ; n < len(h.pending); n++ {
@@ -121,7 +134,7 @@ func (h *HalfDuplex[T]) release(all bool) []T {
 		covered := h.hasSpeaker && h.speakerTop >= ts
 		switch {
 		case covered, all:
-		case h.newestMic >= ts+maxDelay || len(h.pending)-n > maxPending:
+		case stalled || h.newestMic >= ts+maxDelay || len(h.pending)-n > maxPending:
 			h.stats.Unconfirmed++
 		default:
 			h.pending = append(h.pending[:0], h.pending[n:]...)

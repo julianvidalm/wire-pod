@@ -36,7 +36,16 @@ func New(inner mictap.Sink, cfg cortex.HalfDuplexConfig, micRate int, logf func(
 	return &Sink{inner: inner, cfg: cfg, micRate: micRate, logf: logf, streams: map[string]*stream{}}
 }
 
+// Start gates the stream only when the robot streams its speaker (a SpeakerRate in its hello); without one,
+// the stream passes through untouched.
 func (s *Sink) Start(esn string, h mictap.Hello) {
+	if h.SpeakerRate == 0 {
+		s.mu.Lock()
+		delete(s.streams, esn)
+		s.mu.Unlock()
+		s.inner.Start(esn, h)
+		return
+	}
 	st := &stream{gate: cortex.NewHalfDuplex[micFrame](s.cfg), speakerRate: int(h.SpeakerRate)}
 	s.mu.Lock()
 	s.streams[esn] = st

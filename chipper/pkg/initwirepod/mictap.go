@@ -63,7 +63,10 @@ func newMicTapSink() mictap.Sink {
 		return logSink
 	}
 	logger.Println("Wake word detector on,", desc)
-	hd, hdDesc, err := halfDuplexConfig()
+	hd, hdDesc, warnings, err := halfDuplexConfig()
+	for _, w := range warnings {
+		logger.Println("Cortex half duplex:", w)
+	}
 	if err != nil {
 		logger.Println("Cortex half duplex off:", err)
 	} else {

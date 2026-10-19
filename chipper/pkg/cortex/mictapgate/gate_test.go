@@ -105,3 +105,17 @@ func TestSinkDoesNotChangeTheCallersPayload(t *testing.T) {
 		t.Fatalf("inner got %v", m)
 	}
 }
+
+// A robot that streams no speaker audio (SpeakerRate 0 in its hello) is not gated: mic frames pass at once.
+func TestSinkPassesTheMicThroughWithoutASpeakerStream(t *testing.T) {
+	inner := &capture{}
+	s := New(inner, cortex.DefaultHalfDuplexConfig(), 16000, func(...any) {})
+	s.Start("a", mictap.Hello{Version: 1, MicRate: 16000})
+	for ts := uint64(0); ts < 100; ts += 10 {
+		s.Frame("a", mictap.Frame{Type: mictap.FrameMic, Timestamp: ts, Payload: payload(160, 300)})
+		if m := inner.mic(); len(m) != int(ts/10)+1 || zero(m[len(m)-1].Payload) {
+			t.Fatalf("after mic %d ms the inner sink has %d frames", ts, len(m))
+		}
+	}
+	s.End("a", nil)
+}
