@@ -14,7 +14,7 @@ type LogSink struct {
 }
 
 type streamLog struct {
-	mic, speaker       seqCounter
+	mic, speaker, raw  seqCounter
 	micDrop, speakDrop uint32
 }
 
@@ -55,6 +55,8 @@ func (s *LogSink) Frame(esn string, f Frame) {
 		st.mic.add(f.Seq)
 	case FrameSpeaker:
 		st.speaker.add(f.Seq)
+	case FrameRawMic:
+		st.raw.add(f.Seq)
 	case FrameStats:
 		if mic, speaker, err := f.Stats(); err == nil && (mic != st.micDrop || speaker != st.speakDrop) {
 			st.micDrop, st.speakDrop = mic, speaker
@@ -77,6 +79,9 @@ func (s *LogSink) End(esn string, err error) {
 	}
 	line := fmt.Sprintf("MicTap: %s ended: mic %d frames (%d gaps), speaker %d frames (%d gaps)",
 		esn, st.mic.frames, st.mic.gaps, st.speaker.frames, st.speaker.gaps)
+	if st.raw.frames > 0 {
+		line += fmt.Sprintf(", raw mic %d frames (%d gaps)", st.raw.frames, st.raw.gaps)
+	}
 	if err != nil {
 		line += ": " + err.Error()
 	}

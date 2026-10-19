@@ -232,3 +232,22 @@ func TestDetectorIgnoresStreamsItCannotMap(t *testing.T) {
 		t.Error("an unsupported mic rate was not logged")
 	}
 }
+
+func TestDetectorIgnoresRawMicFrames(t *testing.T) {
+	t.Setenv("OWW_FAKE_LINES", "0.8@3200")
+	h, logs := &recordingHandler{}, &logRecorder{}
+	d := newTestDetector(t, "script", h, logs, 1000)
+	d.Start("esn1", hello)
+	raw := mictap.Frame{Type: mictap.FrameRawMic, Payload: make([]byte, mictap.RawMicFrameBytes)}
+	for i := 0; i < 300; i++ {
+		raw.Seq, raw.Timestamp = uint32(i), uint64(10*i)
+		d.Frame("esn1", raw)
+		d.Frame("esn1", micFrame(i))
+	}
+	waitFor(t, "one detection", func() bool { return len(h.detections()) >= 1 })
+	d.End("esn1", nil)
+	// sample 3200 ends processed mic frame 19: raw frames must not move the position
+	if got := h.detections(); got[0].FrameTimestamp != 190 {
+		t.Fatalf("detection %+v, want at 190 ms", got[0])
+	}
+}

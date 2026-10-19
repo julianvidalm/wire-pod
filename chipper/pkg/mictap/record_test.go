@@ -2,9 +2,12 @@ package mictap
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -119,5 +122,182 @@ func TestRecordingLogsThePCClockAgainstTheMicPosition(t *testing.T) {
 		first, clock.UnixMilli(), 2*(headerEvery+1))
 	if string(b) != want {
 		t.Fatalf("clock\n%s\nwant\n%s", b, want)
+	}
+}
+
+func readFrameLog(t *testing.T, path string) []FrameLogLine {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []FrameLogLine
+	for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
+		var l FrameLogLine
+		if err := json.Unmarshal([]byte(line), &l); err != nil {
+			t.Fatalf("%s: %q: %v", path, line, err)
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
+func stamped(f Frame, ts uint64) Frame {
+	f.Timestamp = ts
+	return f
+}
+
+func TestRecordingKeepsSpeakerSeqAndTimestamps(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	r.Frame("esn1", stamped(pcmFrame(FrameSpeaker, 4, 1, 2), 1000))
+	r.Frame("esn1", stamped(pcmFrame(FrameSpeaker, 5, 3, 4), 1032))
+	r.End("esn1", nil)
+
+	got := readFrameLog(t, filepath.Join(dir, "esn1_20261016-170000_speaker_frames.jsonl"))
+	want := []FrameLogLine{{Seq: 4, TimestampMs: 1000, Sample: 0}, {Seq: 5, TimestampMs: 1032, Sample: 2}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("speaker frames %+v, want %+v", got, want)
+	}
+}
+
+func TestRecordingFillsDroppedSpeakerFramesWithSilence(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	r.Frame("esn1", stamped(pcmFrame(FrameSpeaker, 7, 1, 2), 100))
+	r.Frame("esn1", stamped(pcmFrame(FrameSpeaker, 9, 3, 4), 164)) // robot dropped frame 8
+	r.End("esn1", nil)
+
+	_, speaker := readWAV(t, filepath.Join(dir, "esn1_20261016-170000_speaker.wav"))
+	if want := []int16{1, 2, 0, 0, 3, 4}; !reflect.DeepEqual(speaker, want) {
+		t.Fatalf("speaker %v, want %v", speaker, want)
+	}
+	got := readFrameLog(t, filepath.Join(dir, "esn1_20261016-170000_speaker_frames.jsonl"))
+	want := []FrameLogLine{{Seq: 7, TimestampMs: 100, Sample: 0}, {Seq: 9, TimestampMs: 164, Sample: 4, Gap: 1}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("speaker frames %+v, want %+v", got, want)
+	}
+}
+
+func TestRecordingKeepsMicSeqAndTimestamps(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	r.Frame("esn1", stamped(pcmFrame(FrameMic, 1, 1, 2), 10))
+	r.Frame("esn1", stamped(pcmFrame(FrameMic, 3, 3, 4), 30))
+	r.End("esn1", nil)
+
+	got := readFrameLog(t, filepath.Join(dir, "esn1_20261016-170000_mic_frames.jsonl"))
+	want := []FrameLogLine{{Seq: 1, TimestampMs: 10, Sample: 0}, {Seq: 3, TimestampMs: 30, Sample: 4, Gap: 1}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("mic frames %+v, want %+v", got, want)
+	}
+}
+
+func readWAVChannels(t *testing.T, path string) (channels uint16, samples []int16) {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	le := binary.LittleEndian
+	channels = le.Uint16(b[22:])
+	if le.Uint32(b[28:]) != le.Uint32(b[24:])*2*uint32(channels) || le.Uint16(b[32:]) != 2*channels {
+		t.Fatalf("%s: byte rate / block align do not match %d channels: % x", path, channels, b[:44])
+	}
+	_, samples = readWAV(t, path)
+	return channels, samples
+}
+
+func TestRecordingWritesRawMicFramesToTheirOwnFourChannelWAV(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	r.Frame("esn1", stamped(pcmFrame(FrameMic, 0, 5), 0))
+	r.Frame("esn1", stamped(pcmFrame(FrameRawMic, 2, 1, 2, 3, 4), 20))
+	r.Frame("esn1", stamped(pcmFrame(FrameRawMic, 4, 5, 6, 7, 8), 40)) // robot dropped raw frame 3
+	r.End("esn1", nil)
+
+	channels, raw := readWAVChannels(t, filepath.Join(dir, "esn1_20261016-170000_raw4ch.wav"))
+	if want := []int16{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8}; channels != 4 || !reflect.DeepEqual(raw, want) {
+		t.Fatalf("raw %d channels %v, want 4 channels %v", channels, raw, want)
+	}
+	got := readFrameLog(t, filepath.Join(dir, "esn1_20261016-170000_raw4ch_frames.jsonl"))
+	want := []FrameLogLine{{Seq: 2, TimestampMs: 20, Sample: 0}, {Seq: 4, TimestampMs: 40, Sample: 2, Gap: 1}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("raw frames %+v, want %+v", got, want)
+	}
+	if _, mic := readWAV(t, filepath.Join(dir, "esn1_20261016-170000_mic.wav")); !reflect.DeepEqual(mic, []int16{5}) {
+		t.Fatalf("mic %v: raw frames must not reach the processed mic file", mic)
+	}
+}
+
+func TestRecordingWithoutRawMicFramesWritesNoRawFile(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	r.Frame("esn1", pcmFrame(FrameMic, 0, 5))
+	r.End("esn1", nil)
+	if _, err := os.Stat(filepath.Join(dir, "esn1_20261016-170000_raw4ch.wav")); !os.IsNotExist(err) {
+		t.Fatalf("raw file exists without raw frames: %v", err)
+	}
+}
+
+func TestRecordingIgnoresUnknownFrameTypes(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	r.Frame("esn1", pcmFrame(FrameMic, 0, 5))
+	r.Frame("esn1", pcmFrame(9, 0, 7, 7, 7, 7))
+	r.Frame("esn1", pcmFrame(FrameMic, 1, 6))
+	r.End("esn1", nil)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	want := []string{"esn1_20261016-170000_clock.jsonl", "esn1_20261016-170000_mic.wav",
+		"esn1_20261016-170000_mic_frames.jsonl", "esn1_20261016-170000_speaker.wav",
+		"esn1_20261016-170000_speaker_frames.jsonl"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("files %v, want %v", names, want)
+	}
+	if _, mic := readWAV(t, filepath.Join(dir, "esn1_20261016-170000_mic.wav")); !reflect.DeepEqual(mic, []int16{5, 6}) {
+		t.Fatalf("mic %v", mic)
+	}
+}
+
+func TestRecordingDoesNotFillARawGapLeftByTheRawSwitchBeingOff(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
+	// the raw seq advances every block even while the switch is off: the first raw frame of a session and a
+	// frame after the switch was off for a while both jump far ahead
+	r.Frame("esn1", stamped(pcmFrame(FrameRawMic, 60000, 1, 2, 3, 4), 600000))
+	r.Frame("esn1", stamped(pcmFrame(FrameRawMic, 60000+maxGapFrames+2, 5, 6, 7, 8), 605020))
+	r.End("esn1", nil)
+
+	_, raw := readWAVChannels(t, filepath.Join(dir, "esn1_20261016-170000_raw4ch.wav"))
+	if want := []int16{1, 2, 3, 4, 5, 6, 7, 8}; !reflect.DeepEqual(raw, want) {
+		t.Fatalf("raw %v, want %v", raw, want)
+	}
+	got := readFrameLog(t, filepath.Join(dir, "esn1_20261016-170000_raw4ch_frames.jsonl"))
+	want := []FrameLogLine{{Seq: 60000, TimestampMs: 600000, Sample: 0},
+		{Seq: 60000 + maxGapFrames + 2, TimestampMs: 605020, Sample: 1, Skipped: maxGapFrames + 1}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("raw frames %+v, want %+v", got, want)
 	}
 }

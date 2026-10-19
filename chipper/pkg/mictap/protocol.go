@@ -8,7 +8,10 @@
 //
 // Mic frames carry 160 s16 samples at 16 kHz (flags: bit0 speaker active, bit1 robot moving), speaker frames
 // 1024 s16 samples at 32 kHz (flags: bit0 buffer has audio), stats frames the robot's dropped-frame totals.
+// Raw mic frames (type 4, sent only when the robot's raw-mic switch is on) carry the four microphones before
+// SignalEssence: 160 s16 samples per channel, interleaved ch0 ch1 ch2 ch3 ch0 ..., 1280 bytes, at the mic rate.
 // Mic and speaker timestamps share one clock; seq counts per type and skips when frames are dropped.
+// Consumers ignore frame types they do not know.
 package mictap
 
 import (
@@ -23,6 +26,10 @@ const (
 	FrameMic     = 1
 	FrameSpeaker = 2
 	FrameStats   = 3
+	FrameRawMic  = 4
+
+	RawMicChannels   = 4
+	RawMicFrameBytes = 160 * RawMicChannels * 2
 
 	MicFlagSpeakerActive = 1 << 0
 	MicFlagRobotMoving   = 1 << 1

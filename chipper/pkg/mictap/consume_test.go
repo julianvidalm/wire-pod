@@ -71,3 +71,24 @@ func TestConsumeEndsWithErrorOnTruncatedFrame(t *testing.T) {
 		t.Fatalf("complete frames before the cut: %d", len(sink.frames))
 	}
 }
+
+func TestConsumePassesRawMicAndUnknownFramesWithoutCountingThemAsMic(t *testing.T) {
+	var b bytes.Buffer
+	b.Write(EncodeHello(1, 16000, 32000))
+	b.Write(EncodeFrame(Frame{Type: FrameMic, Seq: 0, Timestamp: 10, Payload: pcm(1, 2)}))
+	b.Write(EncodeFrame(Frame{Type: FrameRawMic, Seq: 0, Timestamp: 10, Payload: make([]byte, RawMicFrameBytes)}))
+	b.Write(EncodeFrame(Frame{Type: 9, Seq: 0, Timestamp: 10, Payload: []byte{1, 2, 3}}))
+	b.Write(EncodeFrame(Frame{Type: FrameMic, Seq: 1, Timestamp: 20, Payload: pcm(4, 5)}))
+	sink := &recordingSink{}
+	sum, err := Consume(bytes.NewReader(b.Bytes()), "esn", sink)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.frames) != 4 || sink.frames[1].Type != FrameRawMic || len(sink.frames[1].Payload) != 1280 ||
+		sink.frames[2].Type != 9 || sink.frames[3].Seq != 1 {
+		t.Fatalf("frames %+v", sink.frames)
+	}
+	if sum.MicFrames != 2 || sum.SpeakerFrames != 0 {
+		t.Fatalf("summary %+v", sum)
+	}
+}
