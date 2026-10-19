@@ -56,7 +56,7 @@ func zero(p []byte) bool {
 func TestSinkSilencesMicFramesWhileTheRobotTalks(t *testing.T) {
 	inner := &capture{}
 	var lines []string
-	s := New(inner, cortex.DefaultHalfDuplexConfig(), func(a ...any) { lines = append(lines, fmt.Sprint(a...)) })
+	s := New(inner, cortex.DefaultHalfDuplexConfig(), 16000, func(a ...any) { lines = append(lines, fmt.Sprint(a...)) })
 	s.Start("0dd1b652", mictap.Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
 	spk := uint64(0)
 	for ts := uint64(0); ts < 3000; ts += 10 {
@@ -92,7 +92,7 @@ func TestSinkSilencesMicFramesWhileTheRobotTalks(t *testing.T) {
 
 func TestSinkDoesNotChangeTheCallersPayload(t *testing.T) {
 	inner := &capture{}
-	s := New(inner, cortex.DefaultHalfDuplexConfig(), func(...any) {})
+	s := New(inner, cortex.DefaultHalfDuplexConfig(), 16000, func(...any) {})
 	s.Start("a", mictap.Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
 	s.Frame("a", mictap.Frame{Type: mictap.FrameSpeaker, Timestamp: 0, Payload: payload(1024, 8000)})
 	s.Frame("a", mictap.Frame{Type: mictap.FrameSpeaker, Timestamp: 32, Payload: payload(1024, 8000)})

@@ -182,6 +182,15 @@ func (a micTapAudio) Frame(esn string, f mictap.Frame) {
 
 func (a micTapAudio) End(esn string, _ error) { a.conv.Close(esn) }
 
+// micRate is the mic's true rate (OWW_MIC_RATE), or its default when the setting is invalid.
+func micRate() int {
+	rate, err := envFloat(owwMicRateEnv, owwDefaultMicRate)
+	if err != nil || rate <= 0 {
+		return owwDefaultMicRate
+	}
+	return int(rate)
+}
+
 // detectorSink runs the wake word detector on every stream and, with the conversation on, hands the stream to
 // it first, so the pre-roll already holds each frame when the detector reports a wake in it. With half duplex
 // on (hd not nil) both hear silence while the robot talks; logSink (and the recorder in it) gets the real mic.
@@ -196,5 +205,5 @@ func detectorSink(logSink, detector mictap.Sink, conv *cortex.Conversation, hd *
 		}
 		return mictap.Tee(logSink, micTapAudio{conv}, detector)
 	}
-	return mictap.Tee(logSink, mictapgate.New(listeners, *hd, logger.Println))
+	return mictap.Tee(logSink, mictapgate.New(listeners, *hd, micRate(), logger.Println))
 }

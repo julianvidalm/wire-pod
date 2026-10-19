@@ -159,7 +159,10 @@ func main() {
 	case *halfDuplex:
 		fmt.Fprintf(os.Stderr, "half duplex on (speaker aligned by %s): above %g dBFS, hangover %v\n",
 			recording.Alignment, hd.Threshold, hd.Hangover)
-		sink = mictapgate.New(sink, hd, logf)
+		if recording.Alignment != "frame logs" {
+			fmt.Fprintln(os.Stderr, replay.SampleClockWarning)
+		}
+		sink = mictapgate.New(sink, hd, *micRate, logf)
 	default:
 		fmt.Fprintln(os.Stderr, "half duplex off")
 	}

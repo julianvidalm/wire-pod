@@ -58,6 +58,9 @@ func main() {
 		fmt.Println("no speaker recording: half duplex off")
 	case *halfDuplex:
 		fmt.Printf("half duplex on (speaker aligned by %s): above %g dBFS, hangover %v\n", rec.Alignment, hd.Threshold, hd.Hangover)
+		if rec.Alignment != "frame logs" {
+			fmt.Println(replay.SampleClockWarning)
+		}
 	default:
 		fmt.Println("half duplex off")
 	}
@@ -75,7 +78,7 @@ func main() {
 	})
 	var sink mictap.Sink = det
 	if rec.Speaker != nil && *halfDuplex {
-		sink = mictapgate.New(det, hd, logf)
+		sink = mictapgate.New(det, hd, *micRate, logf)
 	}
 	began := time.Now()
 	// Trailing silence flushes the sidecar's last frames; only silence may be left in the queue at the end.

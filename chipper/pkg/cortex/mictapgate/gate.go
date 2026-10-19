@@ -15,9 +15,10 @@ import (
 
 // Sink gates the mic frames of every stream it receives before passing them to its inner sink.
 type Sink struct {
-	inner mictap.Sink
-	cfg   cortex.HalfDuplexConfig
-	logf  func(a ...any)
+	inner   mictap.Sink
+	cfg     cortex.HalfDuplexConfig
+	micRate int
+	logf    func(a ...any)
 
 	mu      sync.Mutex
 	streams map[string]*stream
@@ -29,9 +30,10 @@ type stream struct {
 	speakerRate int
 }
 
-// New returns the gate in front of inner; logf gets one summary line per stream when it ends.
-func New(inner mictap.Sink, cfg cortex.HalfDuplexConfig, logf func(a ...any)) *Sink {
-	return &Sink{inner: inner, cfg: cfg, logf: logf, streams: map[string]*stream{}}
+// New returns the gate in front of inner; logf gets one summary line per stream when it ends, with times at
+// micRate, the mic's true rate.
+func New(inner mictap.Sink, cfg cortex.HalfDuplexConfig, micRate int, logf func(a ...any)) *Sink {
+	return &Sink{inner: inner, cfg: cfg, micRate: micRate, logf: logf, streams: map[string]*stream{}}
 }
 
 func (s *Sink) Start(esn string, h mictap.Hello) {
@@ -81,17 +83,18 @@ func (s *Sink) End(esn string, err error) {
 		for _, m := range st.gate.Flush() {
 			s.inner.Frame(esn, mictap.Frame(m))
 		}
-		s.logf(Summary(esn, st.gate.Stats()))
+		s.logf(Summary(esn, st.gate.Stats(), s.micRate))
 		st.mu.Unlock()
 	}
 	s.inner.End(esn, err)
 }
 
-// Summary is the one line logged per stream (mic frames are 10 ms).
-func Summary(esn string, st cortex.HalfDuplexStats) string {
+// Summary is the one line logged per stream (mic frames hold 160 samples at micRate).
+func Summary(esn string, st cortex.HalfDuplexStats, micRate int) string {
+	sec := func(frames int) float64 { return float64(frames*160) / float64(max(micRate, 1)) }
 	return fmt.Sprintf("Cortex half duplex: %s silenced %d spans, %.1f s of %.1f s of mic audio "+
 		"(%d mic frames released before their speaker audio arrived, %d speaker sounds arrived too late)",
-		esn, st.Spans, float64(st.GatedFrames)/100, float64(st.Frames)/100, st.Unconfirmed, st.Late)
+		esn, st.Spans, sec(st.GatedFrames), sec(st.Frames), st.Unconfirmed, st.Late)
 }
 
 // micFrame is a MicTap mic frame as the gate holds it.

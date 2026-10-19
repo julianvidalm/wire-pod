@@ -181,6 +181,7 @@ It prints one row per labeled line: the wake, the captured utterance, its transc
 Both replays (`cmd/cortex-replay`, `cmd/oww-replay`) run the half-duplex gate when `<session>_speaker.wav` sits
 next to the mic recording: speaker frames are interleaved by robot time, taken from `<session>_mic_frames.jsonl`
 and `<session>_speaker_frames.jsonl` when the recorder wrote them, else by counting samples from the session
-start (older recordings, whose speaker gaps were not filled, drift by up to ~2 s). `-half-duplex=false` turns
+start (recordings made before the frame logs did not fill speaker gaps and drift by seconds, so the gate
+silences the wrong audio there; the replays warn). `-half-duplex=false` turns
 the gate off; `-hangover` and `-half-duplex-db` match `CORTEX_HALF_DUPLEX_HANGOVER` and `CORTEX_HALF_DUPLEX_DB`.
 With frame logs, wakes and labels are on the robot's clock; oww-replay prints each wake's robot time.

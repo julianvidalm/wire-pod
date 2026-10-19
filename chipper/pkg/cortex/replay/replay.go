@@ -42,6 +42,12 @@ type logPoint struct {
 	TsMs   uint64 `json:"ts_ms"`
 }
 
+// SampleClockWarning is printed by the replays when a session has no frame logs: recorders before the frame
+// logs did not fill speaker gaps, so the speaker timeline drifts against the mic (by -1 to +4 s over session
+// 20261016-220357) and the gate silences the wrong spans.
+const SampleClockWarning = "warning: no frame logs, speaker aligned by sample clocks; on recordings made before " +
+	"the frame logs the speaker drifts by seconds and the half-duplex gate silences the wrong audio (-half-duplex=false)"
+
 // Load reads micPath (a <base>_mic.wav) and the speaker recording and frame logs next to it.
 func Load(micPath string, micRate int) (*Recording, error) {
 	mic, err := ReadWAV(micPath)
