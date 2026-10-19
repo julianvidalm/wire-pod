@@ -47,10 +47,9 @@ type CaptureConfig struct {
 	EndSilence time.Duration // silence after speech that ends the utterance
 	MaxLength  time.Duration // longest utterance, margin included
 	NoSpeech   time.Duration // the capture gives up when nobody speaks this long after the wake
-	// An utterance with less speech than MinVoiced, or quieter than MinLevel (dBFS), is not transcribed: nothing
-	// was heard. A transcript that is one of whisper's silence phrases ("Thank you.") is answered only when its
+	// An utterance whose speech is quieter than MinLevel (dBFS) is not transcribed: nothing was heard (speech
+	// shorter than MinSpeech never starts the utterance). A transcript that is one of whisper's silence phrases ("Thank you.") is answered only when its
 	// speech reached ClearLevel.
-	MinVoiced  time.Duration
 	MinLevel   float64
 	ClearLevel float64
 }
@@ -65,7 +64,6 @@ func DefaultCaptureConfig() CaptureConfig {
 		EndSilence: 700 * time.Millisecond,
 		MaxLength:  8 * time.Second,
 		NoSpeech:   4 * time.Second, // L34 asks the user to pause between the name and the question
-		MinVoiced:  300 * time.Millisecond,
 		MinLevel:   -48,
 		ClearLevel: -38,
 	}

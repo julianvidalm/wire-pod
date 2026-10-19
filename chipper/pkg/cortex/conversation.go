@@ -135,11 +135,14 @@ func (c *Conversation) Close(esn string) {
 // finished hands a completed capture to the robot's worker without waiting. Called with the stream locked.
 func (c *Conversation) finished(esn string, u Utterance) {
 	u.ESN = esn
-	if u.Reason == EndNoSpeech || u.Reason == EndStream {
+	switch {
+	case u.Reason == EndNoSpeech:
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard: no speech after %.1f s, nothing sent", esn, u.Duration().Seconds()))
+		return
+	case u.Reason == EndStream:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s %s after %.1f s, nothing sent", esn, u.Reason, u.Duration().Seconds()))
 		return
-	}
-	if u.Voiced < c.cfg.Capture.MinVoiced || u.Level < c.cfg.Capture.MinLevel {
+	case u.Level < c.cfg.Capture.MinLevel:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard in %.1f s (%s, %s), nothing sent", esn,
 			u.Duration().Seconds(), u.Reason, speech(u)))
 		return

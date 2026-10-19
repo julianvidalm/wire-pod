@@ -123,13 +123,13 @@ Cortex: <esn> transcribed (es, 0.82 s): ¿Qué hora es?
 Cortex: <esn> answer intent intent_clock_time  (0.00 s), sent
 ```
 
-Nothing is transcribed when the speech after the wake is shorter than 300 ms or quieter than -48 dBFS
-(`nothing heard in 1.2 s (…), nothing sent`). On quiet or noisy audio whisper writes the closing lines of the
+Nothing is transcribed when the speech after the wake is quieter than -48 dBFS (`nothing heard in 1.2 s (…),
+nothing sent`). On quiet or noisy audio whisper writes the closing lines of the
 videos it learned from ("Thank you.", "Thanks for watching!", "Gracias."); such a transcript is answered only
 when its speech reached -38 dBFS, so a clearly spoken "gracias" still is (`nothing heard: "Thank you." is
 whisper's word for quiet audio (…), nothing sent`).
 
-Other outcomes are logged too: `no speech after 4.1 s, nothing sent`, `transcribed no words "."`,
+Other outcomes are logged too: `nothing heard: no speech after 4.1 s, nothing sent`, `transcribed no words "."`,
 `answer "…" (1.10 s), sent` for an LLM answer, `still answering, utterance dropped (n dropped)`,
 `already listening, wake ignored`, and `transcription failed` or `brain failed` with the error.
 

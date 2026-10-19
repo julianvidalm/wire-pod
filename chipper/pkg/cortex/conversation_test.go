@@ -344,7 +344,7 @@ func TestAPauseWithoutAQuestionSendsNothing(t *testing.T) {
 	if tr.count() != 0 {
 		t.Fatalf("transcriber called %d times for a pause", tr.count())
 	}
-	if !logs.has("no speech after 4.1 s, nothing sent") {
+	if !logs.has("nothing heard: no speech after 4.1 s, nothing sent") {
 		t.Fatalf("no no-speech line in %q", logs.lines)
 	}
 }
@@ -381,7 +381,7 @@ func TestAShortSoundAfterTheWakeSendsNothing(t *testing.T) {
 	r := newFakeRobot()
 	logs := &logLines{}
 	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "x"}}, r, logs)
-	wakeThenAsk(c, "esn1", 500*time.Millisecond, 250*time.Millisecond, clearAmplitude)
+	wakeThenAsk(c, "esn1", 2*time.Second, 150*time.Millisecond, clearAmplitude)
 	r.none(t)
 	if tr.count() != 0 || !logs.has("nothing heard") {
 		t.Fatalf("transcriber called %d times, logs %q; want 0 and a nothing-heard line", tr.count(), logs.lines)
@@ -406,6 +406,17 @@ func TestAQuietRealQuestionIsAnswered(t *testing.T) {
 	c := newTestConversation(tr, &fakeBrain{answer: Answer{Intent: "intent_clock_time"}}, r, &logLines{})
 	wakeThenAsk(c, "esn1", 500*time.Millisecond, time.Second, 260)
 	if got, want := r.next(t), "intent esn1 intent_clock_time "; got != want {
+		t.Fatalf("robot got %q, want %q", got, want)
+	}
+}
+
+// The replay of session 150003 said "Stop." with 0.2 s of speech: a short command is answered.
+func TestAShortClearCommandIsAnswered(t *testing.T) {
+	tr := &fakeTranscriber{text: "Stop."}
+	r := newFakeRobot()
+	c := newTestConversation(tr, &fakeBrain{answer: Answer{Intent: "intent_imperative_quiet"}}, r, &logLines{})
+	wakeThenAsk(c, "esn1", 500*time.Millisecond, 200*time.Millisecond, clearAmplitude)
+	if got, want := r.next(t), "intent esn1 intent_imperative_quiet "; got != want {
 		t.Fatalf("robot got %q, want %q", got, want)
 	}
 }
