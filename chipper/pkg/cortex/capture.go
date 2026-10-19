@@ -1,6 +1,9 @@
 package cortex
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 // EndReason says why a capture ended.
 type EndReason string
@@ -20,6 +23,8 @@ type Utterance struct {
 	Start   uint64 // robot timestamp (ms) of the first captured frame
 	End     uint64 // robot timestamp (ms) of the last captured frame
 	Reason  EndReason
+	Voiced  time.Duration // speech the VAD heard after the wake (the margin before it is not counted)
+	Level   float64       // RMS of that speech in dBFS; -inf without any
 }
 
 // Duration is how much audio the utterance holds.
@@ -36,10 +41,18 @@ type CaptureConfig struct {
 	MicRate    int           // true mic rate (Vector: 15625, although MicTap announces 16000)
 	PreRoll    time.Duration // mic audio always kept, so a wake that arrives late still finds its start
 	WakeMargin time.Duration // the capture starts this long before the wake's position
-	MinSpeech  time.Duration // consecutive speech frames needed before the user counts as speaking
+	// MinSpeech is the consecutive speech after the wake needed before the user counts as speaking. Audio up to
+	// the wake (the margin, which holds the end of the wake word) is sent to the transcriber but never counts.
+	MinSpeech  time.Duration
 	EndSilence time.Duration // silence after speech that ends the utterance
-	MaxLength  time.Duration // longest utterance
-	NoSpeech   time.Duration // the capture gives up when nobody speaks this long
+	MaxLength  time.Duration // longest utterance, margin included
+	NoSpeech   time.Duration // the capture gives up when nobody speaks this long after the wake
+	// An utterance with less speech than MinVoiced, or quieter than MinLevel (dBFS), is not transcribed: nothing
+	// was heard. A transcript that is one of whisper's silence phrases ("Thank you.") is answered only when its
+	// speech reached ClearLevel.
+	MinVoiced  time.Duration
+	MinLevel   float64
+	ClearLevel float64
 }
 
 // DefaultCaptureConfig is the capture the live cortex uses.
@@ -48,10 +61,13 @@ func DefaultCaptureConfig() CaptureConfig {
 		MicRate:    15625,
 		PreRoll:    time.Second,
 		WakeMargin: 100 * time.Millisecond,
-		MinSpeech:  60 * time.Millisecond,
+		MinSpeech:  200 * time.Millisecond,
 		EndSilence: 700 * time.Millisecond,
 		MaxLength:  8 * time.Second,
-		NoSpeech:   3 * time.Second,
+		NoSpeech:   4 * time.Second, // L34 asks the user to pause between the name and the question
+		MinVoiced:  300 * time.Millisecond,
+		MinLevel:   -48,
+		ClearLevel: -38,
 	}
 }
 
@@ -65,9 +81,13 @@ type Capture struct {
 	ringSamples int
 
 	capturing bool
+	wakeTs    uint64 // frames up to this robot time are context, not speech
 	cur       Utterance
-	voicedRun int // consecutive speech samples
-	silentRun int // consecutive non-speech samples since the user started speaking
+	afterWake int     // samples captured after the wake
+	voiced    int     // speech samples after the wake
+	voicedSq  float64 // sum of their squares
+	voicedRun int     // consecutive speech samples after the wake
+	silentRun int     // consecutive non-speech samples since the user started speaking
 	spoke     bool
 }
 
@@ -112,7 +132,8 @@ func (c *Capture) Start(wakeTs uint64) (Utterance, bool) {
 	if margin := uint64(c.cfg.WakeMargin / time.Millisecond); wakeTs > margin {
 		from = wakeTs - margin
 	}
-	c.capturing, c.spoke, c.voicedRun, c.silentRun = true, false, 0, 0
+	c.capturing, c.wakeTs, c.spoke = true, wakeTs, false
+	c.afterWake, c.voiced, c.voicedSq, c.voicedRun, c.silentRun = 0, 0, 0, 0, 0
 	c.cur = Utterance{Rate: c.cfg.MicRate}
 	for _, f := range c.ring {
 		if f.Timestamp < from {
@@ -132,8 +153,16 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 	}
 	c.cur.End = f.Timestamp
 	c.cur.Samples = append(c.cur.Samples, f.Samples...)
+	if f.Timestamp <= c.wakeTs {
+		return Utterance{}, false // the margin: kept for the transcriber, never the start of speech
+	}
 	n := len(f.Samples)
+	c.afterWake += n
 	if c.vad.IsSpeech(f.Samples) {
+		c.voiced += n
+		for _, s := range f.Samples {
+			c.voicedSq += float64(s) * float64(s)
+		}
 		c.voicedRun += n
 		c.silentRun = 0
 		if c.voicedRun >= c.samples(c.cfg.MinSpeech) {
@@ -145,16 +174,15 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 			c.silentRun += n
 		}
 	}
-	total := len(c.cur.Samples)
 	switch {
 	case c.spoke && c.silentRun >= c.samples(c.cfg.EndSilence):
 		return c.finish(EndSilence), true
-	case total >= c.samples(c.cfg.MaxLength):
+	case len(c.cur.Samples) >= c.samples(c.cfg.MaxLength):
 		if !c.spoke {
 			return c.finish(EndNoSpeech), true
 		}
 		return c.finish(EndMaxLen), true
-	case !c.spoke && total >= c.samples(c.cfg.NoSpeech):
+	case !c.spoke && c.afterWake >= c.samples(c.cfg.NoSpeech):
 		return c.finish(EndNoSpeech), true
 	}
 	return Utterance{}, false
@@ -163,6 +191,11 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 func (c *Capture) finish(r EndReason) Utterance {
 	u := c.cur
 	u.Reason = r
+	u.Voiced = time.Duration(c.voiced) * time.Second / time.Duration(c.cfg.MicRate)
+	u.Level = math.Inf(-1)
+	if c.voiced > 0 {
+		u.Level = 20 * math.Log10(math.Sqrt(c.voicedSq/float64(c.voiced))/32768)
+	}
 	c.capturing = false
 	c.cur = Utterance{}
 	return u

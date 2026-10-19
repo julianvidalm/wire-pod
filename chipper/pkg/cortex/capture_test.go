@@ -7,16 +7,11 @@ import (
 
 // Test audio runs at 16000 Hz in 160-sample frames, so each frame is exactly 10 ms and frame timestamps are
 // multiples of 10. The audio itself is the clock: durations are counted in samples.
+// The capture rules are the live defaults; only the rate differs.
 func testCaptureConfig() CaptureConfig {
-	return CaptureConfig{
-		MicRate:    16000,
-		PreRoll:    time.Second,
-		WakeMargin: 100 * time.Millisecond,
-		MinSpeech:  30 * time.Millisecond,
-		EndSilence: 700 * time.Millisecond,
-		MaxLength:  8 * time.Second,
-		NoSpeech:   3 * time.Second,
-	}
+	c := DefaultCaptureConfig()
+	c.MicRate = 16000
+	return c
 }
 
 // markVAD is the fake VAD: a frame is speech when its first sample is not zero.
@@ -24,10 +19,22 @@ type markVAD struct{}
 
 func (markVAD) IsSpeech(s []int16) bool { return len(s) > 0 && s[0] != 0 }
 
+// clearAmplitude is a clearly spoken frame (about -30 dBFS); quiet frames are all zero.
+const clearAmplitude = 1000
+
 func testFrame(ts uint64, speech bool) Frame {
-	s := make([]int16, 160)
 	if speech {
-		s[0] = 1000
+		return levelFrame(ts, clearAmplitude)
+	}
+	return levelFrame(ts, 0)
+}
+
+// levelFrame is a frame whose every sample is amplitude: the fake VAD calls it speech unless it is zero, and its
+// level is 20·log10(amplitude/32768) dBFS.
+func levelFrame(ts uint64, amplitude int16) Frame {
+	s := make([]int16, 160)
+	for i := range s {
+		s[i] = amplitude
 	}
 	return Frame{Samples: s, Timestamp: ts}
 }
@@ -128,26 +135,80 @@ func TestCaptureGivesUpWhenNobodySpeaks(t *testing.T) {
 	c := NewCapture(testCaptureConfig(), markVAD{})
 	c.Start(0)
 	feedRange(t, c, 0, 990, false)
-	// One 10 ms blip is shorter than MinSpeech: it is not the user speaking.
-	if _, done := c.Feed(testFrame(1000, true)); done {
+	// A 150 ms blip is shorter than the 200 ms onset: it is not the user speaking.
+	if _, done := feedRange(t, c, 1000, 1140, true); done {
 		t.Fatal("ended on the blip")
 	}
-	u, done := feedRange(t, c, 1010, 20000, false)
+	u, done := feedRange(t, c, 1150, 20000, false)
 	if !done || u.Reason != EndNoSpeech {
 		t.Fatalf("got done %v reason %q, want %q", done, u.Reason, EndNoSpeech)
 	}
-	if u.End != 2990 {
-		t.Fatalf("gave up at %d, want 2990 (3 s after the capture started)", u.End)
+	if u.End != 4000 {
+		t.Fatalf("gave up at %d, want 4000 (4 s of audio after the wake at 0)", u.End)
 	}
 }
 
 func TestCaptureListensToThePreRollAtOnce(t *testing.T) {
 	c := NewCapture(testCaptureConfig(), markVAD{})
-	// The wake arrives late: the user already spoke and went quiet for 700 ms inside the pre-roll.
-	feedRange(t, c, 0, 190, true)
-	feedRange(t, c, 200, 900, false)
+	// The wake arrives late: the user already spoke after it and went quiet for 700 ms inside the pre-roll.
+	feedRange(t, c, 0, 290, true)
+	feedRange(t, c, 300, 1000, false)
 	u, done := c.Start(0)
-	if !done || u.Reason != EndSilence || u.End != 890 {
-		t.Fatalf("got done %v reason %q end %d, want %q at 890", done, u.Reason, u.End, EndSilence)
+	if !done || u.Reason != EndSilence || u.End != 990 {
+		t.Fatalf("got done %v reason %q end %d, want %q at 990", done, u.Reason, u.End, EndSilence)
+	}
+}
+
+// L35: the margin before the wake holds the tail of "jarvis". It is sent to whisper, but it is not the user
+// starting to speak, so the pause before the question does not end the capture.
+func TestCaptureCountsSpeechOnlyAfterTheWake(t *testing.T) {
+	c := NewCapture(testCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 899, false)
+	feedRange(t, c, 900, 990, true) // the tail of "jarvis", up to the wake's frame
+	if _, done := c.Start(990); done {
+		t.Fatal("ended at the start")
+	}
+	if _, done := feedRange(t, c, 1000, 1990, false); done { // the user pauses for 1 s
+		t.Fatal("the pause ended the capture")
+	}
+	if _, done := feedRange(t, c, 2000, 3490, true); done { // the question, 1.5 s
+		t.Fatal("ended during the question")
+	}
+	u, done := feedRange(t, c, 3500, 6000, false)
+	if !done || u.Reason != EndSilence {
+		t.Fatalf("got done %v reason %q, want %q", done, u.Reason, EndSilence)
+	}
+	if u.Start != 890 || u.End != 4190 {
+		t.Fatalf("got %d to %d, want 890 (the margin is kept) to 4190", u.Start, u.End)
+	}
+	if u.Voiced != 1500*time.Millisecond {
+		t.Fatalf("voiced %v, want 1.5s (the question only)", u.Voiced)
+	}
+}
+
+func TestCaptureBeforeAnyQuestionWaitsFourSecondsAfterTheWake(t *testing.T) {
+	c := NewCapture(testCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 899, false)
+	feedRange(t, c, 900, 990, true)
+	c.Start(990)
+	u, done := feedRange(t, c, 1000, 20000, false)
+	if !done || u.Reason != EndNoSpeech || u.End != 4990 {
+		t.Fatalf("got done %v reason %q end %d, want %q at 4990", done, u.Reason, u.End, EndNoSpeech)
+	}
+}
+
+func TestCaptureMeasuresTheLevelOfTheSpeechAfterTheWake(t *testing.T) {
+	c := NewCapture(testCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 990, true) // loud, but before the wake
+	c.Start(990)
+	for ts := uint64(1000); ts < 1500; ts += 10 {
+		c.Feed(levelFrame(ts, 328)) // -40 dBFS
+	}
+	u, done := feedRange(t, c, 1500, 3000, false)
+	if !done || u.Reason != EndSilence {
+		t.Fatalf("got done %v reason %q, want %q", done, u.Reason, EndSilence)
+	}
+	if u.Voiced != 500*time.Millisecond || u.Level < -40.1 || u.Level > -39.9 {
+		t.Fatalf("voiced %v at %.2f dBFS, want 500ms at -40 dBFS", u.Voiced, u.Level)
 	}
 }

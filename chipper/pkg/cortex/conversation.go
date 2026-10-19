@@ -139,7 +139,12 @@ func (c *Conversation) finished(esn string, u Utterance) {
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s %s after %.1f s, nothing sent", esn, u.Reason, u.Duration().Seconds()))
 		return
 	}
-	c.cfg.Logf(fmt.Sprintf("Cortex: %s heard %.1f s (%s)", esn, u.Duration().Seconds(), u.Reason))
+	if u.Voiced < c.cfg.Capture.MinVoiced || u.Level < c.cfg.Capture.MinLevel {
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard in %.1f s (%s, %s), nothing sent", esn,
+			u.Duration().Seconds(), u.Reason, speech(u)))
+		return
+	}
+	c.cfg.Logf(fmt.Sprintf("Cortex: %s heard %.1f s (%s, %s)", esn, u.Duration().Seconds(), u.Reason, speech(u)))
 	w := c.worker(esn)
 	select {
 	case w.queue <- u:
@@ -184,6 +189,11 @@ func (c *Conversation) answer(esn string, u Utterance) {
 			heard.Sub(began).Seconds()))
 		return
 	}
+	if silencePhrase(t.Text) && u.Level < c.cfg.Capture.ClearLevel {
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard: %q is whisper's word for quiet audio (%s), nothing sent",
+			esn, t.Text, speech(u)))
+		return
+	}
 	c.cfg.Logf(fmt.Sprintf("Cortex: %s transcribed (%s, %.2f s): %s", esn, t.Language, heard.Sub(began).Seconds(), t.Text))
 	a, err := c.cfg.Brain.Answer(ctx, esn, t)
 	if err != nil {
@@ -213,4 +223,32 @@ func outcome(err error) string {
 // hasWord says whether s holds a letter or digit; whisper writes only punctuation for sounds that are not speech.
 func hasWord(s string) bool {
 	return strings.IndexFunc(s, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) >= 0
+}
+
+// speech describes the speech an utterance holds after its wake.
+func speech(u Utterance) string {
+	return fmt.Sprintf("speech %.1f s at %.0f dBFS", u.Voiced.Seconds(), u.Level)
+}
+
+// silencePhrases are what whisper writes for quiet or noisy audio without speech: the closing lines of the
+// videos it was trained on. They are compared without case or punctuation. Each is also something a user may
+// really say, so it is only dropped when the speech was not clearly loud (CaptureConfig.ClearLevel).
+var silencePhrases = map[string]bool{
+	"thank you":              true,
+	"thank you very much":    true,
+	"thanks for watching":    true,
+	"thank you for watching": true,
+	"you":                    true,
+	"bye":                    true,
+	"gracias":                true,
+	"gracias por ver":        true,
+	"muchas gracias":         true,
+}
+
+// silencePhrase says whether text is one of whisper's silencePhrases.
+func silencePhrase(text string) bool {
+	words := strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	return silencePhrases[strings.Join(words, " ")]
 }

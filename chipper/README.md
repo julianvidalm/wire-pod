@@ -88,7 +88,9 @@ Every step is a port in `pkg/cortex` with its adapter:
 
 The capture keeps 1 s of every robot's mic audio, so a wake that arrives late still finds its start. It starts
 `CORTEX_WAKE_MARGIN` before the wake's end (just after "hey jarvis"), ends after 700 ms of silence that follows
-speech, stops at 8 s, and gives up after 3 s without speech. These times count audio samples at `OWW_MIC_RATE`,
+speech, stops at 8 s, and gives up after 4 s without speech. Only speech after the wake's end counts, and only
+once it lasts 200 ms: the margin holds the end of "jarvis" and is sent to whisper, but it never starts the
+utterance, so a pause between the name and the question does not end it. These times count audio samples at `OWW_MIC_RATE`,
 and the utterance is resampled from that rate to whisper's 16 kHz. Each robot has one worker that transcribes and
 answers in order. A second utterance waits; more are dropped and logged, so the mic stream and the wake detector
 never wait for whisper or the LLM.
@@ -116,12 +118,18 @@ Cortex conversation on: whisper large-v3-turbo-q5_0 (en,es), full audio context,
 Wake word: <esn> heard "hey jarvis" (confidence 0.93) in "hey jarvis"
 Cortex: <esn> listening from 100ms before the wake
 attend sent <esn> intent_greeting_hello
-Cortex: <esn> heard 1.8 s (end of speech)
+Cortex: <esn> heard 1.8 s (end of speech, speech 1.2 s at -31 dBFS)
 Cortex: <esn> transcribed (es, 0.82 s): ¿Qué hora es?
 Cortex: <esn> answer intent intent_clock_time  (0.00 s), sent
 ```
 
-Other outcomes are logged too: `no speech after 3.0 s, nothing sent`, `transcribed no words "."`,
+Nothing is transcribed when the speech after the wake is shorter than 300 ms or quieter than -48 dBFS
+(`nothing heard in 1.2 s (…), nothing sent`). On quiet or noisy audio whisper writes the closing lines of the
+videos it learned from ("Thank you.", "Thanks for watching!", "Gracias."); such a transcript is answered only
+when its speech reached -38 dBFS, so a clearly spoken "gracias" still is (`nothing heard: "Thank you." is
+whisper's word for quiet audio (…), nothing sent`).
+
+Other outcomes are logged too: `no speech after 4.1 s, nothing sent`, `transcribed no words "."`,
 `answer "…" (1.10 s), sent` for an LLM answer, `still answering, utterance dropped (n dropped)`,
 `already listening, wake ignored`, and `transcription failed` or `brain failed` with the error.
 

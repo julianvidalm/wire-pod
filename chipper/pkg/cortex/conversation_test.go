@@ -297,3 +297,115 @@ func TestAStreamThatEndsMidCaptureSendsNothing(t *testing.T) {
 		t.Fatalf("transcriber called %d times for a cut capture", tr.count())
 	}
 }
+
+// wakeThenAsk feeds the tail of "jarvis" ending at the wake, a pause, then question frames at amplitude (none
+// when question is 0) and two seconds of silence, all from robot time 0.
+func wakeThenAsk(c *Conversation, esn string, pause, question time.Duration, amplitude int16) {
+	ts := uint64(0)
+	feed := func(d time.Duration, amp int16) {
+		for end := ts + uint64(d/time.Millisecond); ts < end; ts += 10 {
+			c.Feed(esn, levelFrame(ts, amp))
+		}
+	}
+	feed(900*time.Millisecond, 0)
+	feed(100*time.Millisecond, clearAmplitude) // "...jarvis"
+	c.Wake(esn, ts-10)
+	feed(pause, 0)
+	feed(question, amplitude)
+	feed(2*time.Second, 0)
+}
+
+// L35: "hey jarvis", a pause, then the question. The tail of "jarvis" must not end the capture before it.
+func TestAPauseAfterTheWakeStillCapturesTheQuestion(t *testing.T) {
+	tr := &fakeTranscriber{text: "¿qué hora es?"}
+	r := newFakeRobot()
+	c := newTestConversation(tr, &fakeBrain{answer: Answer{Intent: "intent_clock_time"}}, r, &logLines{})
+	wakeThenAsk(c, "esn1", time.Second, 1500*time.Millisecond, clearAmplitude)
+	if got, want := r.next(t), "intent esn1 intent_clock_time "; got != want {
+		t.Fatalf("robot got %q, want %q", got, want)
+	}
+	r.none(t)
+	if tr.count() != 1 {
+		t.Fatalf("transcriber called %d times, want 1", tr.count())
+	}
+	// From 100 ms before the wake at 990 ms to 700 ms after the question (ends at 3.5 s).
+	if u := tr.calls[0]; u.Start != 890 || u.End != 4190 || u.Reason != EndSilence {
+		t.Fatalf("captured %d to %d (%q), want 890 to 4190 (%q)", u.Start, u.End, u.Reason, EndSilence)
+	}
+}
+
+func TestAPauseWithoutAQuestionSendsNothing(t *testing.T) {
+	tr := &fakeTranscriber{text: "Thank you."}
+	r := newFakeRobot()
+	logs := &logLines{}
+	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "You're welcome!"}}, r, logs)
+	wakeThenAsk(c, "esn1", 4*time.Second, 0, 0)
+	r.none(t)
+	if tr.count() != 0 {
+		t.Fatalf("transcriber called %d times for a pause", tr.count())
+	}
+	if !logs.has("no speech after 4.1 s, nothing sent") {
+		t.Fatalf("no no-speech line in %q", logs.lines)
+	}
+}
+
+// waitTranscribed waits until the transcriber was called n times, or a little longer when n is 0.
+func waitTranscribed(tr *fakeTranscriber, n int) {
+	for deadline := time.Now().Add(2 * time.Second); tr.count() < n && time.Now().Before(deadline); {
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// Whisper turns near-silence into "Thank you."; the VAD may still call some of it speech.
+func TestNearSilenceAfterTheWakeSendsNothing(t *testing.T) {
+	for _, amplitude := range []int16{60, 260} { // about -55 and -42 dBFS
+		tr := &fakeTranscriber{text: "Thank you."}
+		b := &fakeBrain{answer: Answer{Text: "You're welcome!"}}
+		r := newFakeRobot()
+		logs := &logLines{}
+		c := newTestConversation(tr, b, r, logs)
+		wakeThenAsk(c, "esn1", 500*time.Millisecond, 600*time.Millisecond, amplitude)
+		waitTranscribed(tr, 1)
+		r.none(t)
+		if b.count() != 0 {
+			t.Fatalf("amplitude %d: brain called %d times", amplitude, b.count())
+		}
+		if !logs.has("nothing heard") {
+			t.Fatalf("amplitude %d: no nothing-heard line in %q", amplitude, logs.lines)
+		}
+	}
+}
+
+func TestAShortSoundAfterTheWakeSendsNothing(t *testing.T) {
+	tr := &fakeTranscriber{text: "you"}
+	r := newFakeRobot()
+	logs := &logLines{}
+	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "x"}}, r, logs)
+	wakeThenAsk(c, "esn1", 500*time.Millisecond, 250*time.Millisecond, clearAmplitude)
+	r.none(t)
+	if tr.count() != 0 || !logs.has("nothing heard") {
+		t.Fatalf("transcriber called %d times, logs %q; want 0 and a nothing-heard line", tr.count(), logs.lines)
+	}
+}
+
+// A hallucination's text is also a real answer: "gracias" said clearly is answered.
+func TestAClearlySpokenGraciasIsAnswered(t *testing.T) {
+	tr := &fakeTranscriber{text: "Gracias."}
+	r := newFakeRobot()
+	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "De nada."}}, r, &logLines{})
+	wakeThenAsk(c, "esn1", 500*time.Millisecond, 600*time.Millisecond, clearAmplitude)
+	if got, want := r.next(t), `knowledge esn1 "De nada." for "Gracias."`; got != want {
+		t.Fatalf("robot got %s, want %s", got, want)
+	}
+}
+
+// Only whisper's silence phrases are checked against the level: a quieter real question is still answered.
+func TestAQuietRealQuestionIsAnswered(t *testing.T) {
+	tr := &fakeTranscriber{text: "¿qué hora es?"}
+	r := newFakeRobot()
+	c := newTestConversation(tr, &fakeBrain{answer: Answer{Intent: "intent_clock_time"}}, r, &logLines{})
+	wakeThenAsk(c, "esn1", 500*time.Millisecond, time.Second, 260)
+	if got, want := r.next(t), "intent esn1 intent_clock_time "; got != want {
+		t.Fatalf("robot got %q, want %q", got, want)
+	}
+}
