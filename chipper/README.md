@@ -117,7 +117,7 @@ Wake word: <esn> heard "hey jarvis" (confidence 0.93) in "hey jarvis"
 Cortex: <esn> listening from 100ms before the wake
 attend sent <esn> intent_greeting_hello
 Cortex: <esn> heard 1.8 s (end of speech)
-Cortex: <esn> transcribed (es, 0.40 s): ¿Qué hora es?
+Cortex: <esn> transcribed (es, 0.82 s): ¿Qué hora es?
 Cortex: <esn> answer intent intent_clock_time  (0.00 s), sent
 ```
 
