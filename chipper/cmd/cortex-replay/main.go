@@ -8,16 +8,19 @@
 //
 //	cortex-replay -python ~/.cache/v3ctor/corpus-venv/bin/python -oww-model hey_jarvis_v3ctor.onnx \
 //	    [-clock session_clock.jsonl -labels labels.jsonl [-ids s]] [-whisper-model ../whisper.cpp/models/ggml-small.bin] \
-//	    [-llm=false] [-speed 1] session_mic.wav
+//	    [-llm=false] [-speed 1] [-half-duplex=false] [-hangover 600ms] [-half-duplex-db -60] session_mic.wav
 //
 // The WAV's samples are sent as 10 ms MicTap mic frames (160 samples) timestamped at the true mic rate, at
-// -speed times real time, over the span of the selected labels (without labels: the whole recording).
+// -speed times real time, over the span of the selected labels (without labels: the whole recording). When
+// session_speaker.wav sits next to it, its speaker frames are interleaved by robot time (from the
+// _mic_frames.jsonl and _speaker_frames.jsonl logs when present, else counting samples from the session start)
+// and the half-duplex gate silences the mic for the detector and the capture while the robot talks, as
+// wire-pod does with CORTEX_HALF_DUPLEX=on.
 package main
 
 import (
 	"bufio"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -29,6 +32,8 @@ import (
 	"time"
 
 	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex/mictapgate"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex/replay"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex/whispercpp"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex/wirepodbrain"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap"
@@ -57,6 +62,10 @@ func main() {
 	useLLM := flag.Bool("llm", true, "ask wire-pod's configured LLM when no intent matches")
 	persona := flag.String("persona", "Jarvis", "the robot's name in the LLM prompt")
 	speed := flag.Float64("speed", 1, "replay speed, times real time")
+	halfDuplex := flag.Bool("half-duplex", true, "silence the mic while the recorded speaker sounds (needs _speaker.wav)")
+	hd := cortex.DefaultHalfDuplexConfig()
+	flag.DurationVar(&hd.Hangover, "hangover", hd.Hangover, "half duplex: mic stays silenced this long after the sound")
+	flag.Float64Var(&hd.Threshold, "half-duplex-db", hd.Threshold, "half duplex: speaker level (dBFS) that counts as talking")
 	flag.Parse()
 	if *owwModel == "" || (*labelsPath != "") != (*clockPath != "") || flag.NArg() != 1 || *speed <= 0 {
 		fmt.Fprintln(os.Stderr, "usage: cortex-replay -oww-model m.onnx [-clock c.jsonl -labels l.jsonl] [flags] <mic.wav>")
@@ -67,10 +76,11 @@ func main() {
 		fmt.Fprintln(os.Stderr, "cortex-replay:", err)
 		os.Exit(1)
 	}
-	samples, err := readWAV(flag.Arg(0))
+	recording, err := replay.Load(flag.Arg(0), *micRate)
 	if err != nil {
 		fail(err)
 	}
+	samples := recording.Mic
 	var clock clockFile
 	var labels []label
 	if *labelsPath != "" {
@@ -142,34 +152,50 @@ func main() {
 	fmt.Fprintf(os.Stderr, "replaying %d labels, %.0f s of audio from %.0f s, at %gx\n", len(labels),
 		float64(to-from)/float64(rate), float64(from)/float64(rate), *speed)
 
-	det.Start(esn, mictap.Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
-	conv.Open(esn)
-	frameDur := time.Duration(float64(time.Second) * 160 / float64(rate) / *speed)
-	began := time.Now()
-	for i, n := from, 0; i+160 <= to; i, n = i+160, n+1 {
-		ts := uint64(i) * 1000 / uint64(rate)
-		chunk := samples[i : i+160]
-		payload := make([]byte, 320)
-		for j, s := range chunk {
-			binary.LittleEndian.PutUint16(payload[2*j:], uint16(s))
-		}
-		conv.Feed(esn, cortex.Frame{Samples: chunk, Timestamp: ts})
-		det.Frame(esn, mictap.Frame{Type: mictap.FrameMic, Seq: uint32(n), Timestamp: ts, Payload: payload})
-		if n%100 == 99 {
-			if ahead := time.Duration(n+1)*frameDur - time.Since(began); ahead > 0 {
-				time.Sleep(ahead)
-			}
-		}
+	var sink mictap.Sink = replaySink{conv, det}
+	switch {
+	case recording.Speaker == nil:
+		fmt.Fprintln(os.Stderr, "no speaker recording: half duplex off")
+	case *halfDuplex:
+		fmt.Fprintf(os.Stderr, "half duplex on (speaker aligned by %s): above %g dBFS, hangover %v\n",
+			recording.Alignment, hd.Threshold, hd.Hangover)
+		sink = mictapgate.New(sink, hd, logf)
+	default:
+		fmt.Fprintln(os.Stderr, "half duplex off")
 	}
-	det.End(esn, nil)
-	conv.Close(esn)
+	recording.Play(sink, esn, from, to, 0, *speed)
 	rec.settle(15 * time.Second)
 
 	for i := range labels {
-		labels[i].startTs = uint64(clock.position(labels[i].StartMs, rate)) * 1000 / uint64(rate)
-		labels[i].endTs = uint64(clock.position(labels[i].EndMs, rate)) * 1000 / uint64(rate)
+		labels[i].startTs = recording.MicTime(clock.position(labels[i].StartMs, rate))
+		labels[i].endTs = recording.MicTime(clock.position(labels[i].EndMs, rate))
 	}
 	rec.print(labels)
+}
+
+// replaySink hands the stream to the conversation first (so the pre-roll holds each frame before the detector
+// can report a wake in it) and to the detector, and ends the detector first, so its last wakes still find the
+// conversation open.
+type replaySink struct {
+	conv *cortex.Conversation
+	det  mictap.Sink
+}
+
+func (s replaySink) Start(esn string, h mictap.Hello) {
+	s.conv.Open(esn)
+	s.det.Start(esn, h)
+}
+
+func (s replaySink) Frame(esn string, f mictap.Frame) {
+	if f.Type == mictap.FrameMic {
+		s.conv.Feed(esn, cortex.Frame{Samples: f.Samples(), Timestamp: f.Timestamp})
+	}
+	s.det.Frame(esn, f)
+}
+
+func (s replaySink) End(esn string, err error) {
+	s.det.End(esn, err)
+	s.conv.Close(esn)
 }
 
 type wakeFunc func(wakeword.Detection)
