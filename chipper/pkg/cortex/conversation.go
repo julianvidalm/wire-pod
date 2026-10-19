@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 // Config wires a Conversation to its adapters.
@@ -178,8 +179,9 @@ func (c *Conversation) answer(esn string, u Utterance) {
 	}
 	t.Text = strings.TrimSpace(t.Text)
 	heard := c.cfg.Now()
-	if t.Text == "" {
-		c.cfg.Logf(fmt.Sprintf("Cortex: %s transcribed nothing (%.2f s), nothing sent", esn, heard.Sub(began).Seconds()))
+	if !hasWord(t.Text) {
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s transcribed no words %q (%.2f s), nothing sent", esn, t.Text,
+			heard.Sub(began).Seconds()))
 		return
 	}
 	c.cfg.Logf(fmt.Sprintf("Cortex: %s transcribed (%s, %.2f s): %s", esn, t.Language, heard.Sub(began).Seconds(), t.Text))
@@ -206,4 +208,9 @@ func outcome(err error) string {
 		return "send failed: " + err.Error()
 	}
 	return "sent"
+}
+
+// hasWord says whether s holds a letter or digit; whisper writes only punctuation for sounds that are not speech.
+func hasWord(s string) bool {
+	return strings.IndexFunc(s, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) >= 0
 }

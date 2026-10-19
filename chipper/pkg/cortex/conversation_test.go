@@ -201,18 +201,21 @@ func TestNoSpeechAfterAWakeSendsNothing(t *testing.T) {
 	}
 }
 
-func TestAnEmptyTranscriptIsNotAnswered(t *testing.T) {
-	b := &fakeBrain{answer: Answer{Text: "x"}}
-	r := newFakeRobot()
-	tr := &fakeTranscriber{text: "  "}
-	c := newTestConversation(tr, b, r, &logLines{})
-	speak(c, "esn1", 0)
-	for deadline := time.Now().Add(2 * time.Second); tr.count() == 0 && time.Now().Before(deadline); {
-		time.Sleep(time.Millisecond)
-	}
-	r.none(t)
-	if b.count() != 0 {
-		t.Fatalf("brain called %d times for an empty transcript", b.count())
+// Whisper turns the robot's own greeting sounds into "." or nothing; there is no question to answer.
+func TestATranscriptWithoutWordsIsNotAnswered(t *testing.T) {
+	for _, text := range []string{"  ", ".", "¿?", "..."} {
+		b := &fakeBrain{answer: Answer{Text: "x"}}
+		r := newFakeRobot()
+		tr := &fakeTranscriber{text: text}
+		c := newTestConversation(tr, b, r, &logLines{})
+		speak(c, "esn1", 0)
+		for deadline := time.Now().Add(2 * time.Second); tr.count() == 0 && time.Now().Before(deadline); {
+			time.Sleep(time.Millisecond)
+		}
+		r.none(t)
+		if b.count() != 0 {
+			t.Fatalf("brain called %d times for the transcript %q", b.count(), text)
+		}
 	}
 }
 
