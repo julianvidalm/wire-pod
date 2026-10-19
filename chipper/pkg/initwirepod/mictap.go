@@ -45,8 +45,8 @@ func micTapSink() mictap.Sink {
 	return micTapSinkVal
 }
 
-// newMicTapSink always logs each stream. With a wake word detector configured it also runs it, which for now only
-// logs detections: starting a conversation from one is still to be designed.
+// newMicTapSink always logs each stream. With a wake word detector configured it also runs it, which logs each
+// detection and makes the robot attend (see wake.go).
 func newMicTapSink() mictap.Sink {
 	var logSink mictap.Sink = mictap.NewLogSink(logger.Println)
 	// MICTAP_RECORD_DIR saves every session's mic and speaker audio, to replay real sessions offline.
@@ -89,7 +89,7 @@ func voskDetector() (mictap.Sink, string, error) {
 	detector := wakeword.New(wakeword.Config{
 		NewRecognizer: model.NewRecognizer,
 		Matcher:       wakeword.NewMatcher(wakeword.DefaultWords, wakeword.DefaultMinConfidence),
-		Handler:       logWake{},
+		Handler:       liveWakeHandler(),
 		HoldoffMs:     300,
 		CooldownMs:    1500,
 		Logf:          logger.Println,
@@ -124,7 +124,7 @@ func owwDetector() (mictap.Sink, string, error) {
 		Word:         "hey jarvis",
 		Threshold:    threshold,
 		RefractoryMs: owwRefractoryMs,
-		Handler:      logWake{},
+		Handler:      liveWakeHandler(),
 		Logf:         logger.Println,
 	})
 	return detector, fmt.Sprintf("openWakeWord model %s, threshold %.2f, mic %d Hz, sidecar %s %s",
@@ -148,10 +148,4 @@ func envFloat(key string, def float64) (float64, error) {
 		return 0, fmt.Errorf("%s: %w", key, err)
 	}
 	return f, nil
-}
-
-type logWake struct{}
-
-func (logWake) OnWake(d wakeword.Detection) {
-	logger.Println(fmt.Sprintf("Wake word: %s heard %q (confidence %.2f) in %q", d.ESN, d.Word.Text, d.Word.Conf, d.Text))
 }

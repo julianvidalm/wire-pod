@@ -45,7 +45,7 @@ func micTapCommandHandler(sender commandSender) http.HandlerFunc {
 		}
 		cmd := &mictappb.Command{Command: &mictappb.Command_Knowledge{Knowledge: &mictappb.KnowledgeResponse{Answer: say}}}
 		if intent != "" {
-			cmd = &mictappb.Command{Command: &mictappb.Command_IntentResult{IntentResult: &mictappb.IntentResult{Intent: intent, ParametersJson: params}}}
+			cmd = intentCommand(intent, params)
 		}
 		switch err := sender.Send(esn, cmd); {
 		case errors.Is(err, mictapserver.ErrNoSession):

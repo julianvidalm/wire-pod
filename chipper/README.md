@@ -3,11 +3,22 @@
 ## Wake word detector (MicTap)
 
 When a robot streams MicTap (what it hears and plays), wire-pod can run a wake word detector on the mic audio.
-For now a detection is only logged:
+Each detection is logged and, unless attend is off, the robot is sent an attend intent over its MicTap session
+(as if its cloud had matched it, with no trigger word):
 
 ```
 Wake word: <esn> heard "hey jarvis" (confidence 0.93) in "hey jarvis"
+attend sent <esn> intent_greeting_hello
 ```
+
+A failed send logs `attend failed <esn> <intent>: <error>` (for example `robot has no open MicTap session`), and a
+wake that arrives while the previous send is still in flight logs `attend dropped <esn>: …`. The send never runs on
+the detector's goroutine.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CORTEX_ATTEND_INTENT` | `intent_greeting_hello` | intent sent on each wake; set but empty (`export CORTEX_ATTEND_INTENT=`) turns attend off and only logs |
+| `CORTEX_ATTEND_REFRACTORY` | `3s` | Go duration; wakes from the same robot this soon after an attend are ignored, so the animation is not retriggered |
 
 The detector is picked in `source.sh`:
 
