@@ -23,20 +23,21 @@ func askWith(t *testing.T, text string, level int16) (*fakeBrain, *fakeRobot, *l
 // L61: the capture now holds "hey jarvis", so whisper writes it; the brain gets only the question.
 func TestALeadingWakePhraseIsNotSentToTheBrain(t *testing.T) {
 	for raw, want := range map[string]string{
-		"Hey Jarvis, ¿qué hora es?":        "¿Qué hora es?",
-		"hey, jarvis what time is it":      "What time is it",
-		"Hey, Jorby. What time is it?":     "What time is it?",
-		"Hey, Jarby. - Que horas?":         "Que horas?",
-		"Hi Jarvis. Tell me a joke.":       "Tell me a joke.",
-		"Ey Jarvis, cuéntame un chiste.":   "Cuéntame un chiste.",
-		"Oye, Jarvis, cuéntame un chiste.": "Cuéntame un chiste.",
-		"Jarvis, stop.":                    "Stop.",
-		"HEY JARVIS! ¿Cómo te llamas?":     "¿Cómo te llamas?",
-		"Hey Jervis, set a timer.":         "Set a timer.",
-		"What do you think of Jarvis?":     "What do you think of Jarvis?",
-		"Hey, what's up?":                  "Hey, what's up?",
-		"¿qué hora es?":                    "¿qué hora es?",
-		"Jarvisito, ¿qué hora es?":         "Jarvisito, ¿qué hora es?",
+		"Hey Jarvis, ¿qué hora es?":                "¿Qué hora es?",
+		"hey, jarvis what time is it":              "What time is it",
+		"Hey, Jorby. What time is it?":             "What time is it?",
+		"Hey, Jarby. - Que horas?":                 "Que horas?",
+		"Hi Jarvis. Tell me a joke.":               "Tell me a joke.",
+		"Ey Jarvis, cuéntame un chiste.":           "Cuéntame un chiste.",
+		"Oye, Jarvis, cuéntame un chiste.":         "Cuéntame un chiste.",
+		"Jarvis, stop.":                            "Stop.",
+		"Hey Jarvis. Hey Jarvis, what time is it?": "What time is it?", // said twice (replay 150003)
+		"HEY JARVIS! ¿Cómo te llamas?":             "¿Cómo te llamas?",
+		"Hey Jervis, set a timer.":                 "Set a timer.",
+		"What do you think of Jarvis?":             "What do you think of Jarvis?",
+		"Hey, what's up?":                          "Hey, what's up?",
+		"¿qué hora es?":                            "¿qué hora es?",
+		"Jarvisito, ¿qué hora es?":                 "Jarvisito, ¿qué hora es?",
 	} {
 		b, r, _ := askWith(t, raw, clearAmplitude)
 		r.next(t)

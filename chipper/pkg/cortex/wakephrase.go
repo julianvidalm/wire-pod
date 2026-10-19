@@ -15,9 +15,21 @@ var wakeGreetings = map[string]bool{"hey": true, "hi": true, "ey": true, "ei": t
 // wakeSeparators are what whisper writes between the wake phrase and the question.
 const wakeSeparators = " \t\n,.!?;:-–—…"
 
-// stripWakePhrase removes a leading "hey jarvis" (or "jarvis", "oye jarvis", whisper's "Hey, Jorby." ...) from a
-// transcript, without case or punctuation, and capitalizes what follows. Text without one is returned as is.
+// stripWakePhrase removes the leading "hey jarvis" (or "jarvis", "oye jarvis", whisper's "Hey, Jorby." ...) from
+// a transcript, as often as the user said it, without case or punctuation, and capitalizes what follows. Text
+// without one is returned as is.
 func stripWakePhrase(text string) string {
+	for {
+		rest, ok := cutWakePhrase(text)
+		if !ok {
+			return text
+		}
+		text = capitalize(rest)
+	}
+}
+
+// cutWakePhrase returns what follows one leading wake phrase, and whether there was one.
+func cutWakePhrase(text string) (string, bool) {
 	words := wordSpans(text, 2)
 	switch {
 	case len(words) >= 1 && isWakeName(text[words[0][0]:words[0][1]]):
@@ -26,10 +38,9 @@ func stripWakePhrase(text string) string {
 		isWakeName(text[words[1][0]:words[1][1]]):
 		words = words[1:]
 	default:
-		return text
+		return text, false
 	}
-	rest := strings.TrimLeft(text[words[0][1]:], wakeSeparators)
-	return capitalize(rest)
+	return strings.TrimLeft(text[words[0][1]:], wakeSeparators), true
 }
 
 // wordSpans returns the byte spans of the first n runs of letters and digits in s.
