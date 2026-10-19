@@ -38,14 +38,16 @@ func (u Utterance) Duration() time.Duration {
 // CaptureConfig sets how an utterance is cut out of the mic stream. Every duration is audio time, counted in
 // samples at MicRate, so a capture behaves the same live and in a faster-than-real-time replay.
 type CaptureConfig struct {
-	MicRate    int           // true mic rate (Vector: about 15662, although MicTap announces 16000)
-	PreRoll    time.Duration // mic audio always kept, so a wake that arrives late still finds its start
-	WakeMargin time.Duration // the capture starts this long before the wake's position
+	MicRate int // true mic rate (Vector: about 15662, although MicTap announces 16000)
+	// The capture starts WakeMargin before the wake's position. Mic audio is always kept for WakeMargin plus
+	// PreRoll, so a wake the detector reports up to PreRoll late still finds its start.
+	PreRoll    time.Duration
+	WakeMargin time.Duration
 	// MinSpeech is the consecutive speech after the wake needed before the user counts as speaking. Audio up to
 	// the wake (the margin, which holds the end of the wake word) is sent to the transcriber but never counts.
 	MinSpeech  time.Duration
 	EndSilence time.Duration // silence after speech that ends the utterance
-	MaxLength  time.Duration // longest utterance, margin included
+	MaxLength  time.Duration // longest utterance, margin included (the default leaves about 8 s after the wake)
 	NoSpeech   time.Duration // the capture gives up when nobody speaks this long after the wake
 	// An utterance whose speech is quieter than MinLevel (dBFS) is not transcribed: nothing was heard (speech
 	// shorter than MinSpeech never starts the utterance). A transcript that is one of whisper's silence phrases ("Thank you.") is answered only when its
@@ -59,10 +61,10 @@ func DefaultCaptureConfig() CaptureConfig {
 	return CaptureConfig{
 		MicRate:    15662,
 		PreRoll:    time.Second,
-		WakeMargin: 100 * time.Millisecond,
+		WakeMargin: time.Second, // L61: whisper hears "hey jarvis", which tells it a short question's language
 		MinSpeech:  200 * time.Millisecond,
 		EndSilence: 700 * time.Millisecond,
-		MaxLength:  8 * time.Second,
+		MaxLength:  9 * time.Second,
 		NoSpeech:   4 * time.Second, // L34 asks the user to pause between the name and the question
 		MinLevel:   -48,
 		ClearLevel: -38,
@@ -111,7 +113,7 @@ func (c *Capture) Feed(f Frame) (Utterance, bool) {
 func (c *Capture) remember(f Frame) {
 	c.ring = append(c.ring, f)
 	c.ringSamples += len(f.Samples)
-	limit := c.samples(c.cfg.PreRoll)
+	limit := c.samples(c.cfg.PreRoll + c.cfg.WakeMargin)
 	drop := 0
 	for c.ringSamples-len(c.ring[drop].Samples) >= limit && drop < len(c.ring)-1 {
 		c.ringSamples -= len(c.ring[drop].Samples)

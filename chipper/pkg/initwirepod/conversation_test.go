@@ -166,3 +166,16 @@ func TestUnknownConversationSettingIsAnError(t *testing.T) {
 }
 
 var _ wakeword.Handler = wakeHandler{}
+
+// L61: the live capture starts 1 s before the wake, so whisper hears "hey jarvis"; CORTEX_WAKE_MARGIN still sets it.
+func TestTheStartupLineNamesTheCaptureMargin(t *testing.T) {
+	for v, want := range map[string]string{"": "capture from 1s before the wake", "300ms": "capture from 300ms before the wake"} {
+		t.Setenv(conversationEnv, "on")
+		t.Setenv(cortexMarginEnv, v)
+		_, desc, err := newConversation(conversationDeps{transcriber: stubTranscriberFunc("x"),
+			brain: stubBrain{}, newVAD: func() cortex.VAD { return loudVAD{} }, sender: newChanSender()})
+		if err != nil || !strings.Contains(desc, want) {
+			t.Fatalf("%s=%q: got %q, %v; want %q", cortexMarginEnv, v, desc, err, want)
+		}
+	}
+}

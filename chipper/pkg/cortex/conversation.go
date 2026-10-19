@@ -185,8 +185,14 @@ func (c *Conversation) answer(esn string, u Utterance) {
 		c.cfg.Logf("Cortex: ", esn, " transcription failed: ", err)
 		return
 	}
-	t.Text = strings.TrimSpace(t.Text)
+	raw := strings.TrimSpace(t.Text)
+	t.Text = stripWakePhrase(raw)
 	heard := c.cfg.Now()
+	if !hasWord(t.Text) && hasWord(raw) {
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard after the wake phrase %q (%.2f s), nothing sent", esn, raw,
+			heard.Sub(began).Seconds()))
+		return
+	}
 	if !hasWord(t.Text) {
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s transcribed no words %q (%.2f s), nothing sent", esn, t.Text,
 			heard.Sub(began).Seconds()))
@@ -197,7 +203,11 @@ func (c *Conversation) answer(esn string, u Utterance) {
 			esn, t.Text, speech(u)))
 		return
 	}
-	c.cfg.Logf(fmt.Sprintf("Cortex: %s transcribed (%s, %.2f s): %s", esn, t.Language, heard.Sub(began).Seconds(), t.Text))
+	line := fmt.Sprintf("Cortex: %s transcribed (%s, %.2f s): %s", esn, t.Language, heard.Sub(began).Seconds(), t.Text)
+	if t.Text != raw {
+		line += " [raw: " + raw + "]"
+	}
+	c.cfg.Logf(line)
 	a, err := c.cfg.Brain.Answer(ctx, esn, t)
 	if err != nil {
 		c.cfg.Logf("Cortex: ", esn, " brain failed: ", err)

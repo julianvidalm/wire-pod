@@ -86,11 +86,14 @@ Every step is a port in `pkg/cortex` with its adapter:
 | brain | wire-pod's intent matching in the transcript's language (`intent-data/en-US.json`, `es-ES.json`), then its LLM (`pkg/cortex/wirepodbrain`) |
 | robot | MicTap session commands: an intent result, or knowledge (an answer to say) |
 
-The capture keeps 1 s of every robot's mic audio, so a wake that arrives late still finds its start. It starts
-`CORTEX_WAKE_MARGIN` before the wake's end (just after "hey jarvis"), ends after 700 ms of silence that follows
-speech, stops at 8 s, and gives up after 4 s without speech. Only speech after the wake's end counts, and only
-once it lasts 200 ms: the margin holds the end of "jarvis" and is sent to whisper, but it never starts the
-utterance, so a pause between the name and the question does not end it. These times count audio samples at `OWW_MIC_RATE`,
+The capture starts `CORTEX_WAKE_MARGIN` (1 s) before the wake's end, so whisper hears the whole "hey jarvis": on
+a short question that is what tells it Spanish from English (L61: "¿qué hora es?" alone came out as "Do you
+guys?"). It keeps that margin plus 1 s of every robot's mic audio, so a wake that arrives late still finds its
+start. It ends after 700 ms of silence that follows speech, stops at 9 s (about 8 s after the wake), and gives up
+after 4 s without speech after the wake. Only speech after the wake's end counts, and only once it lasts 200 ms:
+the margin holds "hey jarvis" and is sent to whisper, but it never starts the utterance, so a pause between the
+name and the question does not end it. A leading wake phrase in the transcript ("Hey Jarvis,", "Oye Jarvis",
+whisper's "Hey, Jorby.") is removed before the brain; a transcript that is only the wake phrase is nothing heard. These times count audio samples at `OWW_MIC_RATE`,
 and the utterance is resampled from that rate to whisper's 16 kHz. Each robot has one worker that transcribes and
 answers in order. A second utterance waits; more are dropped and logged, so the mic stream and the wake detector
 never wait for whisper or the LLM.
@@ -107,7 +110,7 @@ answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
 | `CORTEX_WHISPER_MODEL` | `WHISPER_MODEL` | the conversation's whisper model, for example `large-v3-turbo-q5_0` (`ggml-<name>.bin` in the whisper models directory) |
 | `WHISPER_AUDIO_CTX` | unset | `full` encodes the whole 30 s window; large-v3-turbo needs it (with the short window it repeats and invents text) |
 | `WHISPER_LANGUAGES` | `en,es` | languages whisper chooses among for each utterance |
-| `CORTEX_WAKE_MARGIN` | `100ms` | how far before the wake's end the capture starts |
+| `CORTEX_WAKE_MARGIN` | `1s` | how far before the wake's end the capture starts |
 | `CORTEX_VAD_MODE` | `3` | webrtc VAD aggressiveness, 0-3 |
 | `CORTEX_PERSONA` | `Jarvis` | the robot's name in the LLM prompt (replaces "Vector"); `-` keeps the prompt as is |
 
@@ -146,12 +149,12 @@ Cortex half duplex: <esn> silenced 12 spans, 34.5 s of 600.2 s of mic audio (0 m
 Logs, at startup and for one question:
 
 ```
-Cortex conversation on: whisper large-v3-turbo-q5_0 (en,es), full audio context, wire-pod intents (en-US, es-ES) then its LLM as Jarvis, webrtc VAD mode 3; capture from 100ms before the wake, …
+Cortex conversation on: whisper large-v3-turbo-q5_0 (en,es), full audio context, wire-pod intents (en-US, es-ES) then its LLM as Jarvis, webrtc VAD mode 3; capture from 1s before the wake, …
 Wake word: <esn> heard "hey jarvis" (confidence 0.93) in "hey jarvis"
-Cortex: <esn> listening from 100ms before the wake
+Cortex: <esn> listening from 1s before the wake
 attend sent <esn> intent_greeting_hello
-Cortex: <esn> heard 1.8 s (end of speech, speech 1.2 s at -31 dBFS)
-Cortex: <esn> transcribed (es, 0.82 s): ¿Qué hora es?
+Cortex: <esn> heard 2.7 s (end of speech, speech 1.2 s at -31 dBFS)
+Cortex: <esn> transcribed (es, 0.82 s): ¿Qué hora es? [raw: Hey Jarvis, ¿qué hora es?]
 Cortex: <esn> answer intent intent_clock_time  (0.00 s), sent
 ```
 
@@ -162,6 +165,7 @@ when its speech reached -38 dBFS, so a clearly spoken "gracias" still is (`nothi
 whisper's word for quiet audio (…), nothing sent`).
 
 Other outcomes are logged too: `nothing heard: no speech after 4.1 s, nothing sent`, `transcribed no words "."`,
+`nothing heard after the wake phrase "Hey Jarvis."`,
 `answer "…" (1.10 s), sent` for an LLM answer, `still answering, utterance dropped (n dropped)`,
 `already listening, wake ignored`, and `transcription failed` or `brain failed` with the error.
 

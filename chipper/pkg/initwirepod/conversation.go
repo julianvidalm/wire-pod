@@ -21,7 +21,7 @@ import (
 // transcribes it, decides the answer and sends it to the robot over its MicTap session.
 const (
 	conversationEnv  = "CORTEX_CONVERSATION" // on or off (the default): off keeps attend-only wakes
-	cortexMarginEnv  = "CORTEX_WAKE_MARGIN"  // Go duration the capture starts before the wake's end, default 100ms
+	cortexMarginEnv  = "CORTEX_WAKE_MARGIN"  // Go duration the capture starts before the wake's end, default 1s (whisper hears "hey jarvis")
 	cortexVADModeEnv = "CORTEX_VAD_MODE"     // webrtc VAD aggressiveness 0-3, default 3
 	cortexPersonaEnv = "CORTEX_PERSONA"      // the robot's name in the LLM prompt, default Jarvis; "-" keeps Vector
 

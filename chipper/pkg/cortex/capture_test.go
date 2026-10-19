@@ -7,8 +7,17 @@ import (
 
 // Test audio runs at 16000 Hz in 160-sample frames, so each frame is exactly 10 ms and frame timestamps are
 // multiples of 10. The audio itself is the clock: durations are counted in samples.
-// The capture rules are the live defaults; only the rate differs.
+// The capture rules are the live defaults except the rate and the margin: these tests keep the 100 ms margin and
+// its 1 s ring (L42) so their numbers stay; the pre-roll tests below use the live defaults.
 func testCaptureConfig() CaptureConfig {
+	c := DefaultCaptureConfig()
+	c.MicRate = 16000
+	c.WakeMargin, c.PreRoll, c.MaxLength = 100*time.Millisecond, 900*time.Millisecond, 8*time.Second
+	return c
+}
+
+// liveCaptureConfig is the live defaults at the test rate.
+func liveCaptureConfig() CaptureConfig {
 	c := DefaultCaptureConfig()
 	c.MicRate = 16000
 	return c
@@ -210,5 +219,61 @@ func TestCaptureMeasuresTheLevelOfTheSpeechAfterTheWake(t *testing.T) {
 	}
 	if u.Voiced != 500*time.Millisecond || u.Level < -40.1 || u.Level > -39.9 {
 		t.Fatalf("voiced %v at %.2f dBFS, want 500ms at -40 dBFS", u.Voiced, u.Level)
+	}
+}
+
+// L61: whisper needs "hey jarvis" to tell a short Spanish question from English, so the live capture starts 1 s
+// before the wake, even when the detector reports the wake half a second late.
+func TestLiveCaptureStartsOneSecondBeforeTheWake(t *testing.T) {
+	c := NewCapture(liveCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 2990, false)
+	c.Start(2500)
+	u, _ := c.Abort()
+	if u.Start != 1500 || u.End != 2990 || len(u.Samples) != 150*160 {
+		t.Fatalf("got %d to %d with %d samples, want 1500 to 2990 with %d", u.Start, u.End, len(u.Samples), 150*160)
+	}
+}
+
+// The whole wake phrase is in the capture but is never the user speaking: the pause after it and the question
+// decide the end, and only the question counts as speech.
+func TestLiveCaptureNeverCountsTheWakePhraseAsSpeech(t *testing.T) {
+	c := NewCapture(liveCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 1499, false)
+	feedRange(t, c, 1500, 2500, true) // "hey jarvis", up to the wake's frame
+	if _, done := c.Start(2500); done {
+		t.Fatal("ended at the start")
+	}
+	if _, done := feedRange(t, c, 2510, 3500, false); done { // the user pauses for 1 s
+		t.Fatal("the pause ended the capture")
+	}
+	if _, done := feedRange(t, c, 3510, 5000, true); done { // the question, 1.5 s
+		t.Fatal("ended during the question")
+	}
+	u, done := feedRange(t, c, 5010, 8000, false)
+	if !done || u.Reason != EndSilence || u.Start != 1500 || u.End != 5700 {
+		t.Fatalf("got done %v %q from %d to %d, want %q from 1500 to 5700", done, u.Reason, u.Start, u.End, EndSilence)
+	}
+	if u.Voiced != 1500*time.Millisecond {
+		t.Fatalf("voiced %v, want 1.5s (the question only)", u.Voiced)
+	}
+}
+
+// The timeouts still count from the wake: 4 s without a question, and as before about 8 s of question at most.
+func TestLiveCaptureTimesOutFromTheWake(t *testing.T) {
+	c := NewCapture(liveCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 1499, false)
+	feedRange(t, c, 1500, 2500, true)
+	c.Start(2500)
+	u, done := feedRange(t, c, 2510, 20000, false)
+	if !done || u.Reason != EndNoSpeech || u.End != 6500 {
+		t.Fatalf("got done %v %q at %d, want %q at 6500", done, u.Reason, u.End, EndNoSpeech)
+	}
+
+	c = NewCapture(liveCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 2500, true)
+	c.Start(2500)
+	u, done = feedRange(t, c, 2510, 20000, true)
+	if !done || u.Reason != EndMaxLen || u.End != 10490 {
+		t.Fatalf("got done %v %q at %d, want %q at 10490 (7.99 s after the wake)", done, u.Reason, u.End, EndMaxLen)
 	}
 }
