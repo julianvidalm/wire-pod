@@ -123,9 +123,9 @@ func (r *RecordSink) writeRaw(esn string, rec *recording, f Frame) {
 	if rec.rawFailed {
 		return
 	}
-	if len(f.Payload)%(2*RawMicChannels) != 0 {
+	if len(f.Payload) != RawMicFrameBytes {
 		rec.rawFailed = true
-		r.logf("MicTap: ", esn, " raw mic frame of ", len(f.Payload), " bytes is not 4-channel s16; raw recording stopped")
+		r.logf("MicTap: ", esn, " raw mic frame of ", len(f.Payload), " bytes is not one 4-channel s16 frame of ", RawMicFrameBytes, " bytes; raw recording stopped")
 		return
 	}
 	if rec.raw == nil {

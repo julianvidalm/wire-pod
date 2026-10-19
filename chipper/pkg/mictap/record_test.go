@@ -214,22 +214,49 @@ func readWAVChannels(t *testing.T, path string) (channels uint16, samples []int1
 	return channels, samples
 }
 
+// rawMicFrame is one full raw mic frame whose channel c holds values[c] in every sample.
+func rawMicFrame(seq uint32, values [RawMicChannels]int16) Frame {
+	samples := make([]int16, 0, RawMicFrameBytes/2)
+	for len(samples) < cap(samples) {
+		samples = append(samples, values[:]...)
+	}
+	return pcmFrame(FrameRawMic, seq, samples...)
+}
+
+// rawMicSamples is the interleaved 4-channel audio of the rawMicFrame of each values, in order.
+func rawMicSamples(values ...[RawMicChannels]int16) (samples []int16) {
+	for _, v := range values {
+		samples = append(samples, frameSamples(rawMicFrame(0, v))...)
+	}
+	return samples
+}
+
+func frameSamples(f Frame) []int16 {
+	s := make([]int16, len(f.Payload)/2)
+	for i := range s {
+		s[i] = int16(binary.LittleEndian.Uint16(f.Payload[2*i:]))
+	}
+	return s
+}
+
+const rawMicFrameSamples = RawMicFrameBytes / 2 / RawMicChannels // per channel
+
 func TestRecordingWritesRawMicFramesToTheirOwnFourChannelWAV(t *testing.T) {
 	dir := t.TempDir()
 	r := NewRecordSink(dir, func(...any) {})
 	r.now = func() time.Time { return time.Date(2026, 10, 16, 17, 0, 0, 0, time.UTC) }
 	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
 	r.Frame("esn1", stamped(pcmFrame(FrameMic, 0, 5), 0))
-	r.Frame("esn1", stamped(pcmFrame(FrameRawMic, 2, 1, 2, 3, 4), 20))
-	r.Frame("esn1", stamped(pcmFrame(FrameRawMic, 4, 5, 6, 7, 8), 40)) // robot dropped raw frame 3
+	r.Frame("esn1", stamped(rawMicFrame(2, [4]int16{1, 2, 3, 4}), 20))
+	r.Frame("esn1", stamped(rawMicFrame(4, [4]int16{5, 6, 7, 8}), 40)) // robot dropped raw frame 3
 	r.End("esn1", nil)
 
 	channels, raw := readWAVChannels(t, filepath.Join(dir, "esn1_20261016-170000_raw4ch.wav"))
-	if want := []int16{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8}; channels != 4 || !reflect.DeepEqual(raw, want) {
-		t.Fatalf("raw %d channels %v, want 4 channels %v", channels, raw, want)
+	if want := rawMicSamples([4]int16{1, 2, 3, 4}, [4]int16{}, [4]int16{5, 6, 7, 8}); channels != 4 || !reflect.DeepEqual(raw, want) {
+		t.Fatalf("raw %d channels %d samples, want 4 channels %d samples", channels, len(raw), len(want))
 	}
 	got := readFrameLog(t, filepath.Join(dir, "esn1_20261016-170000_raw4ch_frames.jsonl"))
-	want := []FrameLogLine{{Seq: 2, TimestampMs: 20, Sample: 0}, {Seq: 4, TimestampMs: 40, Sample: 2, Gap: 1}}
+	want := []FrameLogLine{{Seq: 2, TimestampMs: 20, Sample: 0}, {Seq: 4, TimestampMs: 40, Sample: 2 * rawMicFrameSamples, Gap: 1}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("raw frames %+v, want %+v", got, want)
 	}
@@ -286,17 +313,17 @@ func TestRecordingDoesNotFillARawGapLeftByTheRawSwitchBeingOff(t *testing.T) {
 	r.Start("esn1", Hello{MicRate: 16000, SpeakerRate: 32000})
 	// the raw seq advances every block even while the switch is off: the first raw frame of a session and a
 	// frame after the switch was off for a while both jump far ahead
-	r.Frame("esn1", stamped(pcmFrame(FrameRawMic, 60000, 1, 2, 3, 4), 600000))
-	r.Frame("esn1", stamped(pcmFrame(FrameRawMic, 60000+maxGapFrames+2, 5, 6, 7, 8), 605020))
+	r.Frame("esn1", stamped(rawMicFrame(60000, [4]int16{1, 2, 3, 4}), 600000))
+	r.Frame("esn1", stamped(rawMicFrame(60000+maxGapFrames+2, [4]int16{5, 6, 7, 8}), 605020))
 	r.End("esn1", nil)
 
 	_, raw := readWAVChannels(t, filepath.Join(dir, "esn1_20261016-170000_raw4ch.wav"))
-	if want := []int16{1, 2, 3, 4, 5, 6, 7, 8}; !reflect.DeepEqual(raw, want) {
-		t.Fatalf("raw %v, want %v", raw, want)
+	if want := rawMicSamples([4]int16{1, 2, 3, 4}, [4]int16{5, 6, 7, 8}); !reflect.DeepEqual(raw, want) {
+		t.Fatalf("raw %d samples, want %d without the skipped frames", len(raw), len(want))
 	}
 	got := readFrameLog(t, filepath.Join(dir, "esn1_20261016-170000_raw4ch_frames.jsonl"))
 	want := []FrameLogLine{{Seq: 60000, TimestampMs: 600000, Sample: 0},
-		{Seq: 60000 + maxGapFrames + 2, TimestampMs: 605020, Sample: 1, Skipped: maxGapFrames + 1}}
+		{Seq: 60000 + maxGapFrames + 2, TimestampMs: 605020, Sample: rawMicFrameSamples, Skipped: maxGapFrames + 1}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("raw frames %+v, want %+v", got, want)
 	}
