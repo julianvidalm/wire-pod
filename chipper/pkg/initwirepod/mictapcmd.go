@@ -43,7 +43,7 @@ func micTapCommandHandler(sender commandSender) http.HandlerFunc {
 			http.Error(w, "params must be JSON", http.StatusBadRequest)
 			return
 		}
-		cmd := &mictappb.Command{Command: &mictappb.Command_Knowledge{Knowledge: &mictappb.KnowledgeResponse{Answer: say}}}
+		cmd := knowledgeCommand(say, "")
 		if intent != "" {
 			cmd = intentCommand(intent, params)
 		}

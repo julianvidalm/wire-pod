@@ -46,7 +46,8 @@ func micTapSink() mictap.Sink {
 }
 
 // newMicTapSink always logs each stream. With a wake word detector configured it also runs it, which logs each
-// detection and makes the robot attend (see wake.go).
+// detection and makes the robot attend (see wake.go), and, with CORTEX_CONVERSATION=on, answers what the user
+// says after the wake (see conversation.go).
 func newMicTapSink() mictap.Sink {
 	var logSink mictap.Sink = mictap.NewLogSink(logger.Println)
 	// MICTAP_RECORD_DIR saves every session's mic and speaker audio, to replay real sessions offline.
@@ -62,7 +63,7 @@ func newMicTapSink() mictap.Sink {
 		return logSink
 	}
 	logger.Println("Wake word detector on,", desc)
-	return mictap.Tee(logSink, detector)
+	return detectorSink(logSink, detector, liveConversation())
 }
 
 // wakeDetector builds the detector WAKE_DETECTOR selects, or nil when the Vosk default has no model configured.

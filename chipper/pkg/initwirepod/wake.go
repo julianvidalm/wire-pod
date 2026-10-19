@@ -20,16 +20,27 @@ const (
 	defaultAttendRefractory = 3 * time.Second
 )
 
-// wakeHandler logs every detection and, unless attend is off, makes the robot attend.
+// wakeHandler logs every detection, makes the robot attend unless attend is off and, with the conversation on,
+// starts listening to what the user says next.
 type wakeHandler struct {
-	logf     func(a ...any)
-	attender *cortex.Attender // nil: log only
+	logf         func(a ...any)
+	attender     *cortex.Attender     // nil: log only
+	conversation *cortex.Conversation // nil: CORTEX_CONVERSATION is off
+}
+
+// withConversation returns the handler that also starts listening to what the user says after each wake.
+func (h wakeHandler) withConversation(c *cortex.Conversation) wakeHandler {
+	h.conversation = c
+	return h
 }
 
 func (h wakeHandler) OnWake(d wakeword.Detection) {
 	h.logf(wakeLine(d))
 	if h.attender != nil {
 		h.attender.Attend(d.ESN)
+	}
+	if h.conversation != nil {
+		h.conversation.Wake(d.ESN, d.FrameTimestamp)
 	}
 }
 
@@ -64,7 +75,8 @@ func newWakeHandler(logf func(a ...any), sender commandSender) (wakeHandler, err
 	return h, nil
 }
 
-// liveWakeHandler is the handler both detectors use: it sends through the shared MicTap sessions.
+// liveWakeHandler is the handler both detectors use: it sends through the shared MicTap sessions and feeds the
+// shared conversation.
 func liveWakeHandler() wakeHandler {
 	h, err := newWakeHandler(logger.Println, sessionsSender{})
 	switch {
@@ -75,7 +87,7 @@ func liveWakeHandler() wakeHandler {
 	default:
 		logger.Println("Cortex attend on wake:", envOr(attendIntentEnv, defaultAttendIntent))
 	}
-	return h
+	return h.withConversation(liveConversation())
 }
 
 // intentSender adapts a MicTap command sender to the cortex Robot port.

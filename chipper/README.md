@@ -66,3 +66,79 @@ Sidecar test on the user's held-out clips:
 OWW_MODEL=… OWW_CLIPS=~/coding/v3ctor-build/oww-train/model/hey_jarvis_v3ctor \
   "$OWW_PYTHON" -m unittest oww-sidecar/test_oww_sidecar.py
 ```
+
+## Conversation (cortex)
+
+With `CORTEX_CONVERSATION=on`, the PC owns the conversation: after each wake it captures what the user says from
+the same MicTap mic stream, transcribes it, decides the answer and sends it to the robot over its MicTap
+session. The robot only streams audio and executes the command; there is no trigger word and no second
+listening pass on the robot. Off (the default) keeps the attend-only wake above.
+
+Every step is a port in `pkg/cortex` with its adapter:
+
+| Port | Adapter |
+| --- | --- |
+| audio source | the MicTap stream (`pkg/initwirepod`), or a recording in `cmd/cortex-replay` |
+| wake detector | `pkg/oww` or `pkg/wakeword`, through the wake handler |
+| VAD | webrtc VAD (`pkg/vad`) |
+| echo canceller | pass-through (the robot's processed mic already removes most of its sound) |
+| transcriber | whisper.cpp with its own model context (`pkg/cortex/whispercpp`), en or es per utterance |
+| brain | wire-pod's intent matching in the transcript's language (`intent-data/en-US.json`, `es-ES.json`), then its LLM (`pkg/cortex/wirepodbrain`) |
+| robot | MicTap session commands: an intent result, or knowledge (an answer to say) |
+
+The capture keeps 1 s of every robot's mic audio, so a wake that arrives late still finds its start. It starts
+`CORTEX_WAKE_MARGIN` before the wake's end (just after "hey jarvis"), ends after 700 ms of silence that follows
+speech, stops at 8 s, and gives up after 3 s without speech. These times count audio samples at `OWW_MIC_RATE`,
+and the utterance is resampled from that rate to whisper's 16 kHz. Each robot has one worker that transcribes and
+answers in order. A second utterance waits; more are dropped and logged, so the mic stream and the wake detector
+never wait for whisper or the LLM.
+
+An intent answer (for example `intent_clock_time`, or `intent_clock_settimer_extend` with
+`{"timer_duration":"300"}`) is sent as an intent result. When no intent matches, the LLM configured in the web
+interface answers (provider, key, prompt and remembered chat). Its `{{command}}` actions are dropped and the
+answer is sent as knowledge, which the robot says with its knowledge-graph animations. With the LLM off, the
+answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CORTEX_CONVERSATION` | `off` | `on` captures, transcribes and answers after each wake (needs `STT_SERVICE=whisper.cpp`) |
+| `CORTEX_WHISPER_MODEL` | `WHISPER_MODEL` | the conversation's whisper model, for example `large-v3-turbo-q5_0` (`ggml-<name>.bin` in the whisper models directory) |
+| `WHISPER_AUDIO_CTX` | unset | `full` encodes the whole 30 s window; large-v3-turbo needs it (with the short window it repeats and invents text) |
+| `WHISPER_LANGUAGES` | `en,es` | languages whisper chooses among for each utterance |
+| `CORTEX_WAKE_MARGIN` | `100ms` | how far before the wake's end the capture starts |
+| `CORTEX_VAD_MODE` | `3` | webrtc VAD aggressiveness, 0-3 |
+| `CORTEX_PERSONA` | `Jarvis` | the robot's name in the LLM prompt (replaces "Vector"); `-` keeps the prompt as is |
+
+Logs, at startup and for one question:
+
+```
+Cortex conversation on: whisper large-v3-turbo-q5_0 (en,es), full audio context, wire-pod intents (en-US, es-ES) then its LLM as Jarvis, webrtc VAD mode 3; capture from 100ms before the wake, …
+Wake word: <esn> heard "hey jarvis" (confidence 0.93) in "hey jarvis"
+Cortex: <esn> listening from 100ms before the wake
+attend sent <esn> intent_greeting_hello
+Cortex: <esn> heard 1.8 s (end of speech)
+Cortex: <esn> transcribed (es, 0.40 s): ¿Qué hora es?
+Cortex: <esn> answer intent intent_clock_time  (0.00 s), sent
+```
+
+Other outcomes are logged too: `no speech after 3.0 s, nothing sent`, `transcribed no words "."`,
+`answer "…" (1.10 s), sent` for an LLM answer, `still answering, utterance dropped (n dropped)`,
+`already listening, wake ignored`, and `transcription failed` or `brain failed` with the error.
+
+The attend greeting still plays on each wake, and its sounds and motion reach the mic: they keep the capture open
+until they stop (about 1.5 to 4.5 s after the wake). After a bare "hey jarvis", whisper may turn them into
+"Thank you.", which is then answered. `CORTEX_ATTEND_INTENT=` turns the greeting off.
+
+Offline check without a robot: replay a recording with its labels through the wake detector, capture, whisper
+and brain. Nothing is sent to a robot. Run it from `chipper`, with the whisper build's CGO flags from
+`run-chipper.sh`:
+
+```sh
+go run -tags nolibopusfile ./cmd/cortex-replay -python "$OWW_PYTHON" -oww-model "$OWW_MODEL" \
+  -clock ~/.cache/v3ctor/sessions/<session>_clock.jsonl -labels ~/.cache/v3ctor/corpus/<labels>.jsonl -ids s \
+  -whisper-model ../whisper.cpp/models/ggml-large-v3-turbo-q5_0.bin -full-audio-ctx \
+  ~/.cache/v3ctor/sessions/<session>_mic.wav
+```
+
+It prints one row per labeled line: the wake, the captured utterance, its transcription and the brain's answer.
+`-llm=false` skips the LLM. Without `-clock` and `-labels` it replays the whole recording.
