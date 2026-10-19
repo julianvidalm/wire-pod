@@ -60,7 +60,7 @@ func TestConversationOffKeepsTheAttendOnlyWake(t *testing.T) {
 		if err != nil || conv != nil {
 			t.Fatalf("%q: got conversation %v, error %v; want neither", v, conv, err)
 		}
-		if got, want := detectorSink(nopSink{}, nopSink{}, conv), mictap.Tee(nopSink{}, nopSink{}); !reflect.DeepEqual(got, want) {
+		if got, want := detectorSink(nopSink{}, nopSink{}, conv, nil), mictap.Tee(nopSink{}, nopSink{}); !reflect.DeepEqual(got, want) {
 			t.Fatalf("%q: sink %#v, want %#v", v, got, want)
 		}
 		h, err := newWakeHandler(log.logf, s)
@@ -102,7 +102,7 @@ func TestConversationOnAnswersAfterTheAttend(t *testing.T) {
 	if !strings.Contains(desc, "stub") {
 		t.Fatalf("description %q does not name the transcriber", desc)
 	}
-	sink := detectorSink(nopSink{}, nopSink{}, conv)
+	sink := detectorSink(nopSink{}, nopSink{}, conv, nil)
 	h, err := newWakeHandler(log.logf, s)
 	if err != nil {
 		t.Fatal(err)

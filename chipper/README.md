@@ -111,6 +111,33 @@ answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
 | `CORTEX_VAD_MODE` | `3` | webrtc VAD aggressiveness, 0-3 |
 | `CORTEX_PERSONA` | `Jarvis` | the robot's name in the LLM prompt (replaces "Vector"); `-` keeps the prompt as is |
 
+### Half duplex
+
+While the robot talks, wire-pod does not listen: the wake word detector and the conversation capture get
+silence instead of the mic (`pkg/cortex` `HalfDuplex`, wired by `pkg/cortex/mictapgate`). The robot counts as
+talking while its MicTap speaker frames are louder than `CORTEX_HALF_DUPLEX_DB`, never from the robot's
+speaker-active flag (it stays on whenever the sound sink is open). Mic and speaker frames carry timestamps on
+the robot's clock, so a mic frame is silenced when its timestamp falls between a sound's start and
+`CORTEX_HALF_DUPLEX_HANGOVER` after its end. The echo reaches the mic about 250 ms after the speaker frame's
+timestamp and fades into the room noise within about 300 ms more; 600 ms covers both with margin. Speaker
+frames may arrive after the mic frames they overlap, so each mic frame waits for the speaker audio covering
+its time, at most 300 ms (normally one 32 ms speaker frame: the robot sends speaker frames all the time). A
+silenced frame is zeros of the same length, so the pre-roll and every timestamp stay intact. The recorder
+(`MICTAP_RECORD_DIR`) and the stream log still get the real mic audio.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CORTEX_HALF_DUPLEX` | `on` | `off` lets the detector and the conversation hear the robot talk (the behavior before half duplex) |
+| `CORTEX_HALF_DUPLEX_HANGOVER` | `600ms` | Go duration the mic stays silenced after the robot's last sound |
+| `CORTEX_HALF_DUPLEX_DB` | `-60` | speaker level (dBFS, RMS of one 32 ms frame) that counts as talking; the idle speaker is digital zero or dither at -115 to -75 dBFS, speech -45 to -10 |
+
+It applies whenever a wake word detector is on. Logs, at startup and when a robot's stream ends:
+
+```
+Cortex half duplex on: the detector and the conversation hear silence while the robot's speaker is above -60 dBFS and for 600ms after, the mic waits at most 300ms for the speaker audio
+Cortex half duplex: <esn> silenced 12 spans, 34.5 s of 600.2 s of mic audio (0 mic frames released before their speaker audio arrived, 0 speaker sounds arrived too late)
+```
+
 Logs, at startup and for one question:
 
 ```

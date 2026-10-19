@@ -63,7 +63,13 @@ func newMicTapSink() mictap.Sink {
 		return logSink
 	}
 	logger.Println("Wake word detector on,", desc)
-	return detectorSink(logSink, detector, liveConversation())
+	hd, hdDesc, err := halfDuplexConfig()
+	if err != nil {
+		logger.Println("Cortex half duplex off:", err)
+	} else {
+		logger.Println("Cortex half duplex " + hdDesc)
+	}
+	return detectorSink(logSink, detector, liveConversation(), hd)
 }
 
 // wakeDetector builds the detector WAKE_DETECTOR selects, or nil when the Vosk default has no model configured.

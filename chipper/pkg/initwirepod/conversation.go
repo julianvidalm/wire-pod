@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex/mictapgate"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex/wirepodbrain"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap"
@@ -182,10 +183,18 @@ func (a micTapAudio) Frame(esn string, f mictap.Frame) {
 func (a micTapAudio) End(esn string, _ error) { a.conv.Close(esn) }
 
 // detectorSink runs the wake word detector on every stream and, with the conversation on, hands the stream to
-// it first, so the pre-roll already holds each frame when the detector reports a wake in it.
-func detectorSink(logSink, detector mictap.Sink, conv *cortex.Conversation) mictap.Sink {
-	if conv == nil {
-		return mictap.Tee(logSink, detector)
+// it first, so the pre-roll already holds each frame when the detector reports a wake in it. With half duplex
+// on (hd not nil) both hear silence while the robot talks; logSink (and the recorder in it) gets the real mic.
+func detectorSink(logSink, detector mictap.Sink, conv *cortex.Conversation, hd *cortex.HalfDuplexConfig) mictap.Sink {
+	var listeners mictap.Sink = detector
+	if conv != nil {
+		listeners = mictap.Tee(micTapAudio{conv}, detector)
 	}
-	return mictap.Tee(logSink, micTapAudio{conv}, detector)
+	if hd == nil {
+		if conv == nil {
+			return mictap.Tee(logSink, detector)
+		}
+		return mictap.Tee(logSink, micTapAudio{conv}, detector)
+	}
+	return mictap.Tee(logSink, mictapgate.New(listeners, *hd, logger.Println))
 }
