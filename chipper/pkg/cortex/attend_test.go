@@ -45,7 +45,11 @@ type logs struct {
 	lines []string
 }
 
-func (l *logs) Logf(a ...any) { l.mu.Lock(); l.lines = append(l.lines, fmt.Sprint(a...)); l.mu.Unlock() }
+func (l *logs) Logf(a ...any) {
+	l.mu.Lock()
+	l.lines = append(l.lines, fmt.Sprint(a...))
+	l.mu.Unlock()
+}
 
 // waitFor polls until a log line contains want.
 func (l *logs) waitFor(t *testing.T, want string) {
