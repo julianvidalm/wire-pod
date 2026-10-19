@@ -7,7 +7,7 @@ import (
 
 // A tone recorded at Vector's true mic rate keeps its pitch and length once resampled to whisper's 16 kHz.
 func TestResampleKeepsPitchAndLength(t *testing.T) {
-	const from, to, hz = 15625, 16000, 440.0
+	const from, to, hz = 15662, 16000, 440.0
 	in := make([]int16, from) // one second
 	for i := range in {
 		in[i] = int16(10000 * math.Sin(2*math.Pi*hz*float64(i)/from))
