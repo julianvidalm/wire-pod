@@ -112,6 +112,7 @@ answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
 | `WHISPER_LANGUAGES` | `en,es` | languages whisper chooses among for each utterance |
 | `CORTEX_WAKE_MARGIN` | `1s` | how far before the wake's end the capture starts |
 | `CORTEX_VAD_MODE` | `3` | webrtc VAD aggressiveness, 0-3 |
+| `CORTEX_ATTEND_END_INTENT` | `intent_cortex_listening_end` | intent sent when a capture ends without an answer (no speech, nothing heard, only the wake phrase, a transcription or brain error, a dropped utterance), so the robot stops listening; empty sends nothing |
 | `CORTEX_PERSONA` | `Jarvis` | the robot's name in the LLM prompt (replaces "Vector"); `-` keeps the prompt as is |
 
 ### Half duplex
@@ -167,7 +168,7 @@ whisper's word for quiet audio (…), nothing sent`).
 Other outcomes are logged too: `nothing heard: no speech after 4.1 s, nothing sent`, `transcribed no words "."`,
 `nothing heard after the wake phrase "Hey Jarvis."`,
 `answer "…" (1.10 s), sent` for an LLM answer, `still answering, utterance dropped (n dropped)`,
-`already listening, wake ignored`, and `transcription failed` or `brain failed` with the error.
+`already listening, wake ignored`, `listening end intent_cortex_listening_end, sent` after any of them that sends no answer, and `transcription failed` or `brain failed` with the error.
 
 The attend greeting still plays on each wake, and its sounds and motion reach the mic: they keep the capture open
 until they stop (about 1.5 to 4.5 s after the wake). After a bare "hey jarvis", whisper may turn them into

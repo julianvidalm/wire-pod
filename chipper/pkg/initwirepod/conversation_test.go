@@ -36,8 +36,10 @@ func (loudVAD) IsSpeech(s []int16) bool { return len(s) > 0 && s[0] != 0 }
 
 func micFrame(seq uint32, ts uint64, speech bool) mictap.Frame {
 	p := make([]byte, 320)
-	if speech {
-		binary.LittleEndian.PutUint16(p, 1000)
+	if speech { // every sample, so the speech is about -30 dBFS, above the nothing-heard level (L42)
+		for i := 0; i < len(p); i += 2 {
+			binary.LittleEndian.PutUint16(p[i:], 1000)
+		}
 	}
 	return mictap.Frame{Type: mictap.FrameMic, Seq: seq, Timestamp: ts, Payload: p}
 }
@@ -176,6 +178,42 @@ func TestTheStartupLineNamesTheCaptureMargin(t *testing.T) {
 			brain: stubBrain{}, newVAD: func() cortex.VAD { return loudVAD{} }, sender: newChanSender()})
 		if err != nil || !strings.Contains(desc, want) {
 			t.Fatalf("%s=%q: got %q, %v; want %q", cortexMarginEnv, v, desc, err, want)
+		}
+	}
+}
+
+// L63: a wake with no question ends the robot's listening with CORTEX_ATTEND_END_INTENT; empty sends nothing.
+func TestACaptureWithoutAnswerSendsTheEndIntent(t *testing.T) {
+	for _, tc := range []struct {
+		set   bool
+		value string
+		want  string
+	}{{false, "", "intent_cortex_listening_end"}, {true, "intent_x_end", "intent_x_end"}, {true, "", ""}} {
+		t.Setenv(conversationEnv, "on")
+		if tc.set {
+			t.Setenv(attendEndIntentEnv, tc.value)
+		} else {
+			unsetEnv(t, attendEndIntentEnv)
+		}
+		s := newChanSender()
+		conv, _, err := newConversation(conversationDeps{transcriber: stubTranscriberFunc("x"),
+			brain: stubBrain{}, newVAD: func() cortex.VAD { return loudVAD{} }, sender: s, logf: func(...any) {}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		conv.Wake("0dd1b652", 0)
+		for ts := uint64(0); ts < 6000; ts += 10 {
+			conv.Feed("0dd1b652", cortex.Frame{Samples: make([]int16, 160), Timestamp: ts})
+		}
+		select {
+		case cmd := <-s.got:
+			if got := cmd.GetIntentResult().GetIntent(); got != tc.want {
+				t.Fatalf("%+v: sent %q, want %q", tc, got, tc.want)
+			}
+		case <-time.After(time.Second):
+			if tc.want != "" {
+				t.Fatalf("%+v: nothing sent, want %q", tc, tc.want)
+			}
 		}
 	}
 }

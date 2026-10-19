@@ -24,6 +24,11 @@ const (
 	cortexMarginEnv  = "CORTEX_WAKE_MARGIN"  // Go duration the capture starts before the wake's end, default 1s (whisper hears "hey jarvis")
 	cortexVADModeEnv = "CORTEX_VAD_MODE"     // webrtc VAD aggressiveness 0-3, default 3
 	cortexPersonaEnv = "CORTEX_PERSONA"      // the robot's name in the LLM prompt, default Jarvis; "-" keeps Vector
+	// attendEndIntentEnv is the intent sent when a capture ends without an answer, so the robot stops listening
+	// (L63); set but empty sends nothing.
+	attendEndIntentEnv = "CORTEX_ATTEND_END_INTENT"
+
+	defaultAttendEndIntent = "intent_cortex_listening_end"
 
 	defaultVADMode = 3
 	defaultPersona = "Jarvis"
@@ -129,6 +134,10 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 			brainDesc += " as " + persona
 		}
 	}
+	endIntent, set := os.LookupEnv(attendEndIntentEnv)
+	if !set {
+		endIntent = defaultAttendEndIntent
+	}
 	tr, trDesc, err := d.transcriber()
 	if err != nil {
 		return nil, "", err
@@ -140,10 +149,14 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 		Brain:       brain,
 		Robot:       robotCommands{d.sender},
 		Logf:        d.logf,
+		EndIntent:   endIntent,
 	})
 	desc := fmt.Sprintf("%s, %s, %s; capture from %v before the wake, ends after %v of silence, at most %v, "+
 		"gives up after %v without speech; mic %d Hz", trDesc, brainDesc, vadDesc, capture.WakeMargin,
 		capture.EndSilence, capture.MaxLength, capture.NoSpeech, capture.MicRate)
+	if endIntent != "" {
+		desc += "; " + endIntent + " when nothing is answered"
+	}
 	return c, desc, nil
 }
 

@@ -23,6 +23,9 @@ type Config struct {
 	Queue int
 	// Timeout bounds transcribing and answering one utterance.
 	Timeout time.Duration
+	// EndIntent is sent to the robot as an intent result when a capture ends without an answer (no speech,
+	// nothing heard, an error, a dropped utterance), so it stops listening (L63). Empty sends nothing.
+	EndIntent string
 }
 
 // Conversation is the cortex's listening loop: after a wake it captures what the user says from the robot's
@@ -138,13 +141,16 @@ func (c *Conversation) finished(esn string, u Utterance) {
 	switch {
 	case u.Reason == EndNoSpeech:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard: no speech after %.1f s, nothing sent", esn, u.Duration().Seconds()))
+		go c.endListening(esn)
 		return
 	case u.Reason == EndStream:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s %s after %.1f s, nothing sent", esn, u.Reason, u.Duration().Seconds()))
+		go c.endListening(esn)
 		return
 	case u.Level < c.cfg.Capture.MinLevel:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard in %.1f s (%s, %s), nothing sent", esn,
 			u.Duration().Seconds(), u.Reason, speech(u)))
+		go c.endListening(esn)
 		return
 	}
 	c.cfg.Logf(fmt.Sprintf("Cortex: %s heard %.1f s (%s, %s)", esn, u.Duration().Seconds(), u.Reason, speech(u)))
@@ -154,6 +160,7 @@ func (c *Conversation) finished(esn string, u Utterance) {
 	default:
 		w.dropped++
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s still answering, utterance dropped (%d dropped)", esn, w.dropped))
+		go c.endListening(esn)
 	}
 }
 
@@ -175,15 +182,32 @@ func (c *Conversation) run(esn string, w *worker) {
 	}
 }
 
-// answer transcribes one utterance, asks the brain and sends the answer to the robot.
+// answer transcribes one utterance, asks the brain and sends the answer to the robot; without an answer it ends
+// the robot's listening.
 func (c *Conversation) answer(esn string, u Utterance) {
+	if !c.reply(esn, u) {
+		c.endListening(esn)
+	}
+}
+
+// endListening tells the robot a capture ended without an answer (Config.EndIntent).
+func (c *Conversation) endListening(esn string) {
+	if c.cfg.EndIntent == "" {
+		return
+	}
+	err := c.cfg.Robot.SendIntentResult(esn, c.cfg.EndIntent, "")
+	c.cfg.Logf(fmt.Sprintf("Cortex: %s listening end %s, %s", esn, c.cfg.EndIntent, outcome(err)))
+}
+
+// reply transcribes one utterance, asks the brain and sends its answer; it says whether an answer was sent.
+func (c *Conversation) reply(esn string, u Utterance) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), c.cfg.Timeout)
 	defer cancel()
 	began := c.cfg.Now()
 	t, err := c.cfg.Transcriber.Transcribe(ctx, u)
 	if err != nil {
 		c.cfg.Logf("Cortex: ", esn, " transcription failed: ", err)
-		return
+		return false
 	}
 	raw := strings.TrimSpace(t.Text)
 	t.Text = stripWakePhrase(raw)
@@ -191,17 +215,17 @@ func (c *Conversation) answer(esn string, u Utterance) {
 	if !hasWord(t.Text) && hasWord(raw) {
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard after the wake phrase %q (%.2f s), nothing sent", esn, raw,
 			heard.Sub(began).Seconds()))
-		return
+		return false
 	}
 	if !hasWord(t.Text) {
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s transcribed no words %q (%.2f s), nothing sent", esn, t.Text,
 			heard.Sub(began).Seconds()))
-		return
+		return false
 	}
 	if silencePhrase(t.Text) && u.Level < c.cfg.Capture.ClearLevel {
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard: %q is whisper's word for quiet audio (%s), nothing sent",
 			esn, t.Text, speech(u)))
-		return
+		return false
 	}
 	line := fmt.Sprintf("Cortex: %s transcribed (%s, %.2f s): %s", esn, t.Language, heard.Sub(began).Seconds(), t.Text)
 	if t.Text != raw {
@@ -211,7 +235,7 @@ func (c *Conversation) answer(esn string, u Utterance) {
 	a, err := c.cfg.Brain.Answer(ctx, esn, t)
 	if err != nil {
 		c.cfg.Logf("Cortex: ", esn, " brain failed: ", err)
-		return
+		return false
 	}
 	took := c.cfg.Now().Sub(heard).Seconds()
 	switch {
@@ -223,7 +247,9 @@ func (c *Conversation) answer(esn string, u Utterance) {
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s answer %q (%.2f s), %s", esn, a.Text, took, outcome(err)))
 	default:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s answered by the brain itself (%.2f s), nothing sent", esn, took))
+		return false
 	}
+	return true
 }
 
 func outcome(err error) string {
