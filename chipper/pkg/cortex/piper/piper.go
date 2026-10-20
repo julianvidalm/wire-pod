@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex"
@@ -30,6 +31,9 @@ type Config struct {
 	Script  string            // CORTEX_TTS_SIDECAR
 	Voices  map[string]string // language -> piper .onnx (CORTEX_TTS_VOICE_ES, CORTEX_TTS_VOICE_EN)
 	LevelDB float64           // CORTEX_TTS_LEVEL_DB: speech RMS in dBFS
+	// SentenceTimeout bounds one sentence (CORTEX_TTS_SENTENCE_TIMEOUT, default 3s); past it the sidecar is
+	// killed and the next sentence starts a new one.
+	SentenceTimeout time.Duration
 }
 
 // ConfigFromEnv reads the CORTEX_TTS* variables through getenv (os.Getenv in wire-pod).
@@ -48,7 +52,8 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 			"es": or("CORTEX_TTS_VOICE_ES", filepath.Join(dir, "es_MX-claude-high.onnx")),
 			"en": or("CORTEX_TTS_VOICE_EN", filepath.Join(dir, "en_US-lessac-medium.onnx")),
 		},
-		LevelDB: -20,
+		LevelDB:         -20,
+		SentenceTimeout: 3 * time.Second,
 	}
 	switch mode := or("CORTEX_TTS", "off"); mode {
 	case "off":
@@ -63,6 +68,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 			return cfg, fmt.Errorf("CORTEX_TTS_LEVEL_DB=%q: want dBFS in [-60, 0)", s)
 		}
 		cfg.LevelDB = db
+	}
+	if v := getenv("CORTEX_TTS_SENTENCE_TIMEOUT"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil || d <= 0 {
+			return cfg, fmt.Errorf("CORTEX_TTS_SENTENCE_TIMEOUT=%q: want a positive duration", v)
+		}
+		cfg.SentenceTimeout = d
 	}
 	return cfg, nil
 }
@@ -91,7 +103,7 @@ func NewVoice(cfg Config) (*cortex.SentenceVoice, *Sidecar, error) {
 		return nil, nil, err
 	}
 	log.Println(cfg.Describe())
-	return cortex.NewSentenceVoice(side, cfg.LevelDB), side, nil
+	return cortex.NewSentenceVoice(side, cfg.LevelDB).WithSentenceTimeout(cfg.SentenceTimeout), side, nil
 }
 
 const readyTimeout = 30 * time.Second
@@ -103,6 +115,7 @@ type Sidecar struct {
 	turn chan struct{} // holds one token: whoever has it talks to the process
 
 	cmd    *exec.Cmd
+	proc   atomic.Pointer[os.Process] // the running process, for killing it from outside the turn
 	stdin  io.WriteCloser
 	stdout *bufio.Reader
 	rates  map[string]int
@@ -143,6 +156,7 @@ func (s *Sidecar) start() error {
 		return fmt.Errorf("tts sidecar: %w", err)
 	}
 	s.cmd, s.stdin, s.stdout = cmd, stdin, bufio.NewReaderSize(stdout, 1<<16)
+	s.proc.Store(cmd.Process)
 	ready := make(chan error, 1)
 	go func() {
 		var hello struct {
@@ -173,6 +187,7 @@ func (s *Sidecar) start() error {
 
 func (s *Sidecar) kill() {
 	if s.cmd != nil {
+		s.proc.Store(nil)
 		s.stdin.Close()
 		s.cmd.Process.Kill()
 		s.cmd.Wait()
@@ -207,6 +222,13 @@ func (s *Sidecar) Synthesize(ctx context.Context, lang, sentence string) ([]int1
 	case r := <-done:
 		return r.pcm, r.rate, r.err
 	case <-ctx.Done():
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			// hung: kill it, so the exchange fails, frees the turn and the next sentence starts a new sidecar
+			if p := s.proc.Load(); p != nil {
+				log.Printf("piper: sentence past its deadline, killing the sidecar (pid %d)", p.Pid)
+				killTree(p)
+			}
+		}
 		return nil, 0, ctx.Err()
 	}
 }

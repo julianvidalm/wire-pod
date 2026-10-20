@@ -60,6 +60,28 @@ func (s *Speech) Wait() (SpeechResult, error) {
 type SentenceVoice struct {
 	synth   Synthesizer
 	levelDB float64
+	timeout time.Duration // per sentence; 0: none
+}
+
+// WithSentenceTimeout bounds synthesizing one sentence (0: no bound): a sentence that takes longer stops the
+// speech with context.DeadlineExceeded, so a hung engine never holds an answer.
+func (v *SentenceVoice) WithSentenceTimeout(d time.Duration) *SentenceVoice {
+	v.timeout = d
+	return v
+}
+
+// synthesize runs one sentence under the sentence timeout.
+func (v *SentenceVoice) synthesize(ctx context.Context, lang, sentence string) ([]int16, int, error) {
+	if v.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, v.timeout)
+		defer cancel()
+	}
+	pcm, rate, err := v.synth.Synthesize(ctx, lang, sentence)
+	if err == nil {
+		err = ctx.Err()
+	}
+	return pcm, rate, err
 }
 
 func NewSentenceVoice(s Synthesizer, levelDB float64) *SentenceVoice {
@@ -80,10 +102,7 @@ func (v *SentenceVoice) Speak(ctx context.Context, text, lang string) *Speech {
 				s.err = err
 				break
 			}
-			pcm, rate, err := v.synth.Synthesize(ctx, lang, sentence)
-			if err == nil {
-				err = ctx.Err()
-			}
+			pcm, rate, err := v.synthesize(ctx, lang, sentence)
 			if err != nil {
 				s.err = fmt.Errorf("sentence %d: %w", i+1, err)
 				break

@@ -185,6 +185,7 @@ audio <ms> after the answer, max lead <s>, <n> gaps`.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `CORTEX_TTS` | `off` | `piper` starts the sidecar, logs `cortex: TTS piper, es …, en …, level … dBFS` and speaks knowledge answers with it; `off` lets the robot say them (the commands are the same as before T8d) |
+| `CORTEX_TTS_SENTENCE_TIMEOUT` | `3s` | longest synthesis of one sentence (warm piper takes 130-210 ms); past it the sidecar is killed and restarted on the next sentence, and the answer falls back as when synthesis fails: before the first sentence the robot says it, later the stream is cancelled; not a positive duration is an error (voice off) |
 | `CORTEX_TTS_VOLUME` | `100` | SDK playback volume 1-100, under the robot's master volume; anything else logs and uses 100 |
 | `CORTEX_TTS_VOICE_ES` | `~/.cache/v3ctor/piper-voices/es_MX-claude-high.onnx` | Spanish piper voice (its `.onnx.json` next to it) |
 | `CORTEX_TTS_VOICE_EN` | `~/.cache/v3ctor/piper-voices/en_US-lessac-medium.onnx` | English piper voice |
