@@ -118,3 +118,45 @@ func TestSessionIsGoneAfterTheRobotDisconnects(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+// T8b: the robot reports on the cortex's audio streams in chunks with no data; each report reaches the status
+// handler with the robot's ESN, and the audio around it is still consumed whole.
+func TestSessionRoutesAudioStatus(t *testing.T) {
+	sink := &recordingSink{}
+	srv := New(sink)
+	type report struct {
+		esn   string
+		id    uint32
+		state mictappb.AudioStatus_State
+	}
+	got := make(chan report, 4)
+	srv.OnAudioStatus(func(esn string, s *mictappb.AudioStatus) { got <- report{esn, s.GetStreamId(), s.GetState()} })
+	c := dialServer(t, srv)
+	ctx := metadata.AppendToOutgoingContext(context.Background(), ESNMetadataKey, "0dd1b652")
+	session, err := c.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := stream()
+	session.Send(&mictappb.Chunk{Data: data[:50]})
+	session.Send(&mictappb.Chunk{AudioStatus: &mictappb.AudioStatus{StreamId: 7, State: mictappb.AudioStatus_STARTED}})
+	session.Send(&mictappb.Chunk{Data: data[50:]})
+	session.Send(&mictappb.Chunk{AudioStatus: &mictappb.AudioStatus{StreamId: 7, State: mictappb.AudioStatus_COMPLETED}})
+	session.CloseSend()
+	session.Recv()
+	for _, want := range []report{{"0dd1b652", 7, mictappb.AudioStatus_STARTED}, {"0dd1b652", 7, mictappb.AudioStatus_COMPLETED}} {
+		select {
+		case r := <-got:
+			if r != want {
+				t.Fatalf("report %+v, want %+v", r, want)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("no report %+v", want)
+		}
+	}
+	sink.mu.Lock()
+	defer sink.mu.Unlock()
+	if sink.frames != 6 || !sink.ended {
+		t.Fatalf("sink %+v", sink)
+	}
+}
