@@ -96,8 +96,8 @@ started. The robot first turns to the voice (S6), so the user speaks late: with 
 (9 s) the capture gives up and sends the end intent. The prompt goes through the same ordered queue as the attend
 and the end, and is skipped when a newer wake is already listening. Only speech after the wake's end counts, and only once it lasts 200 ms:
 the margin holds "hey jarvis" and is sent to whisper, but it never starts the utterance, so a pause between the
-name and the question does not end it. A leading wake phrase in the transcript ("Hey Jarvis,", "Oye Jarvis",
-"Hola Jarvis", whisper's "Hey, Jorby.", "Ay, Jarvis.", "Hey Jorbit") is removed before the brain; a transcript that is only the wake phrase is nothing heard. These times count audio samples at `OWW_MIC_RATE`,
+name and the question does not end it. A leading wake phrase in the transcript ("Hey Vector,", "Oye Vector",
+"Hola Vector", whisper's "Hey, Víctor.", "Hey Béctor", "Vektor") is removed before the brain ("Jarvis" no longer is); a transcript that is only the wake phrase is nothing heard. These times count audio samples at `OWW_MIC_RATE`,
 and the utterance is resampled from that rate to whisper's 16 kHz. Each robot has one worker that transcribes and
 answers in order. A second utterance waits; more are dropped and logged, so the mic stream and the wake detector
 never wait for whisper or the LLM.
@@ -122,7 +122,27 @@ answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
 | `CORTEX_VAD_MODE` | `3` | webrtc VAD aggressiveness, 0-3 |
 | `CORTEX_ATTEND_END_INTENT` | `intent_cortex_listening_end` | intent sent when a capture ends without an answer (no speech, nothing heard, only the wake phrase, a transcription or brain error, a dropped utterance), so the robot stops listening; sent in order with the attends, skipped when a newer wake is already listening, and for a dropped utterance only if nothing ahead of it was answered; empty sends nothing |
 | `CORTEX_THINKING_INTENT` | `intent_cortex_thinking` | intent sent when a capture ends with speech, before whisper, so the robot shows its thinking face until the answer; in order with the attends, skipped when a newer wake is already listening, and the answer waits (at most 2 s) for it; empty sends nothing |
-| `CORTEX_PERSONA` | `Jarvis` | the robot's name in the LLM prompt (replaces "Vector"); `-` keeps the prompt as is |
+| `CORTEX_PERSONA` | `-` | the robot's name in the LLM prompt (replaces "Vector"); unset or `-` keeps the prompt as is, so the robot is Vector |
+| `CORTEX_VOICE_REQUESTS` | `off` | `on` (with `CORTEX_CONVERSATION=on`) answers the robot's own voice requests with the conversation; see below |
+
+### The robot's own wake
+
+With `CORTEX_VOICE_REQUESTS=on` the robot wakes on its own "hey vector" and streams the question as a stock voice
+request; the cortex answers it instead of wire-pod's STT and intent matching (wire-pod logs `Cortex voice requests
+on` at start). The request's Opus audio is decoded to 16 kHz and read until wire-pod's VAD hears the speech end (at
+most 6.5 s); the conversation's whisper (`CORTEX_WHISPER_MODEL`), wake phrase and silence filters and brain answer
+it, all within 8.5 s of the request (vic-cloud gives up at 9 s). The request gets exactly one response on its own
+stream, never a MicTap intent:
+
+| Answer | Response |
+| --- | --- |
+| brain intent | that intent, its JSON parameters as strings |
+| text, with `CORTEX_TTS=piper` | `intent_knowledge_response_extend_bypass` with `answer`, `answer_type`, `query_text`, `external_voice` `true` and `expected_duration_ms`, then the piper audio over the MicTap session (needs the firmware that types these two parameters); when the voice cannot start, the plain knowledge answer the robot says |
+| text, robot voice | the knowledge graph response |
+| no speech, no words, only "hey vector", a quiet silence phrase | `intent_system_noaudio` |
+| transcription or brain error | `intent_system_unmatched` |
+
+Unset or `off`, wire-pod answers voice requests exactly as before.
 
 ### Half duplex
 

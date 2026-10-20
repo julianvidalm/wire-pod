@@ -38,7 +38,7 @@ func TestACaptureWithoutAnswerEndsTheListening(t *testing.T) {
 		"nothing heard":          {&fakeTranscriber{text: "hola"}, &fakeBrain{answer: Answer{Text: "x"}}, 50},
 		"no words":               {&fakeTranscriber{text: "."}, &fakeBrain{answer: Answer{Text: "x"}}, clearAmplitude},
 		"silence phrase":         {&fakeTranscriber{text: "Thank you."}, &fakeBrain{answer: Answer{Text: "x"}}, 260},
-		"only the wake phrase":   {&fakeTranscriber{text: "Hey Jarvis."}, &fakeBrain{answer: Answer{Text: "x"}}, clearAmplitude},
+		"only the wake phrase":   {&fakeTranscriber{text: "Hey Vector."}, &fakeBrain{answer: Answer{Text: "x"}}, clearAmplitude},
 		"transcription error":    {failingTranscriber{}, &fakeBrain{answer: Answer{Text: "x"}}, clearAmplitude},
 		"brain error":            {&fakeTranscriber{text: "hola"}, failingBrain{}, clearAmplitude},
 		"brain answered nothing": {&fakeTranscriber{text: "hola"}, &fakeBrain{}, clearAmplitude},
@@ -165,7 +165,7 @@ func TestAnAnswerDoesNotEndTheListening(t *testing.T) {
 
 func TestAnEmptyEndIntentSendsNothing(t *testing.T) {
 	r := newFakeRobot()
-	c := newEndConversation(&fakeTranscriber{text: "Hey Jarvis."}, &fakeBrain{answer: Answer{Text: "x"}}, r, "")
+	c := newEndConversation(&fakeTranscriber{text: "Hey Vector."}, &fakeBrain{answer: Answer{Text: "x"}}, r, "")
 	wakeThenAsk(c, "esn1", 500*time.Millisecond, time.Second, clearAmplitude)
 	c.Wake("esn1", 10000)
 	for ts := uint64(10000); ts < 15000; ts += 10 {

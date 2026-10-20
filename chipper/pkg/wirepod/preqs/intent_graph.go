@@ -11,6 +11,10 @@ import (
 )
 
 func (s *Server) ProcessIntentGraph(req *vtt.IntentGraphRequest) (*vtt.IntentGraphResponse, error) {
+	if VoiceRequest != nil {
+		VoiceRequest(req)
+		return nil, nil
+	}
 	var successMatched bool
 	speechReq := sr.ReqToSpeechRequest(req)
 	var transcribedText string

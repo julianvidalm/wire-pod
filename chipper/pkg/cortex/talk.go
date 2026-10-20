@@ -159,8 +159,28 @@ func (t *Talker) stop(esn string, s *talkStream) {
 	t.mu.Unlock()
 }
 
-// Say implements Speaker.
+// Say implements Speaker: the knowledge answer goes over the robot's session too.
 func (t *Talker) Say(esn, answer, query, lang string) error {
+	return t.SayTo(esn, answer, query, lang, sessionKnowledge{t, esn})
+}
+
+// sessionKnowledge sends the talker's knowledge answer over the robot's session.
+type sessionKnowledge struct {
+	t   *Talker
+	esn string
+}
+
+func (s sessionKnowledge) Knowledge(answer, query string) error {
+	return s.t.cfg.RobotSay(s.esn, answer, query)
+}
+
+func (s sessionKnowledge) KnowledgeVoice(answer, query string, expected time.Duration) error {
+	return s.t.cfg.Robot.SendKnowledgeVoice(s.esn, answer, query, expected)
+}
+
+// SayTo implements TargetSpeaker: the knowledge answer (with the cortex's voice, or the robot's when the voice
+// cannot start) goes to to; the speech goes over the robot's session.
+func (t *Talker) SayTo(esn, answer, query, lang string, to KnowledgeTarget) error {
 	lang = SpeechLanguage(answer, lang)
 	began := t.cfg.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), t.cfg.Timeout)
@@ -170,19 +190,19 @@ func (t *Talker) Say(esn, answer, query, lang string) error {
 	if !ok {
 		_, err := speech.Wait()
 		t.cfg.Logf(fmt.Sprintf("Cortex voice: %s no speech (%v), the robot says it", esn, err))
-		return t.cfg.RobotSay(esn, answer, query)
+		return to.Knowledge(answer, query)
 	}
 	ready := t.cfg.Now()
 	expected := expectedSpeech(first, answer, lang)
 	s := t.start(esn)
 	defer t.stop(esn, s)
-	if err := t.cfg.Robot.SendKnowledgeVoice(esn, answer, query, expected); err != nil {
+	if err := to.KnowledgeVoice(answer, query, expected); err != nil {
 		return err
 	}
 	if err := t.cfg.Robot.PrepareAudio(esn, s.id, SpeechRate, t.cfg.Volume, expected); err != nil {
 		return err
 	}
-	p := &playout{t: t, esn: esn, s: s}
+	p := &playout{t: t, esn: esn, s: s, to: to}
 	chunk := &first
 	for {
 		if err := p.send(chunk.Samples); err != nil {
@@ -228,7 +248,8 @@ type playout struct {
 	t       *Talker
 	esn     string
 	s       *talkStream
-	t0      time.Time // when playback (of sample 0) started, as far as the cortex can tell
+	to      KnowledgeTarget // where the robot's own voice goes when the stream fails before it started
+	t0      time.Time       // when playback (of sample 0) started, as far as the cortex can tell
 	firstAt time.Time
 	sent    int // samples
 	started bool
@@ -313,7 +334,7 @@ func (p *playout) end(answer, query string, err error) error {
 	if f, ok := err.(streamFailed); ok {
 		if !f.started && f.state != AudioCancelled {
 			cfg.Logf(fmt.Sprintf("Cortex voice: %s stream %d %s before it started, the robot says it", p.esn, p.s.id, f.state))
-			return cfg.RobotSay(p.esn, answer, query)
+			return p.to.Knowledge(answer, query)
 		}
 		cfg.Logf(fmt.Sprintf("Cortex voice: %s stream %d %s after %v of speech", p.esn, p.s.id, f.state,
 			samplesDuration(p.sent)))
@@ -412,4 +433,7 @@ func setOf(words ...string) map[string]bool {
 	return m
 }
 
-var _ Speaker = (*Talker)(nil)
+var (
+	_ Speaker       = (*Talker)(nil)
+	_ TargetSpeaker = (*Talker)(nil)
+)

@@ -96,6 +96,7 @@ func BeginWirepodSpecific(sttInitFunc func() error, sttHandlerFunc interface{}, 
 	if err != nil {
 		return err
 	}
+	installVoiceRequests()
 	return nil
 }
 

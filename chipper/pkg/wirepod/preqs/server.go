@@ -30,6 +30,12 @@ var stiHandler func(sr.SpeechRequest) (string, map[string]string, error)
 
 var isSti bool = false
 
+// VoiceRequest, when set, answers each voice request (a *vtt.IntentGraphRequest or *vtt.IntentRequest) instead of
+// wire-pod's STT and intent matching, sending exactly one response on the request's stream: initwirepod sets it
+// with CORTEX_VOICE_REQUESTS=on (the cortex's whisper, brain and voice). nil, the default, keeps wire-pod's path.
+// It is set once at startup, before the chipper server serves.
+var VoiceRequest func(req any)
+
 func ReloadVosk() {
 	if vars.APIConfig.STT.Service == "vosk" || vars.APIConfig.STT.Service == "whisper.cpp" {
 		vars.SttInitFunc()

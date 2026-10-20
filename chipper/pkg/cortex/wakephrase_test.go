@@ -20,24 +20,26 @@ func askWith(t *testing.T, text string, level int16) (*fakeBrain, *fakeRobot, *l
 	return b, r, logs
 }
 
-// L61: the capture now holds "hey jarvis", so whisper writes it; the brain gets only the question.
+// S1: the robot wakes on its own "hey vector" and whisper may write the wake phrase too; the brain gets only the
+// question, never the robot's name.
 func TestALeadingWakePhraseIsNotSentToTheBrain(t *testing.T) {
 	for raw, want := range map[string]string{
-		"Hey Jarvis, ¿qué hora es?":                "¿Qué hora es?",
-		"hey, jarvis what time is it":              "What time is it",
-		"Hey, Jorby. What time is it?":             "What time is it?",
-		"Hey, Jarby. - Que horas?":                 "Que horas?",
-		"Hi Jarvis. Tell me a joke.":               "Tell me a joke.",
-		"Ey Jarvis, cuéntame un chiste.":           "Cuéntame un chiste.",
-		"Oye, Jarvis, cuéntame un chiste.":         "Cuéntame un chiste.",
-		"Jarvis, stop.":                            "Stop.",
-		"Hey Jarvis. Hey Jarvis, what time is it?": "What time is it?", // said twice (replay 150003)
-		"HEY JARVIS! ¿Cómo te llamas?":             "¿Cómo te llamas?",
-		"Hey Jervis, set a timer.":                 "Set a timer.",
-		"What do you think of Jarvis?":             "What do you think of Jarvis?",
+		"Hey Vector, ¿qué hora es?":                "¿Qué hora es?",
+		"hey, vector what time is it":              "What time is it",
+		"Hey, Víctor. What time is it?":            "What time is it?",
+		"Hey Béctor. - Que horas?":                 "Que horas?",
+		"Hi Vector. Tell me a joke.":               "Tell me a joke.",
+		"Ey Vektor, cuéntame un chiste.":           "Cuéntame un chiste.",
+		"Oye, Vector, cuéntame un chiste.":         "Cuéntame un chiste.",
+		"Vector, stop.":                            "Stop.",
+		"Hey Vector. Hey Vector, what time is it?": "What time is it?", // said twice
+		"HEY VECTOR! ¿Cómo te llamas?":             "¿Cómo te llamas?",
+		"Hey Victor, set a timer.":                 "Set a timer.",
+		"Hey Bector, set a timer.":                 "Set a timer.",
+		"What do you think of Vector?":             "What do you think of Vector?",
 		"Hey, what's up?":                          "Hey, what's up?",
 		"¿qué hora es?":                            "¿qué hora es?",
-		"Jarvisito, ¿qué hora es?":                 "Jarvisito, ¿qué hora es?",
+		"Vectorcito, ¿qué hora es?":                "Vectorcito, ¿qué hora es?",
 	} {
 		b, r, _ := askWith(t, raw, clearAmplitude)
 		r.next(t)
@@ -47,9 +49,18 @@ func TestALeadingWakePhraseIsNotSentToTheBrain(t *testing.T) {
 	}
 }
 
+// S1: "jarvis" is no longer the robot's name: it reaches the brain as said.
+func TestJarvisIsNoLongerStripped(t *testing.T) {
+	for _, raw := range []string{"Hey Jarvis, ¿qué hora es?", "Jarvis, stop."} {
+		if got := stripWakePhrase(raw); got != raw {
+			t.Fatalf("%q: got %q, want it unchanged", raw, got)
+		}
+	}
+}
+
 // A transcript that is only the wake phrase holds no question: nothing is sent, as for no speech.
 func TestOnlyTheWakePhraseIsNothingHeard(t *testing.T) {
-	for _, raw := range []string{"Hey Jarvis.", "Hey, Jorby!", "jarvis", "Oye Jarvis..."} {
+	for _, raw := range []string{"Hey Vector.", "Hey, Víctor!", "vector", "Oye Vector..."} {
 		b, r, logs := askWith(t, raw, clearAmplitude)
 		r.none(t)
 		if b.count() != 0 || !logs.has("nothing heard") {
@@ -60,7 +71,7 @@ func TestOnlyTheWakePhraseIsNothingHeard(t *testing.T) {
 
 // The silence-phrase guard still applies to what follows the wake phrase.
 func TestAQuietSilencePhraseAfterTheWakePhraseIsNothingHeard(t *testing.T) {
-	b, r, logs := askWith(t, "Hey Jarvis. Thank you.", 260)
+	b, r, logs := askWith(t, "Hey Vector. Thank you.", 260)
 	r.none(t)
 	if b.count() != 0 || !logs.has("nothing heard") {
 		t.Fatalf("brain called %d times, logs %q; want 0 and a nothing-heard line", b.count(), logs.lines)
@@ -69,9 +80,9 @@ func TestAQuietSilencePhraseAfterTheWakePhraseIsNothingHeard(t *testing.T) {
 
 // The log keeps its format and adds the raw transcript only when the wake phrase was stripped.
 func TestTheTranscriptLogShowsTheRawTextOnlyWhenStripped(t *testing.T) {
-	_, r, logs := askWith(t, "Hey Jarvis, ¿qué hora es?", clearAmplitude)
+	_, r, logs := askWith(t, "Hey Vector, ¿qué hora es?", clearAmplitude)
 	r.next(t)
-	if !logs.has("): ¿Qué hora es? [raw: Hey Jarvis, ¿qué hora es?]") {
+	if !logs.has("): ¿Qué hora es? [raw: Hey Vector, ¿qué hora es?]") {
 		t.Fatalf("no stripped line with the raw text in %q", logs.lines)
 	}
 	_, r, logs = askWith(t, "¿Qué hora es?", clearAmplitude)
@@ -81,31 +92,30 @@ func TestTheTranscriptLogShowsTheRawTextOnlyWhenStripped(t *testing.T) {
 	}
 }
 
-// L101: "Hola Jarvis" (whisper: "Hey Jorbit", "Ay, Jarvis.") is the wake phrase too.
-func TestGreetingsHolaAyAhAndTheJorbitFoldAreStripped(t *testing.T) {
+// The greetings whisper writes before the name (L101: "Hola", "Ay", "Ah") are stripped with it.
+func TestGreetingsHolaAyAhAreStripped(t *testing.T) {
 	for raw, want := range map[string]string{
-		"Hey Jorbit, contame un chiste.":   "Contame un chiste.",
-		"Hola Jarvis, cuéntame un chiste.": "Cuéntame un chiste.",
-		"Hola, Jarvis. ¿Qué hora es?":      "¿Qué hora es?",
-		"Ay, Jarvis, cuéntame un chiste.":  "Cuéntame un chiste.",
-		"Ah Jarvis, what time is it?":      "What time is it?",
-		"Jarvit, ¿qué hora es?":            "¿Qué hora es?",
+		"Hola Vector, cuéntame un chiste.": "Cuéntame un chiste.",
+		"Hola, Víctor. ¿Qué hora es?":      "¿Qué hora es?",
+		"Ay, Vector, cuéntame un chiste.":  "Cuéntame un chiste.",
+		"Ah Vector, what time is it?":      "What time is it?",
+		"Viktor, ¿qué hora es?":            "¿Qué hora es?",
 	} {
 		if got := stripWakePhrase(raw); got != want {
 			t.Fatalf("%q: got %q, want %q", raw, got, want)
 		}
 	}
-	for _, raw := range []string{"Ay, Jarvis.", "Hola Jarvis.", "Hey Jorbit!"} {
+	for _, raw := range []string{"Ay, Vector.", "Hola Víctor.", "Hey Béctor!"} {
 		if got := stripWakePhrase(raw); hasWord(got) {
 			t.Fatalf("%q: got %q, want nothing left", raw, got)
 		}
 	}
 }
 
-// Words that only sound like the name, and greetings alone, are kept (L67 probes).
+// Words that only sound like the name, and greetings alone, are kept.
 func TestNearNamesAndLoneGreetingsAreKept(t *testing.T) {
-	for _, raw := range []string{"Javier, ¿qué hora es?", "Service, please.", "Harvey's car is red.",
-		"Harvest time.", "Hervé est là.", "Hey George, hi.", "Hola, ¿qué tal?", "Ay, qué susto.", "Ah, I see.",
+	for _, raw := range []string{"Victoria, ¿qué hora es?", "Vectorial math.", "Doctor, please.",
+		"Hector is here.", "Vecto.", "Hey George, hi.", "Hola, ¿qué tal?", "Ay, qué susto.", "Ah, I see.",
 		"Javier Vista."} {
 		if got := stripWakePhrase(raw); got != raw {
 			t.Fatalf("%q: got %q, want it unchanged", raw, got)

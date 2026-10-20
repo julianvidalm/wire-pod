@@ -23,7 +23,7 @@ const (
 	conversationEnv  = "CORTEX_CONVERSATION" // on or off (the default): off keeps attend-only wakes
 	cortexMarginEnv  = "CORTEX_WAKE_MARGIN"  // Go duration the capture starts before the wake's end, default 1s (whisper hears "hey jarvis")
 	cortexVADModeEnv = "CORTEX_VAD_MODE"     // webrtc VAD aggressiveness 0-3, default 3
-	cortexPersonaEnv = "CORTEX_PERSONA"      // the robot's name in the LLM prompt, default Jarvis; "-" keeps Vector
+	cortexPersonaEnv = "CORTEX_PERSONA"      // the robot's name in the LLM prompt; unset or "-" keeps Vector (S1)
 	// attendEndIntentEnv is the intent sent when a capture ends without an answer, so the robot stops listening
 	// (L63); set but empty sends nothing.
 	attendEndIntentEnv = "CORTEX_ATTEND_END_INTENT"
@@ -47,7 +47,7 @@ const (
 	defaultThinkingIntent = "intent_cortex_thinking"
 
 	defaultVADMode = 3
-	defaultPersona = "Jarvis"
+	defaultPersona = "-"           // S1: the prompt's own robot, Vector
 	intentDataDir  = "intent-data" // wire-pod runs in chipper
 )
 
@@ -150,10 +150,7 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 		if err != nil {
 			return nil, "", err
 		}
-		persona := envOr(cortexPersonaEnv, defaultPersona)
-		if persona == "-" {
-			persona = ""
-		}
+		persona := cortexPersona()
 		brain = wirepodbrain.New(wirepodbrain.Config{
 			Intents:         intents,
 			DefaultLanguage: "en",
@@ -295,4 +292,13 @@ func detectorSink(logSink, detector mictap.Sink, conv *cortex.Conversation, hd *
 		return mictap.Tee(logSink, mictapgate.New(detector, *hd, micRate(), logger.Println))
 	}
 	return mictap.Tee(logSink, mictapgate.NewWithCapture(micTapAudio{conv}, detector, *hd, micRate(), logger.Println))
+}
+
+// cortexPersona is the robot's name in the LLM prompt (CORTEX_PERSONA), or "" to keep the prompt's own.
+func cortexPersona() string {
+	persona := envOr(cortexPersonaEnv, defaultPersona)
+	if persona == "-" {
+		persona = ""
+	}
+	return persona
 }
