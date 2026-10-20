@@ -345,7 +345,7 @@ func TestTheExpectedDurationIsExactForOneSentenceAndGenerousForMore(t *testing.T
 	}
 	first := "Son las tres de la tarde." // 25 letters in 1.5 s: 60 ms each, below the 80 ms floor
 	more := expectedSpeech(SpeechChunk{Text: first, Samples: make([]int16, 24000)}, twoSentences, "es")
-	if want := time.Duration(float64(1500*time.Millisecond+26*80*time.Millisecond) * 1.25); more != want.Round(time.Millisecond) {
+	if want := time.Duration(float64(1500*time.Millisecond+26*80*time.Millisecond+300*time.Millisecond) * 1.25); more != want.Round(time.Millisecond) {
 		t.Fatalf("two sentences: %v, want %v", more, want)
 	}
 }

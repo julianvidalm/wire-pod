@@ -130,6 +130,7 @@ func (s *Sidecar) start() error {
 	}
 	cmd := exec.Command(s.cfg.Python, args...)
 	cmd.Stderr = os.Stderr
+	stopWithParent(cmd)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err

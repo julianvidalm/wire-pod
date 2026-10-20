@@ -327,12 +327,16 @@ func (p *playout) end(answer, query string, err error) error {
 
 func samplesDuration(n int) time.Duration { return time.Duration(n) * time.Second / SpeechRate }
 
-// minSpeechPerRune is the slowest speaking rate expectedSpeech assumes for the sentences not yet synthesized.
-const minSpeechPerRune = 80 * time.Millisecond
+// minSpeechPerRune is the slowest speaking rate expectedSpeech assumes for the sentences not yet synthesized, and
+// sentencePause the silence piper adds around each one.
+const (
+	minSpeechPerRune = 80 * time.Millisecond
+	sentencePause    = 300 * time.Millisecond
+)
 
 // expectedSpeech is how long the answer will play, known after its first sentence only: exact for one sentence;
 // otherwise the first sentence's duration plus the other sentences' letters at the first sentence's rate (never
-// faster than minSpeechPerRune), plus a quarter. The robot keeps its talking face until the stream ends or this
+// faster than minSpeechPerRune) and a sentencePause each, plus a quarter. The robot keeps its talking face until the stream ends or this
 // (plus a margin) passes, so a longer guess is the safer one.
 func expectedSpeech(first SpeechChunk, text, lang string) time.Duration {
 	firstDur := samplesDuration(len(first.Samples))
@@ -348,7 +352,7 @@ func expectedSpeech(first SpeechChunk, text, lang string) time.Duration {
 	if n := utf8.RuneCountInString(first.Text); n > 0 && firstDur/time.Duration(n) > perRune {
 		perRune = firstDur / time.Duration(n)
 	}
-	est := firstDur + time.Duration(rest)*perRune
+	est := firstDur + time.Duration(rest)*perRune + time.Duration(len(sentences)-1)*sentencePause
 	return (est + est/4).Round(time.Millisecond)
 }
 

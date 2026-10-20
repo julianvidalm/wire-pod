@@ -84,7 +84,7 @@ Every step is a port in `pkg/cortex` with its adapter:
 | echo canceller | pass-through (the robot's processed mic already removes most of its sound) |
 | transcriber | whisper.cpp with its own model context (`pkg/cortex/whispercpp`), en or es per utterance |
 | brain | wire-pod's intent matching in the transcript's language (`intent-data/en-US.json`, `es-ES.json`), then its LLM (`pkg/cortex/wirepodbrain`) |
-| robot | MicTap session commands: an intent result, or knowledge (an answer to say) |
+| robot | MicTap session commands: an intent result, or knowledge (an answer to say), with `CORTEX_TTS=piper` spoken by the cortex as an audio stream |
 
 The capture starts `CORTEX_WAKE_MARGIN` (1 s) before the wake's end, so whisper hears the whole "hey jarvis": on
 a short question that is what tells it Spanish from English (L61: "¿qué hora es?" alone came out as "Do you
@@ -121,6 +121,7 @@ answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
 | `CORTEX_CAPTURE_MAX` | `8s` | longest question, from the start of the speech |
 | `CORTEX_VAD_MODE` | `3` | webrtc VAD aggressiveness, 0-3 |
 | `CORTEX_ATTEND_END_INTENT` | `intent_cortex_listening_end` | intent sent when a capture ends without an answer (no speech, nothing heard, only the wake phrase, a transcription or brain error, a dropped utterance), so the robot stops listening; sent in order with the attends, skipped when a newer wake is already listening, and for a dropped utterance only if nothing ahead of it was answered; empty sends nothing |
+| `CORTEX_THINKING_INTENT` | `intent_cortex_thinking` | intent sent when a capture ends with speech, before whisper, so the robot shows its thinking face until the answer; in order with the attends, skipped when a newer wake is already listening, and the answer waits (at most 2 s) for it; empty sends nothing |
 | `CORTEX_PERSONA` | `Jarvis` | the robot's name in the LLM prompt (replaces "Vector"); `-` keeps the prompt as is |
 
 ### Half duplex
@@ -160,18 +161,39 @@ stops after the sentence in flight.
 
 The `piper` adapter (`pkg/cortex/piper`) runs `tts-sidecar/tts_sidecar.py` once and keeps it: a fresh process
 spends about 1-1.6 s loading onnxruntime and the voices, while a loaded voice speaks a sentence in 130-210 ms
-(RTF about 0.04 on the CPU). Nothing plays these chunks yet (T8d); `CORTEX_TTS=off` is the default.
+(RTF about 0.04 on the CPU). It starts with wire-pod (with `CORTEX_CONVERSATION=on`), restarts itself on the
+next sentence after it dies, exits at the end of its stdin and, on Linux, when wire-pod dies.
+
+With `CORTEX_TTS=piper` the conversation speaks knowledge answers itself (`cortex.Talker`, T8d); intent answers
+keep their robot behaviors. Once the first sentence is synthesized it sends, in order on the robot's MicTap
+session: the knowledge answer with `external_voice` and `expected_duration_ms` (the robot shows its talking face
+instead of speaking), an audio `prepare` (16000 Hz, `CORTEX_TTS_VOLUME`), chunks of at most 1024 bytes, and
+`complete`. The first 0.2 s go at once (the robot starts playing after 0.2 s buffered), then the stream stays at
+most 3 s ahead of playback (vic-anim overflows past about 6.2 s); sentences follow each other in the same stream.
+The expected duration is exact for one sentence; for more it is the first sentence's duration plus the rest's
+letters at its rate (at least 80 ms each) and 300 ms per sentence, plus a quarter: the robot keeps its face until
+the stream ends, so a longer guess is the safer one. The voice is the answer's language when its text clearly
+reads as Spanish or English, else the question's (whisper's `es` is Spanish, anything else English).
+
+Fallbacks: synthesis failing before the first sentence, or the robot reporting `FAILED`/`OVERFLOW` before it
+reported `STARTED` (also up to 1.5 s after the last chunk), sends the plain knowledge answer, which the robot says
+with its own voice. A failure after that cancels the stream and is logged; the answer is never spoken twice. A
+robot without the T8b/T8c firmware ignores the stream and `external_voice` and speaks the answer itself. Each
+answer logs `Cortex voice: <esn> stream <id>: <n> sentences, <s> (expected <s>, <lang>); synthesis <ms>, first
+audio <ms> after the answer, max lead <s>, <n> gaps`.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `CORTEX_TTS` | `off` | `piper` starts the sidecar and logs `cortex: TTS piper, es …, en …, level … dBFS` |
+| `CORTEX_TTS` | `off` | `piper` starts the sidecar, logs `cortex: TTS piper, es …, en …, level … dBFS` and speaks knowledge answers with it; `off` lets the robot say them (the commands are the same as before T8d) |
+| `CORTEX_TTS_VOLUME` | `100` | SDK playback volume 1-100, under the robot's master volume; anything else logs and uses 100 |
 | `CORTEX_TTS_VOICE_ES` | `~/.cache/v3ctor/piper-voices/es_MX-claude-high.onnx` | Spanish piper voice (its `.onnx.json` next to it) |
 | `CORTEX_TTS_VOICE_EN` | `~/.cache/v3ctor/piper-voices/en_US-lessac-medium.onnx` | English piper voice |
 | `CORTEX_TTS_LEVEL_DB` | `-20` | speech RMS in dBFS, in [-60, 0) |
 | `CORTEX_TTS_PYTHON` | `python3` | Python with `onnxruntime`, `piper_phonemize` and `numpy` |
 | `CORTEX_TTS_SIDECAR` | `tts-sidecar/tts_sidecar.py` | sidecar script (relative to `chipper`) |
 
-A bad `CORTEX_TTS` or `CORTEX_TTS_LEVEL_DB` is an error. To hear a voice and measure it:
+A bad `CORTEX_TTS` or `CORTEX_TTS_LEVEL_DB`, or a sidecar that does not start, logs `Cortex voice off (the robot
+speaks)` and the robot says the answers. To hear a voice and measure it:
 
 ```sh
 go run -tags nolibopusfile ./cmd/cortex-say -lang es -repeat 3 -o /tmp/es.wav "Hola. ¿Cómo estás?"

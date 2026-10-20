@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"sync/atomic"
 
 	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap/mictappb"
 	mictapserver "github.com/julianvidalm/wire-pod/chipper/pkg/servers/mictap"
@@ -14,12 +15,22 @@ import (
 var (
 	micTapServerOnce sync.Once
 	micTapServerVal  *mictapserver.Server
+	// liveAudioStatus gets the robots' audio stream reports once the conversation has a voice. It is set while
+	// the server is being built (the server's sink builds the conversation), so the server reads it per report.
+	liveAudioStatus atomic.Pointer[func(esn string, st *mictappb.AudioStatus)]
 )
 
 // micTapServer is the one MicTap gRPC service shared by both TLS listeners, so a command finds the robot's
 // session whichever listener the robot connected to.
 func micTapServer() *mictapserver.Server {
-	micTapServerOnce.Do(func() { micTapServerVal = mictapserver.New(micTapSink()) })
+	micTapServerOnce.Do(func() {
+		micTapServerVal = mictapserver.New(micTapSink())
+		micTapServerVal.OnAudioStatus(func(esn string, st *mictappb.AudioStatus) {
+			if f := liveAudioStatus.Load(); f != nil {
+				(*f)(esn, st)
+			}
+		})
+	})
 	return micTapServerVal
 }
 

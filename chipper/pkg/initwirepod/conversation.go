@@ -64,6 +64,7 @@ func liveConversation() *cortex.Conversation {
 			transcriber: CortexTranscriber,
 			sender:      sessionsSender{},
 			logf:        logger.Println,
+			audioStatus: func(f func(string, *mictappb.AudioStatus)) { liveAudioStatus.Store(&f) },
 		})
 		switch {
 		case err != nil:
@@ -84,6 +85,11 @@ type conversationDeps struct {
 	newVAD      func() cortex.VAD // nil: webrtc with CORTEX_VAD_MODE
 	sender      commandSender
 	logf        func(a ...any)
+	// voice replaces piper as the cortex's voice (tests); nil reads CORTEX_TTS.
+	voice func() (cortex.Voice, string, error)
+	// audioStatus registers the function that gets the robots' audio stream reports (the MicTap server's
+	// OnAudioStatus); nil drops them.
+	audioStatus func(func(esn string, st *mictappb.AudioStatus))
 }
 
 // newConversation reads the conversation settings; it returns nil when the conversation is off.
@@ -166,12 +172,25 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+	if d.logf == nil {
+		d.logf = func(...any) {}
+	}
+	robot := robotCommands{d.sender}
+	var speaker cortex.Speaker
+	talker, voiceDesc := newTalker(d.voice, robot, d.logf)
+	if talker != nil {
+		speaker = talker
+		if d.audioStatus != nil {
+			d.audioStatus(audioStatusTo(talker))
+		}
+	}
 	c := cortex.NewConversation(cortex.Config{
+		Speaker:        speaker,
 		Capture:        capture,
 		NewVAD:         newVAD,
 		Transcriber:    tr,
 		Brain:          brain,
-		Robot:          robotCommands{d.sender},
+		Robot:          robot,
 		Logf:           d.logf,
 		EndIntent:      endIntent,
 		PromptIntent:   promptIntent,
@@ -189,6 +208,9 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 	}
 	if endIntent != "" {
 		desc += "; " + endIntent + " when nothing is answered"
+	}
+	if talker != nil {
+		desc += "; answers spoken by the cortex: " + voiceDesc
 	}
 	return c, desc, nil
 }
