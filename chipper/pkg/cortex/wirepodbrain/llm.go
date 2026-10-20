@@ -30,16 +30,14 @@ type LLM struct {
 	client *anthropic.Client
 }
 
-// Answer implements Config.LLM. It returns ErrNoLLM when the LLM is off in wire-pod's settings.
-func (l *LLM) Answer(ctx context.Context, esn, text string) (string, error) {
+// Answer implements Config.LLM: lang ("es", "en") is the language to answer in. It returns ErrNoLLM when the
+// LLM is off in wire-pod's settings.
+func (l *LLM) Answer(ctx context.Context, esn, text, lang string) (string, error) {
 	k := vars.APIConfig.Knowledge
 	if !k.Enable {
 		return "", ErrNoLLM
 	}
-	req := ttr.CreateAIReq(text, esn, false, false)
-	req.Stream = false
-	req.MaxCompletionTokens = maxAnswerTokens
-	l.rename(&req)
+	req := l.request(esn, text, lang)
 	var answer string
 	var err error
 	switch k.Provider {
@@ -58,6 +56,30 @@ func (l *LLM) Answer(ctx context.Context, esn, text string) (string, error) {
 			openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: answer}, esn)
 	}
 	return answer, nil
+}
+
+// replyInstructions are added to the system prompt so the LLM answers in the question's language (L101):
+// wire-pod's default prompt is English, so a Spanish question got an English answer.
+var replyInstructions = map[string]string{"es": "Responde siempre en español.", "en": "Answer in English."}
+
+// request is wire-pod's LLM request for text, with the persona's name and, for lang "es" or "en", the
+// instruction to answer in it. wire-pod's own requests (ttr.CreateAIReq) are not changed.
+func (l *LLM) request(esn, text, lang string) openai.ChatCompletionRequest {
+	req := ttr.CreateAIReq(text, esn, false, false)
+	req.Stream = false
+	req.MaxCompletionTokens = maxAnswerTokens
+	l.rename(&req)
+	if instr := replyInstructions[lang]; instr != "" {
+		for i, m := range req.Messages {
+			if m.Role == openai.ChatMessageRoleSystem {
+				req.Messages[i].Content = strings.TrimSpace(m.Content) + "\n\n" + instr
+				return req
+			}
+		}
+		req.Messages = append([]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: instr}},
+			req.Messages...)
+	}
+	return req
 }
 
 // rename gives the robot its persona's name in the system prompt.

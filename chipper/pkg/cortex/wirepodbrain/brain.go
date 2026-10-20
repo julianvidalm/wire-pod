@@ -34,8 +34,8 @@ type Config struct {
 	Intents map[string][]vars.JsonIntent
 	// DefaultLanguage picks the list for a transcript in a language without one.
 	DefaultLanguage string
-	// LLM answers what no intent matched; nil or ErrNoLLM: intent_system_unmatched.
-	LLM func(ctx context.Context, esn, text string) (string, error)
+	// LLM answers what no intent matched, in lang (ReplyLanguage); nil or ErrNoLLM: intent_system_unmatched.
+	LLM func(ctx context.Context, esn, text, lang string) (string, error)
 }
 
 type Brain struct{ cfg Config }
@@ -69,7 +69,7 @@ func (b *Brain) Answer(ctx context.Context, esn string, t cortex.Transcript) (co
 	if b.cfg.LLM == nil {
 		return cortex.Answer{Intent: unmatchedIntent}, nil
 	}
-	text, err := b.cfg.LLM(ctx, esn, t.Text)
+	text, err := b.cfg.LLM(ctx, esn, t.Text, ReplyLanguage(t))
 	if errors.Is(err, ErrNoLLM) {
 		return cortex.Answer{Intent: unmatchedIntent}, nil
 	}
@@ -77,6 +77,15 @@ func (b *Brain) Answer(ctx context.Context, esn string, t cortex.Transcript) (co
 		return cortex.Answer{}, err
 	}
 	return cortex.Answer{Text: SpokenText(text)}, nil
+}
+
+// ReplyLanguage is the language the answer must be in (L101): Spanish ("es") when whisper heard Spanish or the
+// question reads Spanish, English ("en") otherwise, as the cortex's voices are.
+func ReplyLanguage(t cortex.Transcript) string {
+	if strings.HasPrefix(strings.ToLower(t.Language), "es") || cortex.ReadsSpanish(t.Text) {
+		return "es"
+	}
+	return "en"
 }
 
 // SpokenText drops the {{command||parameter}} actions wire-pod's LLM prompt asks for: the robot says the answer

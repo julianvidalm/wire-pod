@@ -360,7 +360,27 @@ func expectedSpeech(first SpeechChunk, text, lang string) time.Duration {
 // as English, otherwise the language the question was asked in (whisper's code; anything but es is English).
 // The answer decides because it is what is spoken: the LLM may answer in another language than the question.
 func SpeechLanguage(answer, question string) string {
-	es, en := 0, 0
+	es, en := languageScores(answer)
+	switch {
+	case es >= 2 && es > 2*en:
+		return "es"
+	case en >= 2 && en > 2*es:
+		return "en"
+	case strings.HasPrefix(strings.ToLower(question), "es"):
+		return "es"
+	}
+	return "en"
+}
+
+// ReadsSpanish says whether text reads as Spanish, by SpeechLanguage's rule.
+func ReadsSpanish(text string) bool {
+	es, en := languageScores(text)
+	return es >= 2 && es > 2*en
+}
+
+// languageScores counts the Spanish and English marks in text: Spanish letters and marks (2 each) and common
+// words of each language (1 each).
+func languageScores(answer string) (es, en int) {
 	for _, r := range answer {
 		if strings.ContainsRune("ñÑ¿¡áéíóúÁÉÍÓÚ", r) {
 			es += 2
@@ -374,15 +394,7 @@ func SpeechLanguage(answer, question string) string {
 			en++
 		}
 	}
-	switch {
-	case es >= 2 && es > 2*en:
-		return "es"
-	case en >= 2 && en > 2*es:
-		return "en"
-	case strings.HasPrefix(strings.ToLower(question), "es"):
-		return "es"
-	}
-	return "en"
+	return es, en
 }
 
 var spanishWords = setOf("el", "la", "los", "las", "de", "del", "que", "y", "en", "un", "una", "es", "por", "para",
