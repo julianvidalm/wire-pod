@@ -55,9 +55,16 @@ type CaptureConfig struct {
 	// wake word runs on past them (L101). Shorter runs are kept for the transcriber but never start the
 	// utterance. Below MinSpeech, MinSpeech applies.
 	GatedMinSpeech time.Duration
-	EndSilence     time.Duration // silence after speech that ends the utterance
-	MaxLength      time.Duration // longest utterance, counted from the user's speech onset (T3g)
-	NoSpeech       time.Duration // the capture gives up when nobody speaks this long after the wake
+	// WindowSpeech and SpeechWindow, when both are set, also start the utterance on speech heard through the wake
+	// grace that is not one consecutive run: WindowSpeech of speech within any SpeechWindow of those frames (the
+	// robot firmware's sustained-speech rule, minSpeech_s 0.6 in speechWindow_s 1.0). The VAD fragments a question
+	// said in the same breath as the wake word, so no run of it may reach GatedMinSpeech (robot-wake, 16:55:49).
+	// The onset is the first speech frame of that window. Zero (the MicTap path) leaves GatedMinSpeech alone.
+	WindowSpeech time.Duration
+	SpeechWindow time.Duration
+	EndSilence   time.Duration // silence after speech that ends the utterance
+	MaxLength    time.Duration // longest utterance, counted from the user's speech onset (T3g)
+	NoSpeech     time.Duration // the capture gives up when nobody speaks this long after the wake
 	// PromptAfter is when, without speech since the wake, the robot is asked to show it is still listening
 	// (PromptDue); 0 never asks. The robot turns to the voice first, so the user speaks late (S6, L71).
 	PromptAfter time.Duration
@@ -114,9 +121,10 @@ type Capture struct {
 	runGated  bool    // ... and that run holds a frame heard through the wake grace (the robot was sounding)
 	silentRun int     // consecutive non-speech samples since the user started speaking
 	spoke     bool
-	onset     int  // samples after the wake when the user's speech began
-	prompted  bool // the prompt came due in this capture
-	promptDue bool // ... and PromptDue has not reported it yet
+	window    []windowFrame // the frames heard through the wake grace in the last SpeechWindow
+	onset     int           // samples after the wake when the user's speech began
+	prompted  bool          // the prompt came due in this capture
+	promptDue bool          // ... and PromptDue has not reported it yet
 }
 
 func NewCapture(cfg CaptureConfig, vad VAD) *Capture {
@@ -162,6 +170,7 @@ func (c *Capture) Start(wakeTs uint64) (Utterance, bool) {
 	}
 	c.capturing, c.wakeTs, c.spoke, c.prompted, c.promptDue = true, wakeTs, false, false, false
 	c.afterWake, c.voiced, c.voicedSq, c.voicedRun, c.silentRun, c.runGated = 0, 0, 0, 0, 0, false
+	c.window = c.window[:0]
 	c.cur = Utterance{Rate: c.cfg.MicRate}
 	for _, f := range c.ring {
 		if f.Timestamp < from {
@@ -206,7 +215,15 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 			c.spoke = true
 			c.onset = c.afterWake - c.voicedRun
 		}
+		if gated && !c.spoke {
+			if first, ok := c.heardInWindow(c.afterWake-n, n, true); ok {
+				c.spoke, c.onset = true, first
+			}
+		}
 	} else {
+		if gated && !c.spoke {
+			c.heardInWindow(c.afterWake-n, n, false)
+		}
 		c.voicedRun, c.runGated = 0, false
 		if c.spoke {
 			c.silentRun += n
@@ -227,6 +244,39 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 		c.prompted, c.promptDue = true, true
 	}
 	return Utterance{}, false
+}
+
+// windowFrame is one frame heard through the wake grace: where it starts (samples after the wake), its length and
+// whether the VAD heard speech in it.
+type windowFrame struct {
+	at, n  int
+	speech bool
+}
+
+// heardInWindow applies the WindowSpeech rule to one frame heard through the wake grace, which started at at
+// (samples after the wake): it says whether the speech in the last SpeechWindow reaches WindowSpeech, and where
+// that window's speech began.
+func (c *Capture) heardInWindow(at, n int, speech bool) (int, bool) {
+	if c.cfg.WindowSpeech <= 0 || c.cfg.SpeechWindow <= 0 {
+		return 0, false
+	}
+	c.window = append(c.window, windowFrame{at, n, speech})
+	from := at + n - c.samples(c.cfg.SpeechWindow)
+	drop := 0
+	for drop < len(c.window) && c.window[drop].at < from {
+		drop++
+	}
+	c.window = c.window[drop:]
+	voiced, first := 0, -1
+	for _, f := range c.window {
+		if f.speech {
+			voiced += f.n
+			if first < 0 {
+				first = f.at
+			}
+		}
+	}
+	return first, voiced >= c.samples(c.cfg.WindowSpeech)
 }
 
 // minSpeech is the run, in samples, that makes the speech in progress the user's onset.

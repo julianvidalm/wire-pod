@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -146,6 +147,9 @@ type voiceRequestTest struct {
 	handler *voiceRequests
 }
 
+// voiceTestVAD is the VAD of newVoiceRequestTest's conversation; nil is the live webrtc VAD (CORTEX_VAD_MODE).
+var voiceTestVAD = func() cortex.VAD { return loudVAD{} }
+
 // newVoiceRequestTest builds the voice request handler over a conversation whose transcriber writes text and whose
 // brain is b; voice, when set, is the cortex's voice (otherwise the robot speaks). The request's audio is pcm.
 func newVoiceRequestTest(t *testing.T, text string, b *recBrain, voice func() (cortex.Voice, string, error),
@@ -163,7 +167,7 @@ func newVoiceRequestTest(t *testing.T, text string, b *recBrain, voice func() (c
 	conv, _, err := newConversation(conversationDeps{
 		transcriber: func() (cortex.Transcriber, string, error) { return vt.tr, "recording", nil },
 		brain:       b,
-		newVAD:      func() cortex.VAD { return loudVAD{} },
+		newVAD:      voiceTestVAD,
 		sender:      vt.session,
 		logf:        vt.log.logf,
 		voice:       voice,
@@ -471,5 +475,60 @@ func TestAVoiceRequestHearsAQuestionRightAfterTheWake(t *testing.T) {
 	if len(us) != 1 || us[0].Reason != cortex.EndSilence || us[0].Voiced < 1150*time.Millisecond ||
 		us[0].Duration() > 2100*time.Millisecond {
 		t.Fatalf("utterances %v, want the whole question ended by the silence after it", us)
+	}
+}
+
+// wavSamples reads a 16-bit mono WAV written by the voice request dump (44-byte header).
+func wavSamples(t *testing.T, path string) []int16 {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b) < 44 || string(b[:4]) != "RIFF" || string(b[36:40]) != "data" {
+		t.Fatalf("%s is not a dump WAV", path)
+	}
+	pcm := make([]int16, (len(b)-44)/2)
+	for i := range pcm {
+		pcm[i] = int16(uint16(b[44+2*i]) | uint16(b[45+2*i])<<8)
+	}
+	return pcm
+}
+
+// Live 16:55:49 (dump testdata/voicerequest_same_breath.wav): "What's the capital of Canada?" said in the same
+// breath as the wake, all of it (0.0-1.75 s) inside the wake grace window. The webrtc VAD fragments it, so no run
+// reached GatedMinSpeech and the request waited 9 s for nothing. 600 ms of speech within 1 s (the firmware's
+// sustained-speech rule) is the user speaking: the question is transcribed whole and the capture ends after it.
+func TestAVoiceRequestHearsAQuestionSaidInTheWakeBreath(t *testing.T) {
+	prev := voiceTestVAD
+	voiceTestVAD = nil
+	t.Cleanup(func() { voiceTestVAD = prev })
+	t.Setenv(cortexVADModeEnv, "")
+	b := &recBrain{answer: cortex.Answer{Intent: "intent_clock_time"}}
+	vt := newVoiceRequestTest(t, "What's the capital of Canada?", b, nil,
+		wavSamples(t, filepath.Join("testdata", "voicerequest_same_breath.wav")))
+	vt.ask()
+	wantIntent(t, vt.only(t), "intent_clock_time")
+	us := vt.tr.utterances()
+	if len(us) != 1 {
+		t.Fatalf("transcribed %d utterances, want 1; log %q", len(us), vt.log.lines)
+	}
+	u := us[0]
+	t.Logf("utterance %v, onset %v, speech %v at %.1f dBFS, %s", u.Duration(), u.Onset, u.Voiced, u.Level, u.Reason)
+	if u.Start != 10 || len(u.Samples) < 1750*16 || u.Reason != cortex.EndSilence || u.Duration() > 4*time.Second {
+		t.Fatalf("utterance from %d ms, %v, %s; want 0.0-1.75 s at least, ended by the silence well before 9 s",
+			u.Start, u.Duration(), u.Reason)
+	}
+}
+
+// A 0.1 s noise right at the wake, inside the grace window, is not 600 ms of speech: nothing heard.
+func TestAVoiceRequestWithANoiseAtTheWakeIsNoAudio(t *testing.T) {
+	b := &recBrain{answer: cortex.Answer{Text: "¡De nada!"}}
+	vt := newVoiceRequestTest(t, "Gracias.", b, nil,
+		pcmOf(span{false, 100 * time.Millisecond}, span{true, 100 * time.Millisecond}, span{false, 3 * time.Second}))
+	vt.ask()
+	wantIntent(t, vt.only(t), "intent_system_noaudio")
+	if n := len(vt.tr.utterances()); n != 0 {
+		t.Fatalf("transcribed %d utterances, want none", n)
 	}
 }

@@ -382,7 +382,8 @@ type TargetSpeaker interface {
 // counts as speaking, EndSilence after it, MaxLength from its onset, NoSpeech) through a Capture, with no margin
 // before the wake and no listening prompt. The audio starts at the wake, so its first WakeGrace holds the robot's
 // own earcon and get-in sound: its frames go through the Capture as heard under the half-duplex gate, and a speech
-// run there needs GatedMinSpeech to start the utterance, as on the MicTap path (L110). It is not safe for
+// run there needs GatedMinSpeech to start the utterance, as on the MicTap path (L110), or 600 ms of speech within
+// 1 s (WindowSpeech), so a question said in the same breath as the wake word is not lost. It is not safe for
 // concurrent use.
 type RequestCapture struct {
 	c    *Capture
@@ -395,6 +396,8 @@ type RequestCapture struct {
 func (c *Conversation) NewRequestCapture(rate int) *RequestCapture {
 	cfg := c.cfg.Capture
 	cfg.MicRate, cfg.WakeMargin, cfg.PreRoll, cfg.PromptAfter = rate, 0, 0, 0
+	// a question said in the wake's breath: 600 ms of speech within 1 s starts it, as on the robot
+	cfg.WindowSpeech, cfg.SpeechWindow = 600*time.Millisecond, time.Second
 	r := &RequestCapture{c: NewCapture(cfg, c.cfg.NewVAD()), rate: rate}
 	r.c.Start(0)
 	return r
