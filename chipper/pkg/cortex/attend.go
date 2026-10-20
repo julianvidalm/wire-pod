@@ -41,10 +41,12 @@ type attendWorker struct {
 	pending bool // an attend waits in the queue; guarded by Attender.mu
 }
 
-// attendJob is one send: the attend (stale nil) or a signal, skipped when stale says so at its turn.
+// attendJob is one send: the attend (stale nil) or a signal, skipped when stale says so at its turn; or, with
+// done set, no send: done is closed at its turn.
 type attendJob struct {
 	intent string
 	stale  func() bool
+	done   chan struct{}
 }
 
 func NewAttender(cfg AttenderConfig) *Attender {
@@ -103,8 +105,26 @@ func (a *Attender) Signal(esn, intent string, stale func() bool) {
 	}
 }
 
+// Sent returns a channel that is closed once every send already queued for the robot was made (or skipped), so
+// a command sent some other way can follow them. When the queue is full it is closed at once.
+func (a *Attender) Sent(esn string) <-chan struct{} {
+	done := make(chan struct{})
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	select {
+	case a.worker(esn).queue <- attendJob{done: done}:
+	default:
+		close(done)
+	}
+	return done
+}
+
 func (a *Attender) run(esn string, w *attendWorker) {
 	for job := range w.queue {
+		if job.done != nil {
+			close(job.done)
+			continue
+		}
 		if job.stale == nil {
 			a.mu.Lock()
 			w.pending = false

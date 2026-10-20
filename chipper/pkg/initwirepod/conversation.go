@@ -38,6 +38,11 @@ const (
 
 	defaultPromptIntent = "intent_cortex_listening_prompt"
 
+	// thinkingIntentEnv is the intent sent when a capture ends with speech, so the robot shows its thinking face
+	// until the answer (L80); set but empty sends nothing.
+	thinkingIntentEnv     = "CORTEX_THINKING_INTENT"
+	defaultThinkingIntent = "intent_cortex_thinking"
+
 	defaultVADMode = 3
 	defaultPersona = "Jarvis"
 	intentDataDir  = "intent-data" // wire-pod runs in chipper
@@ -153,19 +158,24 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 	if !set {
 		endIntent = defaultAttendEndIntent
 	}
+	thinkingIntent, set := os.LookupEnv(thinkingIntentEnv)
+	if !set {
+		thinkingIntent = defaultThinkingIntent
+	}
 	tr, trDesc, err := d.transcriber()
 	if err != nil {
 		return nil, "", err
 	}
 	c := cortex.NewConversation(cortex.Config{
-		Capture:      capture,
-		NewVAD:       newVAD,
-		Transcriber:  tr,
-		Brain:        brain,
-		Robot:        robotCommands{d.sender},
-		Logf:         d.logf,
-		EndIntent:    endIntent,
-		PromptIntent: promptIntent,
+		Capture:        capture,
+		NewVAD:         newVAD,
+		Transcriber:    tr,
+		Brain:          brain,
+		Robot:          robotCommands{d.sender},
+		Logf:           d.logf,
+		EndIntent:      endIntent,
+		PromptIntent:   promptIntent,
+		ThinkingIntent: thinkingIntent,
 	})
 	prompt := ""
 	if promptIntent != "" && capture.PromptAfter > 0 && capture.PromptAfter < capture.NoSpeech {
@@ -174,6 +184,9 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 	desc := fmt.Sprintf("%s, %s, %s; capture from %v before the wake, ends after %v of silence, at most %v from "+
 		"the speech start, %sgives up after %v without speech; mic %d Hz", trDesc, brainDesc, vadDesc,
 		capture.WakeMargin, capture.EndSilence, capture.MaxLength, prompt, capture.NoSpeech, capture.MicRate)
+	if thinkingIntent != "" {
+		desc += "; " + thinkingIntent + " when the question ends"
+	}
 	if endIntent != "" {
 		desc += "; " + endIntent + " when nothing is answered"
 	}

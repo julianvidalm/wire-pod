@@ -30,12 +30,48 @@ type Config struct {
 	// PromptIntent is sent, the same way, when nobody has spoken Capture.PromptAfter after the wake: the robot
 	// shows it is still listening (S6). Empty sends nothing.
 	PromptIntent string
+	// ThinkingIntent is sent, the same way, when a capture ends with speech, before it is transcribed: the
+	// robot shows its thinking face until the answer (L80). Empty sends nothing.
+	ThinkingIntent string
+	// Speaker, when set, speaks text answers with the cortex's own voice (S7); nil makes the robot say them
+	// (Robot.SendKnowledge).
+	Speaker Speaker
+}
+
+// Speaker speaks a text answer on one robot: answer is the reply to query, lang the language of the question
+// (a whisper code). It returns once the answer was handed to the robot, by whatever voice.
+type Speaker interface {
+	Say(esn, answer, query, lang string) error
 }
 
 // Signaler sends an intent to a robot after the sends already queued for it (the attend), unless stale says, when
 // its turn comes, that it no longer applies. It must not block. The Attender is one.
 type Signaler interface {
 	Signal(esn, intent string, stale func() bool)
+}
+
+// sentWaiter is a Signaler that can say when the signals queued so far were sent (the Attender): answers wait for
+// it, so the thinking face never comes after the answer.
+type sentWaiter interface {
+	Sent(esn string) <-chan struct{}
+}
+
+// signalWait bounds how long an answer waits for the signals ahead of it.
+const signalWait = 2 * time.Second
+
+// afterSignals waits until the signals queued for the robot so far were sent, at most signalWait.
+func (c *Conversation) afterSignals(esn string) {
+	c.mu.Lock()
+	w, ok := c.signals.(sentWaiter)
+	c.mu.Unlock()
+	if !ok {
+		return
+	}
+	select {
+	case <-w.Sent(esn):
+	case <-time.After(signalWait):
+		c.cfg.Logf("Cortex: ", esn, " signals still not sent after ", signalWait, ", answering anyway")
+	}
 }
 
 // Conversation is the cortex's listening loop: after a wake it captures what the user says from the robot's
@@ -224,10 +260,11 @@ func (c *Conversation) run(esn string, w *worker) {
 	}
 }
 
-// answer transcribes one utterance, asks the brain and sends the answer to the robot; without an answer it ends
-// the robot's listening.
+// answer shows the robot is thinking, transcribes one utterance, asks the brain and sends the answer to the
+// robot; without an answer it ends the robot's listening.
 // It says whether an answer was sent.
 func (c *Conversation) answer(esn string, u Utterance) bool {
+	c.signal(esn, c.cfg.ThinkingIntent, u.Wake, "thinking")
 	if c.reply(esn, u) {
 		return true
 	}
@@ -316,6 +353,7 @@ func (c *Conversation) reply(esn string, u Utterance) bool {
 		return false
 	}
 	took := c.cfg.Now().Sub(heard).Seconds()
+	c.afterSignals(esn)
 	switch {
 	case a.Intent != "":
 		err = c.cfg.Robot.SendIntentResult(esn, a.Intent, a.ParamsJSON)

@@ -196,3 +196,15 @@ func TestAStaleSignalIsSkippedWhenItsTurnComes(t *testing.T) {
 	log.waitFor(t, "skipped 0dd1b652 intent_cortex_listening_end")
 	expectNoSend(t, s)
 }
+
+// Sent lets an answer follow the signals queued before it (the thinking face before the answer).
+func TestSentClosesAfterTheQueuedSends(t *testing.T) {
+	s := newFakeSender()
+	a, _, _ := newTestAttender(s)
+	a.Attend("esn1")
+	a.Signal("esn1", "intent_cortex_thinking", func() bool { return false })
+	<-a.Sent("esn1")
+	if len(s.got) != 2 {
+		t.Fatalf("%d sends made when Sent closed, want the attend and the signal", len(s.got))
+	}
+}

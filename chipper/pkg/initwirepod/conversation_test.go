@@ -90,6 +90,7 @@ func TestConversationOnAnswersAfterTheAttend(t *testing.T) {
 	t.Setenv(attendIntentEnv, "intent_greeting_hello")
 	t.Setenv(attendRefractoryEnv, "")
 	t.Setenv(owwMicRateEnv, "16000")
+	t.Setenv(thinkingIntentEnv, "") // TestACaptureWithSpeechSendsTheThinkingIntent covers it
 	s, log := newChanSender(), &lineLog{}
 	conv, desc, err := newConversation(conversationDeps{
 		transcriber: stubTranscriberFunc("¿qué hora es?"),
@@ -283,5 +284,71 @@ func TestTheListeningTimelineSettings(t *testing.T) {
 		newVAD: func() cortex.VAD { return loudVAD{} }, sender: newChanSender()}); err == nil ||
 		!strings.Contains(err.Error(), noSpeechEnv) {
 		t.Fatalf("got %v, want a %s error", err, noSpeechEnv)
+	}
+}
+
+// L80: when a capture ends with speech the robot gets CORTEX_THINKING_INTENT (default intent_cortex_thinking)
+// after its attend and before the answer; set but empty sends nothing.
+func TestACaptureWithSpeechSendsTheThinkingIntent(t *testing.T) {
+	for _, tc := range []struct {
+		set   bool
+		value string
+		want  []string
+	}{
+		{false, "", []string{"intent_greeting_hello", "intent_cortex_thinking", "intent_clock_time"}},
+		{true, "intent_x_thinking", []string{"intent_greeting_hello", "intent_x_thinking", "intent_clock_time"}},
+		{true, "", []string{"intent_greeting_hello", "intent_clock_time"}},
+	} {
+		t.Setenv(conversationEnv, "on")
+		t.Setenv(attendIntentEnv, "intent_greeting_hello")
+		t.Setenv(attendRefractoryEnv, "")
+		t.Setenv(owwMicRateEnv, "16000")
+		if tc.set {
+			t.Setenv(thinkingIntentEnv, tc.value)
+		} else {
+			unsetEnv(t, thinkingIntentEnv)
+		}
+		s := newChanSender()
+		conv, desc, err := newConversation(conversationDeps{transcriber: stubTranscriberFunc("¿qué hora es?"),
+			brain: stubBrain{cortex.Answer{Intent: "intent_clock_time"}}, newVAD: func() cortex.VAD { return loudVAD{} },
+			sender: s, logf: (&lineLog{}).logf})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tc.value != "" || !tc.set {
+			if !strings.Contains(desc, tc.want[1]+" when the question ends") {
+				t.Fatalf("description %q does not name %s", desc, tc.want[1])
+			}
+		}
+		h, err := newWakeHandler(func(...any) {}, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		h = h.withConversation(conv)
+		sink := detectorSink(nopSink{}, nopSink{}, conv, nil)
+		sink.Start("0dd1b652", mictap.Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
+		seq, ts := uint32(0), uint64(0)
+		feed := func(n int, speech bool) {
+			for i := 0; i < n; i++ {
+				sink.Frame("0dd1b652", micFrame(seq, ts, speech))
+				seq, ts = seq+1, ts+10
+			}
+		}
+		feed(100, false)
+		wake := testDetection
+		wake.FrameTimestamp = ts - 10
+		h.OnWake(wake)
+		feed(60, true)
+		feed(100, false)
+		for i, want := range tc.want {
+			select {
+			case cmd := <-s.got:
+				if got := cmd.GetIntentResult().GetIntent(); got != want {
+					t.Fatalf("%+v: command %d is %q, want %q", tc, i, got, want)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatalf("%+v: no command %d (%s)", tc, i, want)
+			}
+		}
 	}
 }
