@@ -148,6 +148,39 @@ outside -120..0) is logged (`Cortex half duplex: … using the default …`) and
 on. A robot whose hello has no speaker rate is not gated, and when no speaker frame has come for 2 s of robot
 time the mic passes straight through (no 300 ms wait) until speaker frames resume.
 
+### PC voice (piper)
+
+The cortex's `Voice` port (`pkg/cortex` `SentenceVoice` over a `Synthesizer`) turns an answer into 16 kHz mono
+s16 chunks, one per sentence, so the first sentence can play while the next is synthesized. Sentences end at
+`.` `!` `?` `…` followed by a space and at line breaks; a period after an abbreviation (Sr., Dra., p. ej., Mr.,
+e.g.) or an initial, or before a lowercase word or a digit, does not end one. Each sentence is resampled to
+16 kHz and scaled so its speech (20 ms blocks above -50 dBFS) has an RMS of `CORTEX_TTS_LEVEL_DB`, never past a
+-1 dBFS peak; the robot's own TTS reaches the MicTap tap at about -15 to -25 dBFS. Cancelling the context
+stops after the sentence in flight.
+
+The `piper` adapter (`pkg/cortex/piper`) runs `tts-sidecar/tts_sidecar.py` once and keeps it: a fresh process
+spends about 1-1.6 s loading onnxruntime and the voices, while a loaded voice speaks a sentence in 130-210 ms
+(RTF about 0.04 on the CPU). Nothing plays these chunks yet (T8d); `CORTEX_TTS=off` is the default.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CORTEX_TTS` | `off` | `piper` starts the sidecar and logs `cortex: TTS piper, es …, en …, level … dBFS` |
+| `CORTEX_TTS_VOICE_ES` | `~/.cache/v3ctor/piper-voices/es_MX-claude-high.onnx` | Spanish piper voice (its `.onnx.json` next to it) |
+| `CORTEX_TTS_VOICE_EN` | `~/.cache/v3ctor/piper-voices/en_US-lessac-medium.onnx` | English piper voice |
+| `CORTEX_TTS_LEVEL_DB` | `-20` | speech RMS in dBFS, in [-60, 0) |
+| `CORTEX_TTS_PYTHON` | `python3` | Python with `onnxruntime`, `piper_phonemize` and `numpy` |
+| `CORTEX_TTS_SIDECAR` | `tts-sidecar/tts_sidecar.py` | sidecar script (relative to `chipper`) |
+
+A bad `CORTEX_TTS` or `CORTEX_TTS_LEVEL_DB` is an error. To hear a voice and measure it:
+
+```sh
+go run -tags nolibopusfile ./cmd/cortex-say -lang es -repeat 3 -o /tmp/es.wav "Hola. ¿Cómo estás?"
+```
+
+It prints the sidecar start time and, per run, the time to the first sentence and the RTF (the first run is
+cold); `-voice` tries another `.onnx` for `-lang`, `-level` another level. `pkg/cortex/piper`'s integration
+test runs when both voices and the Python (`CORTEX_TTS_PYTHON`, else `~/.cache/v3ctor/oww-train-venv`) exist.
+
 It applies whenever a wake word detector is on. Logs, at startup and when a robot's stream ends:
 
 ```
