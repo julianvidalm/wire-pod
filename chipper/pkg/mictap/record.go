@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"sync"
 	"time"
 )
@@ -17,6 +19,10 @@ import (
 // the file), so the files can be aligned on the robot's clock. Frames the robot dropped become silence, so a time
 // in a recording stays a time in the session. Recording problems are logged and never disturb the stream.
 type RecordSink struct {
+	// MaxBytes caps the directory's recorded sessions: each Start deletes the oldest whole sessions, never a running
+	// one, until the rest fits. 0 keeps everything.
+	MaxBytes int64
+
 	dir  string
 	logf func(a ...any)
 	now  func() time.Time
@@ -69,6 +75,7 @@ func NewRecordSink(dir string, logf func(a ...any)) *RecordSink {
 
 func (r *RecordSink) Start(esn string, h Hello) {
 	base := filepath.Join(r.dir, filepath.Base(esn)+"_"+r.now().Format("20060102-150405"))
+	r.prune()
 	rec := &recording{
 		base:    base,
 		micRate: h.MicRate,
@@ -89,6 +96,78 @@ func (r *RecordSink) Start(esn string, h Hello) {
 	old.close()
 	if rec.mic != nil {
 		r.logf("MicTap: recording ", esn, " to ", base+"_{mic,speaker}.wav")
+	}
+}
+
+// sessionFile matches a recorded file and captures its session: <esn>_<YYYYMMDD-HHMMSS>.
+var sessionFile = regexp.MustCompile(`^(.+_(\d{8}-\d{6}))_`)
+
+// prune deletes the oldest recorded sessions until the directory's sessions fit in MaxBytes. Other files and the
+// running sessions are kept and running sessions still count toward the total.
+func (r *RecordSink) prune() {
+	if r.MaxBytes <= 0 {
+		return
+	}
+	entries, err := os.ReadDir(r.dir)
+	if err != nil {
+		return
+	}
+	r.mu.Lock()
+	running := map[string]bool{}
+	for _, rec := range r.sessions {
+		running[filepath.Base(rec.base)] = true
+	}
+	r.mu.Unlock()
+	type session struct {
+		name, time string
+		files      []string
+		bytes      int64
+	}
+	byName := map[string]*session{}
+	var total int64
+	for _, e := range entries {
+		m := sessionFile.FindStringSubmatch(e.Name())
+		info, err := e.Info()
+		if m == nil || err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		total += info.Size()
+		s := byName[m[1]]
+		if s == nil {
+			s = &session{name: m[1], time: m[2]}
+			byName[m[1]] = s
+		}
+		s.files = append(s.files, e.Name())
+		s.bytes += info.Size()
+	}
+	var oldest []*session
+	for name, s := range byName {
+		if !running[name] {
+			oldest = append(oldest, s)
+		}
+	}
+	sort.Slice(oldest, func(i, j int) bool {
+		if oldest[i].time != oldest[j].time {
+			return oldest[i].time < oldest[j].time
+		}
+		return oldest[i].name < oldest[j].name
+	})
+	deleted, freed := 0, int64(0)
+	for _, s := range oldest {
+		if total <= r.MaxBytes {
+			break
+		}
+		for _, f := range s.files {
+			if err := os.Remove(filepath.Join(r.dir, f)); err != nil {
+				r.logf("MicTap: cannot delete old recording: ", err)
+			}
+		}
+		total -= s.bytes
+		deleted++
+		freed += s.bytes
+	}
+	if deleted > 0 {
+		r.logf("MicTap: deleted ", deleted, " old recorded sessions (", freed>>20, " MB) to stay under ", r.MaxBytes>>20, " MB")
 	}
 }
 

@@ -50,9 +50,16 @@ func micTapSink() mictap.Sink {
 // says after the wake (see conversation.go).
 func newMicTapSink() mictap.Sink {
 	var logSink mictap.Sink = mictap.NewLogSink(logger.Println)
-	// MICTAP_RECORD_DIR saves every session's mic and speaker audio, to replay real sessions offline.
+	// MICTAP_RECORD_DIR saves every session's mic and speaker audio, to replay real sessions offline. Each new
+	// session deletes the oldest ones over MICTAP_RECORD_MAX_GB (5 by default, 0 keeps everything).
 	if rec := os.Getenv("MICTAP_RECORD_DIR"); rec != "" {
-		logSink = mictap.Tee(logSink, mictap.NewRecordSink(rec, logger.Println))
+		recorder := mictap.NewRecordSink(rec, logger.Println)
+		maxBytes, err := recordMaxBytes(os.Getenv("MICTAP_RECORD_MAX_GB"))
+		if err != nil {
+			logger.Println("MicTap:", err)
+		}
+		recorder.MaxBytes = maxBytes
+		logSink = mictap.Tee(logSink, recorder)
 	}
 	detector, desc, err := wakeDetector()
 	if err != nil {
@@ -158,4 +165,18 @@ func envFloat(key string, def float64) (float64, error) {
 		return 0, fmt.Errorf("%s: %w", key, err)
 	}
 	return f, nil
+}
+
+const defaultRecordMaxBytes = 5 << 30
+
+// recordMaxBytes reads MICTAP_RECORD_MAX_GB: empty is 5 GB, 0 is no limit, an invalid value falls back to 5 GB.
+func recordMaxBytes(env string) (int64, error) {
+	if env == "" {
+		return defaultRecordMaxBytes, nil
+	}
+	gb, err := strconv.ParseFloat(env, 64)
+	if err != nil || gb < 0 {
+		return defaultRecordMaxBytes, fmt.Errorf("MICTAP_RECORD_MAX_GB=%q is not a size in GB, using 5", env)
+	}
+	return int64(gb * (1 << 30)), nil
 }

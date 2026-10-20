@@ -328,3 +328,72 @@ func TestRecordingDoesNotFillARawGapLeftByTheRawSwitchBeingOff(t *testing.T) {
 		t.Fatalf("raw frames %+v, want %+v", got, want)
 	}
 }
+
+func writeFile(t *testing.T, path string, size int) {
+	t.Helper()
+	if err := os.WriteFile(path, make([]byte, size), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRecordingStartDeletesTheOldestSessionsOverTheLimit(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []string{
+		"esn1_20261016-100000_mic.wav", "esn1_20261016-100000_clock.jsonl",
+		"esn2_20261016-110000_mic.wav",
+		"esn1_20261016-120000_mic.wav", "esn1_20261016-120000_speaker.wav",
+	} {
+		writeFile(t, filepath.Join(dir, f), 100)
+	}
+	writeFile(t, filepath.Join(dir, "notes.txt"), 1000)
+	r := NewRecordSink(dir, func(...any) {})
+	r.MaxBytes = 250
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 13, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
+	r.End("esn1", nil)
+
+	var left []string
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		left = append(left, e.Name())
+	}
+	want := []string{
+		"esn1_20261016-120000_mic.wav", "esn1_20261016-120000_speaker.wav",
+		"esn1_20261016-130000_clock.jsonl", "esn1_20261016-130000_mic.wav", "esn1_20261016-130000_mic_frames.jsonl",
+		"esn1_20261016-130000_speaker.wav", "esn1_20261016-130000_speaker_frames.jsonl",
+		"notes.txt",
+	}
+	if !reflect.DeepEqual(left, want) {
+		t.Fatalf("left %v\nwant %v", left, want)
+	}
+}
+
+func TestRecordingStartKeepsAnotherRobotsRunningSession(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRecordSink(dir, func(...any) {})
+	r.MaxBytes = 1
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
+	r.Frame("esn1", pcmFrame(FrameMic, 0, 1, 2))
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 11, 0, 0, 0, time.UTC) }
+	r.Start("esn2", Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
+	r.End("esn1", nil)
+	r.End("esn2", nil)
+
+	if _, err := os.Stat(filepath.Join(dir, "esn1_20261016-100000_mic.wav")); err != nil {
+		t.Fatal("running session deleted:", err)
+	}
+}
+
+func TestRecordingWithoutLimitKeepsEverySession(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "esn1_20261016-100000_mic.wav"), 100)
+	r := NewRecordSink(dir, func(...any) {})
+	r.now = func() time.Time { return time.Date(2026, 10, 16, 13, 0, 0, 0, time.UTC) }
+	r.Start("esn1", Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
+	r.End("esn1", nil)
+
+	if _, err := os.Stat(filepath.Join(dir, "esn1_20261016-100000_mic.wav")); err != nil {
+		t.Fatal(err)
+	}
+}
