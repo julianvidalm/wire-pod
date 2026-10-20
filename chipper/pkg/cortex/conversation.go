@@ -358,6 +358,12 @@ func (c *Conversation) reply(esn string, u Utterance) bool {
 	case a.Intent != "":
 		err = c.cfg.Robot.SendIntentResult(esn, a.Intent, a.ParamsJSON)
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s answer intent %s %s (%.2f s), %s", esn, a.Intent, a.ParamsJSON, took, outcome(err)))
+	case strings.TrimSpace(a.Text) != "" && c.cfg.Speaker != nil:
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s answer %q (%.2f s), speaking it", esn, a.Text, took))
+		err = c.cfg.Speaker.Say(esn, a.Text, t.Text, t.Language)
+		if err != nil {
+			c.cfg.Logf(fmt.Sprintf("Cortex: %s answer not spoken: %v", esn, err))
+		}
 	case strings.TrimSpace(a.Text) != "":
 		err = c.cfg.Robot.SendKnowledge(esn, a.Text, t.Text)
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s answer %q (%.2f s), %s", esn, a.Text, took, outcome(err)))
