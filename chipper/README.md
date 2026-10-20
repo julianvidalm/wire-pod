@@ -112,7 +112,7 @@ answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
 | `WHISPER_LANGUAGES` | `en,es` | languages whisper chooses among for each utterance |
 | `CORTEX_WAKE_MARGIN` | `1s` | how far before the wake's end the capture starts |
 | `CORTEX_VAD_MODE` | `3` | webrtc VAD aggressiveness, 0-3 |
-| `CORTEX_ATTEND_END_INTENT` | `intent_cortex_listening_end` | intent sent when a capture ends without an answer (no speech, nothing heard, only the wake phrase, a transcription or brain error, a dropped utterance), so the robot stops listening; empty sends nothing |
+| `CORTEX_ATTEND_END_INTENT` | `intent_cortex_listening_end` | intent sent when a capture ends without an answer (no speech, nothing heard, only the wake phrase, a transcription or brain error, a dropped utterance), so the robot stops listening; sent in order with the attends, skipped when a newer wake is already listening, and for a dropped utterance only if nothing ahead of it was answered; empty sends nothing |
 | `CORTEX_PERSONA` | `Jarvis` | the robot's name in the LLM prompt (replaces "Vector"); `-` keeps the prompt as is |
 
 ### Half duplex

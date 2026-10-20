@@ -217,3 +217,34 @@ func TestACaptureWithoutAnswerSendsTheEndIntent(t *testing.T) {
 		}
 	}
 }
+
+// L67: with attend on, the end of a listening goes through the attender's queue, in order with the attends.
+func TestTheEndIntentGoesThroughTheAttendQueue(t *testing.T) {
+	t.Setenv(conversationEnv, "on")
+	t.Setenv(attendIntentEnv, "intent_cortex_listening")
+	t.Setenv(attendRefractoryEnv, "")
+	unsetEnv(t, attendEndIntentEnv)
+	s, log := newChanSender(), &lineLog{}
+	conv, _, err := newConversation(conversationDeps{transcriber: stubTranscriberFunc("x"),
+		brain: stubBrain{}, newVAD: func() cortex.VAD { return loudVAD{} }, sender: s, logf: log.logf})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := newWakeHandler(log.logf, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h = h.withConversation(conv)
+	wake := testDetection
+	wake.FrameTimestamp = 0
+	h.OnWake(wake)
+	for ts := uint64(0); ts < 6000; ts += 10 {
+		conv.Feed(wake.ESN, cortex.Frame{Samples: make([]int16, 160), Timestamp: ts})
+	}
+	for _, want := range []string{"intent_cortex_listening", "intent_cortex_listening_end"} {
+		if got := (<-s.got).GetIntentResult().GetIntent(); got != want {
+			t.Fatalf("sent %q, want %q", got, want)
+		}
+	}
+	log.waitFor(t, "signal sent "+wake.ESN+" intent_cortex_listening_end")
+}

@@ -166,3 +166,33 @@ func TestAttendLogsSendErrorsAndKeepsWorking(t *testing.T) {
 	expectSend(t, s, sent{"0dd1b652", "intent_greeting_hello"})
 	log.waitFor(t, "attend sent 0dd1b652 intent_greeting_hello")
 }
+
+// L67: the end of a listening goes through the same per-robot queue as the attend, so the two never reorder.
+func TestASignalIsSentInOrderWithTheAttend(t *testing.T) {
+	s := newFakeSender()
+	s.release = make(chan struct{})
+	a, _, _ := newTestAttender(s)
+	a.Signal("0dd1b652", "intent_cortex_listening_end", func() bool { return false })
+	a.Attend("0dd1b652")
+	close(s.release)
+	expectSend(t, s, sent{"0dd1b652", "intent_cortex_listening_end"})
+	expectSend(t, s, sent{"0dd1b652", "intent_greeting_hello"})
+}
+
+// Whether a signal is stale is decided when its turn comes, after the sends queued before it.
+func TestAStaleSignalIsSkippedWhenItsTurnComes(t *testing.T) {
+	s := newFakeSender()
+	s.release = make(chan struct{})
+	a, _, log := newTestAttender(s)
+	a.Attend("0dd1b652")
+	expectSend(t, s, sent{"0dd1b652", "intent_greeting_hello"}) // held inside Send
+	var mu sync.Mutex
+	stale := false
+	a.Signal("0dd1b652", "intent_cortex_listening_end", func() bool { mu.Lock(); defer mu.Unlock(); return stale })
+	mu.Lock()
+	stale = true
+	mu.Unlock()
+	close(s.release)
+	log.waitFor(t, "skipped 0dd1b652 intent_cortex_listening_end")
+	expectNoSend(t, s)
+}

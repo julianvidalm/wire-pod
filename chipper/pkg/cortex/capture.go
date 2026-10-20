@@ -25,6 +25,7 @@ type Utterance struct {
 	Reason  EndReason
 	Voiced  time.Duration // speech the VAD heard after the wake (the margin before it is not counted)
 	Level   float64       // RMS of that speech in dBFS; -inf without any
+	Wake    uint64        // which of the robot's wakes started it (Conversation counts them from 1)
 }
 
 // Duration is how much audio the utterance holds.

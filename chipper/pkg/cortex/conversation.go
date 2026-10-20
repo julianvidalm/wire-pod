@@ -24,8 +24,15 @@ type Config struct {
 	// Timeout bounds transcribing and answering one utterance.
 	Timeout time.Duration
 	// EndIntent is sent to the robot as an intent result when a capture ends without an answer (no speech,
-	// nothing heard, an error, a dropped utterance), so it stops listening (L63). Empty sends nothing.
+	// nothing heard, an error, a dropped utterance), so it stops listening (L63). Empty sends nothing. It is
+	// skipped when a newer wake already started a capture (L67), and goes through SignalThrough's Signaler.
 	EndIntent string
+}
+
+// Signaler sends an intent to a robot after the sends already queued for it (the attend), unless stale says, when
+// its turn comes, that it no longer applies. It must not block. The Attender is one.
+type Signaler interface {
+	Signal(esn, intent string, stale func() bool)
 }
 
 // Conversation is the cortex's listening loop: after a wake it captures what the user says from the robot's
@@ -38,17 +45,25 @@ type Conversation struct {
 	mu      sync.Mutex
 	streams map[string]*stream
 	workers map[string]*worker
+	wakes   map[string]uint64 // wakes that started a capture, per robot
+	signals Signaler          // nil: the end intent goes straight to the Robot
 }
 
 // stream is one robot's mic stream: its pre-roll and capture.
 type stream struct {
 	mu      sync.Mutex
 	capture *Capture
+	wake    uint64 // the wake of the capture in progress
 }
 
 type worker struct {
 	queue   chan Utterance
 	dropped uint64 // only touched under the stream's lock
+
+	mu sync.Mutex
+	// endAfter is the wake of the newest dropped utterance: its end is sent once the utterances ahead of it are
+	// done, unless one of them was answered (any answer ends the robot's listening).
+	endAfter uint64
 }
 
 func NewConversation(cfg Config) *Conversation {
@@ -67,7 +82,8 @@ func NewConversation(cfg Config) *Conversation {
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 30 * time.Second
 	}
-	return &Conversation{cfg: cfg, streams: map[string]*stream{}, workers: map[string]*worker{}}
+	return &Conversation{cfg: cfg, streams: map[string]*stream{}, workers: map[string]*worker{},
+		wakes: map[string]uint64{}}
 }
 
 // Open starts listening to a new stream from the robot, forgetting any previous one.
@@ -98,6 +114,7 @@ func (c *Conversation) Feed(esn string, f Frame) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if u, done := s.capture.Feed(f); done {
+		u.Wake = s.wake
 		c.finished(esn, u)
 	}
 }
@@ -112,9 +129,14 @@ func (c *Conversation) Wake(esn string, ts uint64) {
 		c.cfg.Logf("Cortex: ", esn, " already listening, wake ignored")
 		return
 	}
+	c.mu.Lock()
+	c.wakes[esn]++
+	s.wake = c.wakes[esn]
+	c.mu.Unlock()
 	u, done := s.capture.Start(ts)
 	c.cfg.Logf(fmt.Sprintf("Cortex: %s listening from %v before the wake", esn, c.cfg.Capture.WakeMargin))
 	if done {
+		u.Wake = s.wake
 		c.finished(esn, u)
 	}
 }
@@ -131,6 +153,7 @@ func (c *Conversation) Close(esn string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if u, ok := s.capture.Abort(); ok {
+		u.Wake = s.wake
 		c.finished(esn, u)
 	}
 }
@@ -141,16 +164,16 @@ func (c *Conversation) finished(esn string, u Utterance) {
 	switch {
 	case u.Reason == EndNoSpeech:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard: no speech after %.1f s, nothing sent", esn, u.Duration().Seconds()))
-		go c.endListening(esn)
+		c.endListening(esn, u.Wake)
 		return
 	case u.Reason == EndStream:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s %s after %.1f s, nothing sent", esn, u.Reason, u.Duration().Seconds()))
-		go c.endListening(esn)
+		c.endListening(esn, u.Wake)
 		return
 	case u.Level < c.cfg.Capture.MinLevel:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard in %.1f s (%s, %s), nothing sent", esn,
 			u.Duration().Seconds(), u.Reason, speech(u)))
-		go c.endListening(esn)
+		c.endListening(esn, u.Wake)
 		return
 	}
 	c.cfg.Logf(fmt.Sprintf("Cortex: %s heard %.1f s (%s, %s)", esn, u.Duration().Seconds(), u.Reason, speech(u)))
@@ -160,7 +183,9 @@ func (c *Conversation) finished(esn string, u Utterance) {
 	default:
 		w.dropped++
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s still answering, utterance dropped (%d dropped)", esn, w.dropped))
-		go c.endListening(esn)
+		w.mu.Lock()
+		w.endAfter = u.Wake
+		w.mu.Unlock()
 	}
 }
 
@@ -178,25 +203,67 @@ func (c *Conversation) worker(esn string) *worker {
 
 func (c *Conversation) run(esn string, w *worker) {
 	for u := range w.queue {
-		c.answer(esn, u)
+		answered := c.answer(esn, u)
+		w.mu.Lock()
+		if answered {
+			w.endAfter = 0
+		}
+		end := uint64(0)
+		if len(w.queue) == 0 {
+			end, w.endAfter = w.endAfter, 0
+		}
+		w.mu.Unlock()
+		if end != 0 {
+			c.endListening(esn, end)
+		}
 	}
 }
 
 // answer transcribes one utterance, asks the brain and sends the answer to the robot; without an answer it ends
 // the robot's listening.
-func (c *Conversation) answer(esn string, u Utterance) {
-	if !c.reply(esn, u) {
-		c.endListening(esn)
+// It says whether an answer was sent.
+func (c *Conversation) answer(esn string, u Utterance) bool {
+	if c.reply(esn, u) {
+		return true
 	}
+	c.endListening(esn, u.Wake)
+	return false
 }
 
-// endListening tells the robot a capture ended without an answer (Config.EndIntent).
-func (c *Conversation) endListening(esn string) {
+// SignalThrough sends the end intent through s (the Attender), in order with the attends. Call it before the
+// first wake.
+func (c *Conversation) SignalThrough(s Signaler) {
+	c.mu.Lock()
+	c.signals = s
+	c.mu.Unlock()
+}
+
+// endListening tells the robot that the capture of wake ended without an answer (Config.EndIntent), unless a
+// newer wake already started a capture: the robot is listening for that one now (L67). It never blocks.
+func (c *Conversation) endListening(esn string, wake uint64) {
 	if c.cfg.EndIntent == "" {
 		return
 	}
-	err := c.cfg.Robot.SendIntentResult(esn, c.cfg.EndIntent, "")
-	c.cfg.Logf(fmt.Sprintf("Cortex: %s listening end %s, %s", esn, c.cfg.EndIntent, outcome(err)))
+	stale := func() bool {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		return c.wakes[esn] != wake
+	}
+	c.mu.Lock()
+	signals := c.signals
+	c.mu.Unlock()
+	if signals != nil {
+		signals.Signal(esn, c.cfg.EndIntent, stale)
+		return
+	}
+	go func() {
+		if stale() {
+			c.cfg.Logf(fmt.Sprintf("Cortex: %s listening end skipped: a newer wake is listening", esn))
+			return
+		}
+		err := c.cfg.Robot.SendIntentResult(esn, c.cfg.EndIntent, "")
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s listening end %s, %s", esn, c.cfg.EndIntent, outcome(err)))
+	}()
 }
 
 // reply transcribes one utterance, asks the brain and sends its answer; it says whether an answer was sent.

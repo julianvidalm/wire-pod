@@ -29,18 +29,24 @@ type wakeHandler struct {
 }
 
 // withConversation returns the handler that also starts listening to what the user says after each wake.
+// With attend on, the conversation's end of listening goes through the attender, in order with the attends (L67).
 func (h wakeHandler) withConversation(c *cortex.Conversation) wakeHandler {
 	h.conversation = c
+	if c != nil && h.attender != nil {
+		c.SignalThrough(h.attender)
+	}
 	return h
 }
 
+// OnWake starts the capture before queueing the attend, so an older capture's end that is queued after this
+// attend is already stale when its turn comes (L67).
 func (h wakeHandler) OnWake(d wakeword.Detection) {
 	h.logf(wakeLine(d))
-	if h.attender != nil {
-		h.attender.Attend(d.ESN)
-	}
 	if h.conversation != nil {
 		h.conversation.Wake(d.ESN, d.FrameTimestamp)
+	}
+	if h.attender != nil {
+		h.attender.Attend(d.ESN)
 	}
 }
 
