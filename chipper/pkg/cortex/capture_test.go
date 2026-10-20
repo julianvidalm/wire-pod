@@ -12,7 +12,7 @@ import (
 func testCaptureConfig() CaptureConfig {
 	c := DefaultCaptureConfig()
 	c.MicRate = 16000
-	c.WakeMargin, c.PreRoll, c.MaxLength = 100*time.Millisecond, 900*time.Millisecond, 8*time.Second
+	c.WakeMargin, c.PreRoll, c.NoSpeech, c.PromptAfter = 100*time.Millisecond, 900*time.Millisecond, 4*time.Second, 0
 	return c
 }
 
@@ -135,8 +135,9 @@ func TestCaptureStopsAtTheMaxLength(t *testing.T) {
 	if !done || u.Reason != EndMaxLen {
 		t.Fatalf("got done %v reason %q, want %q", done, u.Reason, EndMaxLen)
 	}
-	if len(u.Samples) != 8*16000 || u.End != 7990 {
-		t.Fatalf("got %d samples ending at %d, want %d ending at 7990", len(u.Samples), u.End, 8*16000)
+	// 8 s from the speech onset at 10 ms (frame 0 is the wake's own frame).
+	if len(u.Samples) != 801*160 || u.End != 8000 {
+		t.Fatalf("got %d samples ending at %d, want %d ending at 8000", len(u.Samples), u.End, 801*160)
 	}
 }
 
@@ -258,22 +259,79 @@ func TestLiveCaptureNeverCountsTheWakePhraseAsSpeech(t *testing.T) {
 	}
 }
 
-// The timeouts still count from the wake: 4 s without a question, and as before about 8 s of question at most.
-func TestLiveCaptureTimesOutFromTheWake(t *testing.T) {
+// T3g (S6): the robot turns to the voice first and the user speaks after it, so the capture waits 9 s from the
+// wake for the question (CORTEX_NO_SPEECH), asking with the prompt at 6 s.
+func TestLiveCaptureGivesUpNineSecondsAfterTheWake(t *testing.T) {
 	c := NewCapture(liveCaptureConfig(), markVAD{})
 	feedRange(t, c, 0, 1499, false)
 	feedRange(t, c, 1500, 2500, true)
 	c.Start(2500)
 	u, done := feedRange(t, c, 2510, 20000, false)
-	if !done || u.Reason != EndNoSpeech || u.End != 6500 {
-		t.Fatalf("got done %v %q at %d, want %q at 6500", done, u.Reason, u.End, EndNoSpeech)
+	if !done || u.Reason != EndNoSpeech || u.End != 11500 {
+		t.Fatalf("got done %v %q at %d, want %q at 11500", done, u.Reason, u.End, EndNoSpeech)
 	}
+}
 
-	c = NewCapture(liveCaptureConfig(), markVAD{})
-	feedRange(t, c, 0, 2500, true)
-	c.Start(2500)
-	u, done = feedRange(t, c, 2510, 20000, true)
-	if !done || u.Reason != EndMaxLen || u.End != 10490 {
-		t.Fatalf("got done %v %q at %d, want %q at 10490 (7.99 s after the wake)", done, u.Reason, u.End, EndMaxLen)
+// promptAt feeds silence from ts from to to and returns the first frame after which the prompt was due (0: never)
+// and how often it was.
+func promptAt(t *testing.T, c *Capture, from, to uint64, speech bool) (uint64, int) {
+	t.Helper()
+	first, n := uint64(0), 0
+	for ts := from; ts <= to; ts += 10 {
+		c.Feed(testFrame(ts, speech))
+		if c.PromptDue() {
+			if n == 0 {
+				first = ts
+			}
+			n++
+		}
+	}
+	return first, n
+}
+
+func TestLiveCapturePromptsSixSecondsAfterTheWakeOnce(t *testing.T) {
+	c := NewCapture(liveCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 990, true)
+	c.Start(990)
+	if at, n := promptAt(t, c, 1000, 10000, false); at != 6990 || n != 1 {
+		t.Fatalf("prompt due at %d (%d times), want once at 6990", at, n)
+	}
+}
+
+func TestLiveCaptureDoesNotPromptAfterSpeech(t *testing.T) {
+	c := NewCapture(liveCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 990, false)
+	c.Start(990)
+	promptAt(t, c, 1000, 2990, false)
+	at, _ := promptAt(t, c, 3000, 3290, true) // the question starts 2 s after the wake
+	if at2, _ := promptAt(t, c, 3300, 4000, false); at != 0 || at2 != 0 || c.Capturing() {
+		t.Fatalf("prompt due at %d/%d, capturing %v; want no prompt and the capture ended", at, at2, c.Capturing())
+	}
+}
+
+// A question that starts after the prompt is captured and ends normally.
+func TestLiveCaptureHearsAQuestionAfterThePrompt(t *testing.T) {
+	c := NewCapture(liveCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 990, false)
+	c.Start(990)
+	promptAt(t, c, 1000, 7990, false)
+	if _, done := feedRange(t, c, 8000, 8990, true); done {
+		t.Fatal("ended during the question")
+	}
+	u, done := feedRange(t, c, 9000, 12000, false)
+	if !done || u.Reason != EndSilence || u.Voiced != time.Second {
+		t.Fatalf("got done %v %q voiced %v, want %q with 1s", done, u.Reason, u.Voiced, EndSilence)
+	}
+}
+
+// The longest question is 8 s from its start (CORTEX_CAPTURE_MAX), however late it starts.
+func TestLiveCaptureMaxLengthCountsFromTheSpeechOnset(t *testing.T) {
+	c := NewCapture(liveCaptureConfig(), markVAD{})
+	feedRange(t, c, 0, 990, false)
+	c.Start(990)
+	feedRange(t, c, 1000, 7990, false)
+	u, done := feedRange(t, c, 8000, 30000, true)
+	if !done || u.Reason != EndMaxLen || u.End != 15990 {
+		t.Fatalf("got done %v %q at %d, want %q at 15990 (8 s after the onset at 8000)", done, u.Reason, u.End, EndMaxLen)
 	}
 }

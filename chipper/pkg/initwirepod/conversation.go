@@ -30,6 +30,14 @@ const (
 
 	defaultAttendEndIntent = "intent_cortex_listening_end"
 
+	// The no-speech timeline (S6): the robot turns to the voice first, so the user speaks late.
+	promptAfterEnv  = "CORTEX_LISTEN_PROMPT_AFTER"  // Go duration without speech after the wake before the prompt, default 6s; 0 never
+	promptIntentEnv = "CORTEX_LISTEN_PROMPT_INTENT" // intent the prompt sends; set but empty sends nothing
+	noSpeechEnv     = "CORTEX_NO_SPEECH"            // Go duration without speech after the wake before giving up, default 9s
+	captureMaxEnv   = "CORTEX_CAPTURE_MAX"          // Go duration of the longest question from its start, default 8s
+
+	defaultPromptIntent = "intent_cortex_listening_prompt"
+
 	defaultVADMode = 3
 	defaultPersona = "Jarvis"
 	intentDataDir  = "intent-data" // wire-pod runs in chipper
@@ -91,10 +99,17 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 		return nil, "", err
 	}
 	capture.MicRate = int(rate)
-	if v := os.Getenv(cortexMarginEnv); v != "" {
-		if capture.WakeMargin, err = time.ParseDuration(v); err != nil {
-			return nil, "", fmt.Errorf("%s: %w", cortexMarginEnv, err)
+	for env, d := range map[string]*time.Duration{cortexMarginEnv: &capture.WakeMargin,
+		promptAfterEnv: &capture.PromptAfter, noSpeechEnv: &capture.NoSpeech, captureMaxEnv: &capture.MaxLength} {
+		if v := os.Getenv(env); v != "" {
+			if *d, err = time.ParseDuration(v); err != nil {
+				return nil, "", fmt.Errorf("%s: %w", env, err)
+			}
 		}
+	}
+	promptIntent, set := os.LookupEnv(promptIntentEnv)
+	if !set {
+		promptIntent = defaultPromptIntent
 	}
 	newVAD := d.newVAD
 	vadDesc := "test VAD"
@@ -143,17 +158,22 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 		return nil, "", err
 	}
 	c := cortex.NewConversation(cortex.Config{
-		Capture:     capture,
-		NewVAD:      newVAD,
-		Transcriber: tr,
-		Brain:       brain,
-		Robot:       robotCommands{d.sender},
-		Logf:        d.logf,
-		EndIntent:   endIntent,
+		Capture:      capture,
+		NewVAD:       newVAD,
+		Transcriber:  tr,
+		Brain:        brain,
+		Robot:        robotCommands{d.sender},
+		Logf:         d.logf,
+		EndIntent:    endIntent,
+		PromptIntent: promptIntent,
 	})
-	desc := fmt.Sprintf("%s, %s, %s; capture from %v before the wake, ends after %v of silence, at most %v, "+
-		"gives up after %v without speech; mic %d Hz", trDesc, brainDesc, vadDesc, capture.WakeMargin,
-		capture.EndSilence, capture.MaxLength, capture.NoSpeech, capture.MicRate)
+	prompt := ""
+	if promptIntent != "" && capture.PromptAfter > 0 && capture.PromptAfter < capture.NoSpeech {
+		prompt = fmt.Sprintf("%s after %v without speech, ", promptIntent, capture.PromptAfter)
+	}
+	desc := fmt.Sprintf("%s, %s, %s; capture from %v before the wake, ends after %v of silence, at most %v from "+
+		"the speech start, %sgives up after %v without speech; mic %d Hz", trDesc, brainDesc, vadDesc,
+		capture.WakeMargin, capture.EndSilence, capture.MaxLength, prompt, capture.NoSpeech, capture.MicRate)
 	if endIntent != "" {
 		desc += "; " + endIntent + " when nothing is answered"
 	}

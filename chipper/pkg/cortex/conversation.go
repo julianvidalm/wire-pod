@@ -27,6 +27,9 @@ type Config struct {
 	// nothing heard, an error, a dropped utterance), so it stops listening (L63). Empty sends nothing. It is
 	// skipped when a newer wake already started a capture (L67), and goes through SignalThrough's Signaler.
 	EndIntent string
+	// PromptIntent is sent, the same way, when nobody has spoken Capture.PromptAfter after the wake: the robot
+	// shows it is still listening (S6). Empty sends nothing.
+	PromptIntent string
 }
 
 // Signaler sends an intent to a robot after the sends already queued for it (the attend), unless stale says, when
@@ -116,6 +119,8 @@ func (c *Conversation) Feed(esn string, f Frame) {
 	if u, done := s.capture.Feed(f); done {
 		u.Wake = s.wake
 		c.finished(esn, u)
+	} else if s.capture.PromptDue() {
+		c.signal(esn, c.cfg.PromptIntent, s.wake, "listening prompt")
 	}
 }
 
@@ -241,7 +246,13 @@ func (c *Conversation) SignalThrough(s Signaler) {
 // endListening tells the robot that the capture of wake ended without an answer (Config.EndIntent), unless a
 // newer wake already started a capture: the robot is listening for that one now (L67). It never blocks.
 func (c *Conversation) endListening(esn string, wake uint64) {
-	if c.cfg.EndIntent == "" {
+	c.signal(esn, c.cfg.EndIntent, wake, "listening end")
+}
+
+// signal sends intent (what names it in the log) for the capture of wake, unless it is empty or a newer wake
+// already started a capture. It never blocks.
+func (c *Conversation) signal(esn, intent string, wake uint64, what string) {
+	if intent == "" {
 		return
 	}
 	stale := func() bool {
@@ -253,16 +264,16 @@ func (c *Conversation) endListening(esn string, wake uint64) {
 	signals := c.signals
 	c.mu.Unlock()
 	if signals != nil {
-		signals.Signal(esn, c.cfg.EndIntent, stale)
+		signals.Signal(esn, intent, stale)
 		return
 	}
 	go func() {
 		if stale() {
-			c.cfg.Logf(fmt.Sprintf("Cortex: %s listening end skipped: a newer wake is listening", esn))
+			c.cfg.Logf(fmt.Sprintf("Cortex: %s %s skipped: a newer wake is listening", esn, what))
 			return
 		}
-		err := c.cfg.Robot.SendIntentResult(esn, c.cfg.EndIntent, "")
-		c.cfg.Logf(fmt.Sprintf("Cortex: %s listening end %s, %s", esn, c.cfg.EndIntent, outcome(err)))
+		err := c.cfg.Robot.SendIntentResult(esn, intent, "")
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s %s %s, %s", esn, what, intent, outcome(err)))
 	}()
 }
 

@@ -190,6 +190,7 @@ func TestACaptureWithoutAnswerSendsTheEndIntent(t *testing.T) {
 		want  string
 	}{{false, "", "intent_cortex_listening_end"}, {true, "intent_x_end", "intent_x_end"}, {true, "", ""}} {
 		t.Setenv(conversationEnv, "on")
+		t.Setenv(promptIntentEnv, "") // only the end
 		if tc.set {
 			t.Setenv(attendEndIntentEnv, tc.value)
 		} else {
@@ -202,7 +203,7 @@ func TestACaptureWithoutAnswerSendsTheEndIntent(t *testing.T) {
 			t.Fatal(err)
 		}
 		conv.Wake("0dd1b652", 0)
-		for ts := uint64(0); ts < 6000; ts += 10 {
+		for ts := uint64(0); ts < 10000; ts += 10 {
 			conv.Feed("0dd1b652", cortex.Frame{Samples: make([]int16, 160), Timestamp: ts})
 		}
 		select {
@@ -224,6 +225,7 @@ func TestTheEndIntentGoesThroughTheAttendQueue(t *testing.T) {
 	t.Setenv(attendIntentEnv, "intent_cortex_listening")
 	t.Setenv(attendRefractoryEnv, "")
 	unsetEnv(t, attendEndIntentEnv)
+	unsetEnv(t, promptIntentEnv)
 	s, log := newChanSender(), &lineLog{}
 	conv, _, err := newConversation(conversationDeps{transcriber: stubTranscriberFunc("x"),
 		brain: stubBrain{}, newVAD: func() cortex.VAD { return loudVAD{} }, sender: s, logf: log.logf})
@@ -238,13 +240,48 @@ func TestTheEndIntentGoesThroughTheAttendQueue(t *testing.T) {
 	wake := testDetection
 	wake.FrameTimestamp = 0
 	h.OnWake(wake)
-	for ts := uint64(0); ts < 6000; ts += 10 {
+	for ts := uint64(0); ts < 10000; ts += 10 {
 		conv.Feed(wake.ESN, cortex.Frame{Samples: make([]int16, 160), Timestamp: ts})
 	}
-	for _, want := range []string{"intent_cortex_listening", "intent_cortex_listening_end"} {
+	for _, want := range []string{"intent_cortex_listening", "intent_cortex_listening_prompt", "intent_cortex_listening_end"} {
 		if got := (<-s.got).GetIntentResult().GetIntent(); got != want {
 			t.Fatalf("sent %q, want %q", got, want)
 		}
 	}
 	log.waitFor(t, "signal sent "+wake.ESN+" intent_cortex_listening_end")
+}
+
+// T3g (S6): the no-speech timeline and the longest question are settings, named in the startup line.
+func TestTheListeningTimelineSettings(t *testing.T) {
+	for _, tc := range []struct {
+		env  map[string]string
+		want string
+	}{
+		{map[string]string{}, "at most 8s from the speech start, intent_cortex_listening_prompt after 6s without speech, " +
+			"gives up after 9s without speech"},
+		{map[string]string{promptAfterEnv: "4s", noSpeechEnv: "7s", captureMaxEnv: "12s", promptIntentEnv: "intent_x"},
+			"at most 12s from the speech start, intent_x after 4s without speech, gives up after 7s without speech"},
+		{map[string]string{promptIntentEnv: ""}, "at most 8s from the speech start, gives up after 9s without speech"},
+		{map[string]string{promptAfterEnv: "0s"}, "at most 8s from the speech start, gives up after 9s without speech"},
+	} {
+		t.Setenv(conversationEnv, "on")
+		for _, k := range []string{promptAfterEnv, noSpeechEnv, captureMaxEnv, promptIntentEnv} {
+			if v, ok := tc.env[k]; ok {
+				t.Setenv(k, v)
+			} else {
+				unsetEnv(t, k)
+			}
+		}
+		_, desc, err := newConversation(conversationDeps{transcriber: stubTranscriberFunc("x"),
+			brain: stubBrain{}, newVAD: func() cortex.VAD { return loudVAD{} }, sender: newChanSender()})
+		if err != nil || !strings.Contains(desc, tc.want) {
+			t.Fatalf("%v: got %q, %v; want %q", tc.env, desc, err, tc.want)
+		}
+	}
+	t.Setenv(noSpeechEnv, "soon")
+	if _, _, err := newConversation(conversationDeps{transcriber: stubTranscriberFunc("x"), brain: stubBrain{},
+		newVAD: func() cortex.VAD { return loudVAD{} }, sender: newChanSender()}); err == nil ||
+		!strings.Contains(err.Error(), noSpeechEnv) {
+		t.Fatalf("got %v, want a %s error", err, noSpeechEnv)
+	}
 }

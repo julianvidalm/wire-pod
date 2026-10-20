@@ -48,8 +48,11 @@ type CaptureConfig struct {
 	// the wake (the margin, which holds the end of the wake word) is sent to the transcriber but never counts.
 	MinSpeech  time.Duration
 	EndSilence time.Duration // silence after speech that ends the utterance
-	MaxLength  time.Duration // longest utterance, margin included (the default leaves about 8 s after the wake)
+	MaxLength  time.Duration // longest utterance, counted from the user's speech onset (T3g)
 	NoSpeech   time.Duration // the capture gives up when nobody speaks this long after the wake
+	// PromptAfter is when, without speech since the wake, the robot is asked to show it is still listening
+	// (PromptDue); 0 never asks. The robot turns to the voice first, so the user speaks late (S6, L71).
+	PromptAfter time.Duration
 	// An utterance whose speech is quieter than MinLevel (dBFS) is not transcribed: nothing was heard (speech
 	// shorter than MinSpeech never starts the utterance). A transcript that is one of whisper's silence phrases ("Thank you.") is answered only when its
 	// speech reached ClearLevel.
@@ -60,15 +63,16 @@ type CaptureConfig struct {
 // DefaultCaptureConfig is the capture the live cortex uses.
 func DefaultCaptureConfig() CaptureConfig {
 	return CaptureConfig{
-		MicRate:    15662,
-		PreRoll:    time.Second,
-		WakeMargin: time.Second, // L61: whisper hears "hey jarvis", which tells it a short question's language
-		MinSpeech:  200 * time.Millisecond,
-		EndSilence: 700 * time.Millisecond,
-		MaxLength:  9 * time.Second,
-		NoSpeech:   4 * time.Second, // L34 asks the user to pause between the name and the question
-		MinLevel:   -48,
-		ClearLevel: -38,
+		MicRate:     15662,
+		PreRoll:     time.Second,
+		WakeMargin:  time.Second, // L61: whisper hears "hey jarvis", which tells it a short question's language
+		MinSpeech:   200 * time.Millisecond,
+		EndSilence:  700 * time.Millisecond,
+		MaxLength:   8 * time.Second,
+		NoSpeech:    9 * time.Second, // S6: the prompt at 6 s, then 3 s more
+		PromptAfter: 6 * time.Second,
+		MinLevel:    -48,
+		ClearLevel:  -38,
 	}
 }
 
@@ -90,6 +94,9 @@ type Capture struct {
 	voicedRun int     // consecutive speech samples after the wake
 	silentRun int     // consecutive non-speech samples since the user started speaking
 	spoke     bool
+	onset     int  // samples after the wake when the user's speech began
+	prompted  bool // the prompt came due in this capture
+	promptDue bool // ... and PromptDue has not reported it yet
 }
 
 func NewCapture(cfg CaptureConfig, vad VAD) *Capture {
@@ -133,7 +140,7 @@ func (c *Capture) Start(wakeTs uint64) (Utterance, bool) {
 	if margin := uint64(c.cfg.WakeMargin / time.Millisecond); wakeTs > margin {
 		from = wakeTs - margin
 	}
-	c.capturing, c.wakeTs, c.spoke = true, wakeTs, false
+	c.capturing, c.wakeTs, c.spoke, c.prompted, c.promptDue = true, wakeTs, false, false, false
 	c.afterWake, c.voiced, c.voicedSq, c.voicedRun, c.silentRun = 0, 0, 0, 0, 0
 	c.cur = Utterance{Rate: c.cfg.MicRate}
 	for _, f := range c.ring {
@@ -166,8 +173,9 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 		}
 		c.voicedRun += n
 		c.silentRun = 0
-		if c.voicedRun >= c.samples(c.cfg.MinSpeech) {
+		if !c.spoke && c.voicedRun >= c.samples(c.cfg.MinSpeech) {
 			c.spoke = true
+			c.onset = c.afterWake - c.voicedRun
 		}
 	} else {
 		c.voicedRun = 0
@@ -178,13 +186,13 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 	switch {
 	case c.spoke && c.silentRun >= c.samples(c.cfg.EndSilence):
 		return c.finish(EndSilence), true
-	case len(c.cur.Samples) >= c.samples(c.cfg.MaxLength):
-		if !c.spoke {
-			return c.finish(EndNoSpeech), true
-		}
+	case c.spoke && c.afterWake-c.onset >= c.samples(c.cfg.MaxLength):
 		return c.finish(EndMaxLen), true
 	case !c.spoke && c.afterWake >= c.samples(c.cfg.NoSpeech):
 		return c.finish(EndNoSpeech), true
+	case !c.spoke && !c.prompted && c.voicedRun == 0 && c.cfg.PromptAfter > 0 &&
+		c.afterWake >= c.samples(c.cfg.PromptAfter):
+		c.prompted, c.promptDue = true, true
 	}
 	return Utterance{}, false
 }
@@ -200,6 +208,14 @@ func (c *Capture) finish(r EndReason) Utterance {
 	c.capturing = false
 	c.cur = Utterance{}
 	return u
+}
+
+// PromptDue says, once per capture, that nobody has spoken PromptAfter after the wake: the robot should show it
+// is still listening.
+func (c *Capture) PromptDue() bool {
+	due := c.promptDue
+	c.promptDue = false
+	return due
 }
 
 // Capturing says whether a capture is in progress.
