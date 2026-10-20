@@ -40,9 +40,9 @@ const (
 type voiceRequests struct {
 	conv *cortex.Conversation
 	logf func(a ...any)
-	// listen reads the request's audio until the speech ends, the stream ends or max passes (tests replace it).
-	listen func(req any, max time.Duration) ([]int16, cortex.EndReason, error)
-	now    func() time.Time
+	// audio streams the request's audio as 16 kHz PCM until the robot ends it or stop closes (tests replace it).
+	audio func(req any, stop <-chan struct{}) <-chan voiceAudio
+	now   func() time.Time
 }
 
 // voiceRequestsOn reads CORTEX_VOICE_REQUESTS.
@@ -71,7 +71,7 @@ func newVoiceRequests(conv *cortex.Conversation, logf func(a ...any)) (*voiceReq
 	if logf == nil {
 		logf = func(...any) {}
 	}
-	return &voiceRequests{conv: conv, logf: logf, listen: listenChipper, now: time.Now}, nil
+	return &voiceRequests{conv: conv, logf: logf, audio: chipperAudio, now: time.Now}, nil
 }
 
 // installVoiceRequests hands wire-pod's voice requests to the cortex when CORTEX_VOICE_REQUESTS=on; otherwise
@@ -101,15 +101,14 @@ func installVoiceRequests() {
 func (v *voiceRequests) Handle(req any) {
 	began := v.now()
 	to := newChipperReply(req, began, v.logf)
-	samples, reason, err := v.listen(req, voiceListenMax)
+	u, err := v.capture(req, to.esn)
 	if err != nil {
 		v.logf("Cortex: ", to.esn, " voice request stream failed: ", err)
 		to.end(cortex.Failed)
 		return
 	}
-	u := v.conv.Heard(to.esn, samples, voiceRate, reason)
 	v.logf(fmt.Sprintf("Cortex: %s voice request: %.1f s of audio, %s after %.2f s", to.esn, u.Duration().Seconds(),
-		reason, v.now().Sub(began).Seconds()))
+		u.Reason, v.now().Sub(began).Seconds()))
 	ctx, cancel := context.WithDeadline(context.Background(), began.Add(voiceAnswerBy))
 	done := make(chan cortex.Outcome, 1)
 	go func() {
@@ -121,6 +120,35 @@ func (v *voiceRequests) Handle(req any) {
 	case o := <-done:
 		to.end(o)
 	}
+}
+
+// capture cuts the question out of the request's audio with the conversation's capture rules; the robot ending
+// the stream and voiceListenMax end it too.
+func (v *voiceRequests) capture(req any, esn string) (cortex.Utterance, error) {
+	stop := make(chan struct{})
+	defer close(stop)
+	c := v.conv.NewRequestCapture(voiceRate)
+	audio := v.audio(req, stop)
+	timer := time.NewTimer(voiceListenMax)
+	defer timer.Stop()
+	var u cortex.Utterance
+	for done := false; !done; {
+		select {
+		case a, ok := <-audio:
+			switch {
+			case !ok:
+				u, done = c.End(cortex.EndStream), true
+			case a.err != nil:
+				return cortex.Utterance{}, a.err
+			default:
+				u, done = c.Feed(a.samples)
+			}
+		case <-timer.C:
+			u, done = c.End(cortex.EndMaxLen), true
+		}
+	}
+	u.ESN = esn
+	return u, nil
 }
 
 // chipperReply is one voice request's cortex.Reply: the first answer goes on the request's own stream, any later
@@ -243,54 +271,44 @@ func stringParams(paramsJSON string) (map[string]string, error) {
 	return out, nil
 }
 
-// listenChipper reads a voice request's Opus stream as 16 kHz PCM until wire-pod's VAD hears the speech end, the
-// robot ends the stream, or max passes; the stream's own reader stops when the request ends.
-func listenChipper(req any, max time.Duration) ([]int16, cortex.EndReason, error) {
-	sreq := sr.ReqToSpeechRequest(req)
-	pcm := append([]byte(nil), sreq.DecodedMicData...)
-	type chunk struct {
-		pcm []byte
-		end bool
-		err error
-	}
-	chunks := make(chan chunk)
-	stop := make(chan struct{})
-	defer close(stop)
+// voiceAudio is one chunk of a voice request's audio, or the error that ended its stream.
+type voiceAudio struct {
+	samples []int16
+	err     error
+}
+
+// chipperAudio streams a voice request's Opus audio decoded to 16 kHz PCM; the channel closes when the robot ends
+// the stream (an error other than its end is sent first) or stop closes.
+func chipperAudio(req any, stop <-chan struct{}) <-chan voiceAudio {
+	out := make(chan voiceAudio)
 	go func() {
+		defer close(out)
+		send := func(c voiceAudio) bool {
+			select {
+			case out <- c:
+				return true
+			case <-stop:
+				return false
+			}
+		}
+		sreq := sr.ReqToSpeechRequest(req)
+		if !send(voiceAudio{samples: sr.BytesToSamples(sreq.DecodedMicData)}) {
+			return
+		}
 		for {
 			b, err := sreq.GetNextStreamChunk()
-			end := false
-			if err == nil {
-				end, _ = sreq.DetectEndOfSpeech()
-			}
-			select {
-			case chunks <- chunk{append([]byte(nil), b...), end, err}:
-			case <-stop:
+			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					send(voiceAudio{err: err})
+				}
 				return
 			}
-			if err != nil || end {
+			if !send(voiceAudio{samples: sr.BytesToSamples(b)}) {
 				return
 			}
 		}
 	}()
-	timer := time.NewTimer(max)
-	defer timer.Stop()
-	for {
-		select {
-		case c := <-chunks:
-			pcm = append(pcm, c.pcm...)
-			switch {
-			case errors.Is(c.err, io.EOF):
-				return sr.BytesToSamples(pcm), cortex.EndStream, nil
-			case c.err != nil:
-				return nil, cortex.EndStream, c.err
-			case c.end:
-				return sr.BytesToSamples(pcm), cortex.EndSilence, nil
-			}
-		case <-timer.C:
-			return sr.BytesToSamples(pcm), cortex.EndMaxLen, nil
-		}
-	}
+	return out
 }
 
 var _ cortex.Reply = (*chipperReply)(nil)

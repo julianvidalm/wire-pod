@@ -129,8 +129,10 @@ answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
 
 With `CORTEX_VOICE_REQUESTS=on` the robot wakes on its own "hey vector" and streams the question as a stock voice
 request; the cortex answers it instead of wire-pod's STT and intent matching (wire-pod logs `Cortex voice requests
-on` at start). The request's Opus audio is decoded to 16 kHz and read until wire-pod's VAD hears the speech end (at
-most 6.5 s); the conversation's whisper (`CORTEX_WHISPER_MODEL`), wake phrase and silence filters and brain answer
+on` at start). The request's Opus audio is decoded to 16 kHz and cut with the conversation's capture rules: the user
+speaks once the VAD hears 200 ms of speech in a row, a pause shorter than 700 ms does not end the question, and the
+robot ending the stream or 6.5 s end it too; a request where the user never spoke (a short noise burst) is nothing
+heard and never reaches whisper. The conversation's whisper (`CORTEX_WHISPER_MODEL`), wake phrase and silence filters and brain answer
 it, all within 8.5 s of the request (vic-cloud gives up at 9 s). The request gets exactly one response on its own
 stream, never a MicTap intent:
 
@@ -139,7 +141,7 @@ stream, never a MicTap intent:
 | brain intent | that intent, its JSON parameters as strings |
 | text, with `CORTEX_TTS=piper` | `intent_knowledge_response_extend_bypass` with `answer`, `answer_type`, `query_text`, `external_voice` `true` and `expected_duration_ms`, then the piper audio over the MicTap session (needs the firmware that types these two parameters); when the voice cannot start, the plain knowledge answer the robot says |
 | text, robot voice | the knowledge graph response |
-| no speech, no words, only "hey vector", a quiet silence phrase | `intent_system_noaudio` |
+| no speech (never 200 ms in a row), speech under -48 dBFS, no words, only "hey vector", a quiet silence phrase | `intent_system_noaudio` |
 | transcription or brain error | `intent_system_unmatched` |
 
 Unset or `off`, wire-pod answers voice requests exactly as before.

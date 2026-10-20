@@ -62,6 +62,68 @@ func (b *recBrain) transcripts() []cortex.Transcript {
 	return append([]cortex.Transcript(nil), b.got...)
 }
 
+// recTranscriber writes text for every utterance and records the utterances.
+type recTranscriber struct {
+	mu   sync.Mutex
+	text string
+	got  []cortex.Utterance
+}
+
+func (r *recTranscriber) Transcribe(_ context.Context, u cortex.Utterance) (cortex.Transcript, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.got = append(r.got, u)
+	return cortex.Transcript{Text: r.text, Language: "es"}, nil
+}
+
+func (r *recTranscriber) utterances() []cortex.Utterance {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]cortex.Utterance(nil), r.got...)
+}
+
+// chunksOf streams pcm as the robot does, in 20 ms chunks, then ends the stream.
+func chunksOf(pcm []int16, stop <-chan struct{}) <-chan voiceAudio {
+	out := make(chan voiceAudio)
+	go func() {
+		defer close(out)
+		for len(pcm) > 0 {
+			n := min(320, len(pcm))
+			select {
+			case out <- voiceAudio{samples: pcm[:n]}:
+			case <-stop:
+				return
+			}
+			pcm = pcm[n:]
+		}
+	}()
+	return out
+}
+
+// pcmOf joins spans of 16 kHz audio: speech (heard by the test VAD) or silence, each d long.
+func pcmOf(spans ...struct {
+	speech bool
+	d      time.Duration
+}) []int16 {
+	var pcm []int16
+	for _, sp := range spans {
+		n := int(sp.d * 16000 / time.Second)
+		v := int16(0)
+		if sp.speech {
+			v = 1000
+		}
+		for i := 0; i < n; i++ {
+			pcm = append(pcm, v)
+		}
+	}
+	return pcm
+}
+
+type span = struct {
+	speech bool
+	d      time.Duration
+}
+
 // speechPCM is a second of 16 kHz audio the test VAD hears as speech (about -30 dBFS), or silence.
 func speechPCM(speech bool) []int16 {
 	pcm := make([]int16, 16000)
@@ -78,6 +140,7 @@ type voiceRequestTest struct {
 	session bigSender
 	log     *lineLog
 	brain   *recBrain
+	tr      *recTranscriber
 	handler *voiceRequests
 }
 
@@ -91,9 +154,9 @@ func newVoiceRequestTest(t *testing.T, text string, b *recBrain, voice func() (c
 	t.Setenv(thinkingIntentEnv, "")
 	t.Setenv(owwMicRateEnv, "16000")
 	vt := &voiceRequestTest{stream: &fakeChipperStream{}, session: bigSender{got: make(chan *mictappb.Command, 4096)},
-		log: &lineLog{}, brain: b}
+		log: &lineLog{}, brain: b, tr: &recTranscriber{text: text}}
 	conv, _, err := newConversation(conversationDeps{
-		transcriber: stubTranscriberFunc(text),
+		transcriber: func() (cortex.Transcriber, string, error) { return vt.tr, "recording", nil },
 		brain:       b,
 		newVAD:      func() cortex.VAD { return loudVAD{} },
 		sender:      vt.session,
@@ -107,7 +170,7 @@ func newVoiceRequestTest(t *testing.T, text string, b *recBrain, voice func() (c
 	if err != nil || h == nil {
 		t.Fatalf("voice requests %v, %v", h, err)
 	}
-	h.listen = func(any, time.Duration) ([]int16, cortex.EndReason, error) { return pcm, cortex.EndSilence, nil }
+	h.audio = func(_ any, stop <-chan struct{}) <-chan voiceAudio { return chunksOf(pcm, stop) }
 	vt.handler = h
 	return vt
 }
@@ -321,6 +384,41 @@ func TestAVoiceRequestWhoseVoiceCannotStartIsTheRobotsKnowledgeAnswer(t *testing
 	r := vt.only(t)
 	if r.GetResponseType() != pb.IntentGraphMode_KNOWLEDGE_GRAPH || r.GetSpokenText() != "Estoy muy bien." {
 		t.Fatalf("response %v", r)
+	}
+	noSessionCommand(t, vt)
+}
+
+// Live 15:47: "hey vector", a short pause, then the question. A pause shorter than the end silence (700 ms) does
+// not end the question: whisper gets both parts in one utterance, which ends after the silence that follows.
+func TestAVoiceRequestKeepsTheQuestionAcrossAShortPause(t *testing.T) {
+	b := &recBrain{answer: cortex.Answer{Intent: "intent_clock_time"}}
+	pcm := pcmOf(span{true, 500 * time.Millisecond}, span{false, 600 * time.Millisecond},
+		span{true, 800 * time.Millisecond}, span{false, 2 * time.Second})
+	vt := newVoiceRequestTest(t, "cuéntame un chiste", b, nil, pcm)
+	vt.ask()
+	wantIntent(t, vt.only(t), "intent_clock_time")
+	us := vt.tr.utterances()
+	if len(us) != 1 {
+		t.Fatalf("transcribed %d utterances, want 1", len(us))
+	}
+	u := us[0]
+	// both parts (1.3 s of speech) and the pause, ended 700 ms into the final silence, not the stream's end
+	if u.Reason != cortex.EndSilence || u.Voiced < 1250*time.Millisecond || u.Duration() < 2500*time.Millisecond ||
+		u.Duration() > 2700*time.Millisecond {
+		t.Fatalf("utterance %s, %v of %v speech, want both parts ended by the silence", u.Reason, u.Duration(), u.Voiced)
+	}
+}
+
+// Live 15:47: nothing said on purpose, a 0.1 s noise burst, and the stream ends: no speech, so nothing heard
+// (intent_system_noaudio) without whisper, whatever whisper would have invented ("Gracias.").
+func TestAVoiceRequestWithANoiseBurstOnlyIsNoAudioWithoutWhisper(t *testing.T) {
+	b := &recBrain{answer: cortex.Answer{Text: "¡De nada!"}}
+	pcm := pcmOf(span{false, 2 * time.Second}, span{true, 100 * time.Millisecond}, span{false, 3 * time.Second})
+	vt := newVoiceRequestTest(t, "Gracias.", b, nil, pcm)
+	vt.ask()
+	wantIntent(t, vt.only(t), "intent_system_noaudio")
+	if n := len(vt.tr.utterances()); n != 0 || len(b.transcripts()) != 0 {
+		t.Fatalf("transcribed %d, brain asked %v; want neither", n, b.transcripts())
 	}
 	noSessionCommand(t, vt)
 }

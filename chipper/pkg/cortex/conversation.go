@@ -3,7 +3,6 @@ package cortex
 import (
 	"context"
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 	"time"
@@ -353,40 +352,65 @@ type TargetSpeaker interface {
 	SayTo(esn, answer, query, lang string, to KnowledgeTarget) error
 }
 
-// Heard is the utterance of samples (at rate, mono) a robot sent outside the MicTap stream, with the speech the
-// conversation's VAD hears in it (Voiced, Level), so it is judged as a captured one.
-func (c *Conversation) Heard(esn string, samples []int16, rate int, reason EndReason) Utterance {
-	u := Utterance{ESN: esn, Samples: samples, Rate: rate, Reason: reason, Level: math.Inf(-1)}
-	if rate <= 0 {
-		return u
-	}
-	vad := c.cfg.NewVAD()
-	frame := rate / 100 // 10 ms, as the MicTap frames
-	voiced, sq := 0, 0.0
-	for i := 0; i+frame <= len(samples); i += frame {
-		f := samples[i : i+frame]
-		if !vad.IsSpeech(f) {
-			continue
+// RequestCapture cuts the question out of a robot's own voice request: audio that starts at the robot's wake, at
+// one rate, without timestamps. It applies the conversation's capture rules (MinSpeech of speech before the user
+// counts as speaking, EndSilence after it, MaxLength from its onset, NoSpeech) through a Capture, with no margin
+// before the wake and no listening prompt. It is not safe for concurrent use.
+type RequestCapture struct {
+	c    *Capture
+	rate int
+	ts   uint64 // ms of audio fed so far: the frames' synthetic robot time
+	rest []int16
+}
+
+// NewRequestCapture starts the capture of one voice request whose audio comes at rate (mono).
+func (c *Conversation) NewRequestCapture(rate int) *RequestCapture {
+	cfg := c.cfg.Capture
+	cfg.MicRate, cfg.WakeMargin, cfg.PreRoll, cfg.WakeGrace, cfg.PromptAfter = rate, 0, 0, 0, 0
+	r := &RequestCapture{c: NewCapture(cfg, c.cfg.NewVAD()), rate: rate}
+	r.c.Start(0)
+	return r
+}
+
+// Feed adds samples; it returns the utterance once the capture rules end it.
+func (r *RequestCapture) Feed(samples []int16) (Utterance, bool) {
+	frame := r.rate / 100 // 10 ms, as the MicTap frames
+	r.rest = append(r.rest, samples...)
+	for frame > 0 && len(r.rest) >= frame && r.c.Capturing() {
+		f := Frame{Samples: append([]int16(nil), r.rest[:frame]...), Timestamp: r.ts + 10}
+		r.ts += 10
+		r.rest = r.rest[frame:]
+		if u, done := r.c.Feed(f); done {
+			return u, true
 		}
-		voiced += len(f)
-		for _, v := range f {
-			sq += float64(v) * float64(v)
-		}
 	}
-	u.Voiced = time.Duration(voiced) * time.Second / time.Duration(rate)
-	if voiced > 0 {
-		u.Level = 20 * math.Log10(math.Sqrt(sq/float64(voiced))/32768)
+	return Utterance{}, false
+}
+
+// End ends a capture its rules have not ended (the stream ended, or the request ran out of time) with reason;
+// when the user never spoke (never MinSpeech of speech in a row) the reason is EndNoSpeech.
+func (r *RequestCapture) End(reason EndReason) Utterance {
+	if !r.c.spoke {
+		reason = EndNoSpeech
 	}
+	u, _ := r.c.Abort()
+	u.Reason = reason
 	return u
 }
 
-// Respond answers one utterance the robot sent with its own voice request (Heard) into to, the request's reply,
+// Respond answers one utterance of a robot's own voice request (RequestCapture) into to, the request's reply,
 // within ctx: the same transcription, wake phrase and silence filters and brain as a MicTap capture. It never
-// sends anything over the robot's session but the cortex voice's audio. An utterance without speech is nothing
-// heard without being transcribed.
+// sends anything over the robot's session but the cortex voice's audio. An utterance without speech (the user
+// never spoke, or quieter than MinLevel) is nothing heard without being transcribed.
 func (c *Conversation) Respond(ctx context.Context, u Utterance, to Reply) Outcome {
-	if u.Voiced <= 0 {
-		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard: no speech in %.1f s (%s)", u.ESN, u.Duration().Seconds(), u.Reason))
+	switch {
+	case u.Reason == EndNoSpeech:
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard: no speech in %.1f s (%s), nothing transcribed", u.ESN,
+			u.Duration().Seconds(), speech(u)))
+		return NothingHeard
+	case u.Level < c.cfg.Capture.MinLevel:
+		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard in %.1f s (%s, %s), nothing transcribed", u.ESN,
+			u.Duration().Seconds(), u.Reason, speech(u)))
 		return NothingHeard
 	}
 	c.cfg.Logf(fmt.Sprintf("Cortex: %s heard %.1f s (%s, %s)", u.ESN, u.Duration().Seconds(), u.Reason, speech(u)))
