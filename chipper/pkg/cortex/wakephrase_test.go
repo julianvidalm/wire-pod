@@ -80,3 +80,35 @@ func TestTheTranscriptLogShowsTheRawTextOnlyWhenStripped(t *testing.T) {
 		t.Fatalf("want the plain line without a raw part in %q", logs.lines)
 	}
 }
+
+// L101: "Hola Jarvis" (whisper: "Hey Jorbit", "Ay, Jarvis.") is the wake phrase too.
+func TestGreetingsHolaAyAhAndTheJorbitFoldAreStripped(t *testing.T) {
+	for raw, want := range map[string]string{
+		"Hey Jorbit, contame un chiste.":   "Contame un chiste.",
+		"Hola Jarvis, cuéntame un chiste.": "Cuéntame un chiste.",
+		"Hola, Jarvis. ¿Qué hora es?":      "¿Qué hora es?",
+		"Ay, Jarvis, cuéntame un chiste.":  "Cuéntame un chiste.",
+		"Ah Jarvis, what time is it?":      "What time is it?",
+		"Jarvit, ¿qué hora es?":            "¿Qué hora es?",
+	} {
+		if got := stripWakePhrase(raw); got != want {
+			t.Fatalf("%q: got %q, want %q", raw, got, want)
+		}
+	}
+	for _, raw := range []string{"Ay, Jarvis.", "Hola Jarvis.", "Hey Jorbit!"} {
+		if got := stripWakePhrase(raw); hasWord(got) {
+			t.Fatalf("%q: got %q, want nothing left", raw, got)
+		}
+	}
+}
+
+// Words that only sound like the name, and greetings alone, are kept (L67 probes).
+func TestNearNamesAndLoneGreetingsAreKept(t *testing.T) {
+	for _, raw := range []string{"Javier, ¿qué hora es?", "Service, please.", "Harvey's car is red.",
+		"Harvest time.", "Hervé est là.", "Hey George, hi.", "Hola, ¿qué tal?", "Ay, qué susto.", "Ah, I see.",
+		"Javier Vista."} {
+		if got := stripWakePhrase(raw); got != raw {
+			t.Fatalf("%q: got %q, want it unchanged", raw, got)
+		}
+	}
+}

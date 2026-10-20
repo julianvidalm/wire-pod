@@ -10,7 +10,8 @@ import (
 // hora es?". The brain must get only the question.
 
 // wakeGreetings may come before the name; alone they are kept ("Hey, what's up?").
-var wakeGreetings = map[string]bool{"hey": true, "hi": true, "ey": true, "ei": true, "hei": true, "oye": true}
+var wakeGreetings = map[string]bool{"hey": true, "hi": true, "ey": true, "ei": true, "hei": true, "oye": true,
+	"hola": true, "ay": true, "ah": true} // L101: "Hola Jarvis" comes out as "Ay, Jarvis."
 
 // wakeSeparators are what whisper writes between the wake phrase and the question.
 const wakeSeparators = " \t\n,.!?;:-–—…"
@@ -67,7 +68,8 @@ func wordSpans(s string, n int) [][2]int {
 }
 
 // isWakeName says whether word is how whisper writes "jarvis": Jarvis, Jervis, Jarby, Jorby, Yarvis, Harvis.
-// Its sounds are folded (b→v, y→i, o/e→a, a first y or h→j, a final s dropped) and must give "jarvi".
+// Its sounds are folded (b→v, y→i, o/e→a, a first y or h→j, a final s or t dropped: "Jorbit", L101) and must
+// give "jarvi".
 func isWakeName(word string) bool {
 	w := []rune(strings.ToLower(word))
 	if len(w) < 4 || len(w) > 7 {
@@ -87,7 +89,8 @@ func isWakeName(word string) bool {
 			w[i] = 's'
 		}
 	}
-	return strings.TrimSuffix(string(w), "s") == "jarvi"
+	folded := string(w)
+	return strings.TrimSuffix(folded, "s") == "jarvi" || strings.TrimSuffix(folded, "t") == "jarvi"
 }
 
 // capitalize upper-cases the first letter of s when only opening marks ("¿", "¡", quotes) come before it.
