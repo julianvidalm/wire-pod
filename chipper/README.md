@@ -17,7 +17,7 @@ the detector's goroutine.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `CORTEX_ATTEND_INTENT` | `intent_greeting_hello` | intent sent on each wake; set but empty (`export CORTEX_ATTEND_INTENT=`) turns attend off and only logs |
+| `CORTEX_ATTEND_INTENT` | `intent_greeting_hello` | intent sent on each wake, with parameters `{"wake_ts_ms":N}` (robot timestamp of the mic frame where the wake word was detected, 0 if unknown; the robot turns toward the voice over the wake phrase ending there); set but empty (`export CORTEX_ATTEND_INTENT=`) turns attend off and only logs |
 | `CORTEX_ATTEND_REFRACTORY` | `3s` | Go duration; wakes from the same robot this soon after an attend are ignored, so the animation is not retriggered |
 
 The detector is picked in `source.sh`:

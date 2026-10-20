@@ -11,16 +11,20 @@ import (
 
 type sent struct{ esn, intent string }
 
-// fakeSender records every intent and can hold Send until release is closed.
+// fakeSender records every intent (and, on params, its parameters) and can hold Send until release is closed.
 type fakeSender struct {
 	got     chan sent
+	params  chan string
 	release chan struct{}
 	err     error
 }
 
-func newFakeSender() *fakeSender { return &fakeSender{got: make(chan sent, 16)} }
+func newFakeSender() *fakeSender {
+	return &fakeSender{got: make(chan sent, 16), params: make(chan string, 16)}
+}
 
-func (f *fakeSender) SendIntent(esn, intent string) error {
+func (f *fakeSender) SendIntent(esn, intent, paramsJSON string) error {
+	f.params <- paramsJSON
 	f.got <- sent{esn, intent}
 	if f.release != nil {
 		<-f.release
@@ -206,5 +210,46 @@ func TestSentClosesAfterTheQueuedSends(t *testing.T) {
 	<-a.Sent("esn1")
 	if len(s.got) != 2 {
 		t.Fatalf("%d sends made when Sent closed, want the attend and the signal", len(s.got))
+	}
+}
+
+func TestTheAttendCarriesTheWakeTime(t *testing.T) {
+	s := newFakeSender()
+	a, _, _ := newTestAttender(s)
+	a.AttendAt("0dd1b652", 1234567)
+	expectSend(t, s, sent{"0dd1b652", "intent_greeting_hello"})
+	if got, want := <-s.params, `{"wake_ts_ms":1234567}`; got != want {
+		t.Fatalf("params %s, want %s", got, want)
+	}
+}
+
+func TestAnAttendWithoutAWakeTimeSendsZero(t *testing.T) {
+	// the robot reads 0 as unknown; the key stays so an intent with parameters is never sent without them
+	s := newFakeSender()
+	a, _, _ := newTestAttender(s)
+	a.Attend("0dd1b652")
+	expectSend(t, s, sent{"0dd1b652", "intent_greeting_hello"})
+	if got, want := <-s.params, `{"wake_ts_ms":0}`; got != want {
+		t.Fatalf("params %s, want %s", got, want)
+	}
+}
+
+func TestAWakeTimeOutsideTheRobotClockIsSentAsUnknown(t *testing.T) {
+	s := newFakeSender()
+	a, _, _ := newTestAttender(s)
+	a.AttendAt("0dd1b652", 1<<32)
+	expectSend(t, s, sent{"0dd1b652", "intent_greeting_hello"})
+	if got, want := <-s.params, `{"wake_ts_ms":0}`; got != want {
+		t.Fatalf("params %s, want %s", got, want)
+	}
+}
+
+func TestSignalsCarryNoParameters(t *testing.T) {
+	s := newFakeSender()
+	a, _, _ := newTestAttender(s)
+	a.Signal("0dd1b652", "intent_cortex_listening_end", nil)
+	expectSend(t, s, sent{"0dd1b652", "intent_cortex_listening_end"})
+	if got := <-s.params; got != "" {
+		t.Fatalf("params %q, want none", got)
 	}
 }

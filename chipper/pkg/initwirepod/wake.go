@@ -46,7 +46,7 @@ func (h wakeHandler) OnWake(d wakeword.Detection) {
 		h.conversation.Wake(d.ESN, d.FrameTimestamp)
 	}
 	if h.attender != nil {
-		h.attender.Attend(d.ESN)
+		h.attender.AttendAt(d.ESN, d.FrameTimestamp)
 	}
 }
 
@@ -99,8 +99,8 @@ func liveWakeHandler() wakeHandler {
 // intentSender adapts a MicTap command sender to the cortex Robot port.
 type intentSender struct{ commandSender }
 
-func (s intentSender) SendIntent(esn, intent string) error {
-	return s.Send(esn, intentCommand(intent, ""))
+func (s intentSender) SendIntent(esn, intent, paramsJSON string) error {
+	return s.Send(esn, intentCommand(intent, paramsJSON))
 }
 
 func intentCommand(intent, paramsJSON string) *mictappb.Command {

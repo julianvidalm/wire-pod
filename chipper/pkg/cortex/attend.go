@@ -3,13 +3,16 @@
 package cortex
 
 import (
+	"fmt"
+	"math"
 	"sync"
 	"time"
 )
 
-// Sender is the Robot port's first command: deliver an intent to one robot, as if its cloud had matched it.
+// Sender is the Robot port's first command: deliver an intent to one robot, as if its cloud had matched it,
+// with its parameters as JSON ("" for none).
 type Sender interface {
-	SendIntent(esn, intent string) error
+	SendIntent(esn, intent, paramsJSON string) error
 }
 
 type AttenderConfig struct {
@@ -45,8 +48,20 @@ type attendWorker struct {
 // done set, no send: done is closed at its turn.
 type attendJob struct {
 	intent string
+	params string
 	stale  func() bool
 	done   chan struct{}
+}
+
+// attendParams is what every attend carries: wake_ts_ms, the robot timestamp (ms, the robot's MicTap clock) of
+// the mic frame where the wake word was detected, so the robot turns toward the voice over the wake phrase
+// itself. 0 means unknown (the robot then uses the time the intent arrives). The key is always there: the
+// robot drops an intent with parameters that arrives without any.
+func attendParams(wakeTimestamp uint64) string {
+	if wakeTimestamp > math.MaxUint32 { // not a robot timestamp (32-bit ms)
+		wakeTimestamp = 0
+	}
+	return fmt.Sprintf(`{"wake_ts_ms":%d}`, wakeTimestamp)
 }
 
 func NewAttender(cfg AttenderConfig) *Attender {
@@ -70,9 +85,13 @@ func (a *Attender) worker(esn string) *attendWorker {
 	return w
 }
 
-// Attend asks the robot to attend, unless it already did within the refractory period. It is safe to call from a
-// detector's reader goroutine.
-func (a *Attender) Attend(esn string) {
+// Attend asks the robot to attend without a wake time; see AttendAt.
+func (a *Attender) Attend(esn string) { a.AttendAt(esn, 0) }
+
+// AttendAt asks the robot to attend, unless it already did within the refractory period. wakeTimestamp is the
+// robot timestamp (ms) of the mic frame where the wake word was detected, 0 if unknown. It is safe to call from
+// a detector's reader goroutine.
+func (a *Attender) AttendAt(esn string, wakeTimestamp uint64) {
 	now := a.cfg.Now()
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -85,7 +104,7 @@ func (a *Attender) Attend(esn string) {
 		return
 	}
 	select {
-	case w.queue <- attendJob{intent: a.cfg.Intent}:
+	case w.queue <- attendJob{intent: a.cfg.Intent, params: attendParams(wakeTimestamp)}:
 		w.pending = true
 		a.last[esn] = now
 	default:
@@ -129,18 +148,18 @@ func (a *Attender) run(esn string, w *attendWorker) {
 			a.mu.Lock()
 			w.pending = false
 			a.mu.Unlock()
-			if err := a.cfg.Sender.SendIntent(esn, job.intent); err != nil {
+			if err := a.cfg.Sender.SendIntent(esn, job.intent, job.params); err != nil {
 				a.cfg.Logf("attend failed " + esn + " " + job.intent + ": " + err.Error())
 				continue
 			}
-			a.cfg.Logf("attend sent " + esn + " " + job.intent)
+			a.cfg.Logf("attend sent " + esn + " " + job.intent + " " + job.params)
 			continue
 		}
 		if job.stale() {
 			a.cfg.Logf("signal skipped " + esn + " " + job.intent + ": a newer wake is listening")
 			continue
 		}
-		if err := a.cfg.Sender.SendIntent(esn, job.intent); err != nil {
+		if err := a.cfg.Sender.SendIntent(esn, job.intent, ""); err != nil {
 			a.cfg.Logf("signal failed " + esn + " " + job.intent + ": " + err.Error())
 			continue
 		}

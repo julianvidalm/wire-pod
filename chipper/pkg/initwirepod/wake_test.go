@@ -110,6 +110,26 @@ func TestWakeLogsAndSendsTheDefaultAttendIntent(t *testing.T) {
 	}
 }
 
+func TestTheAttendCarriesTheWakeFrameTimestamp(t *testing.T) {
+	t.Setenv(attendIntentEnv, "intent_cortex_listening")
+	t.Setenv(attendRefractoryEnv, "10ms")
+	s := newChanSender()
+	h, err := newWakeHandler((&lineLog{}).logf, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := testDetection
+	d.FrameTimestamp = 987654
+	h.OnWake(d)
+	cmd := <-s.got
+	if got := cmd.GetIntentResult().GetIntent(); got != "intent_cortex_listening" {
+		t.Fatalf("sent %v", cmd)
+	}
+	if got, want := cmd.GetIntentResult().GetParametersJson(), `{"wake_ts_ms":987654}`; got != want {
+		t.Fatalf("parameters %s, want %s", got, want)
+	}
+}
+
 func TestWakeSendsTheConfiguredIntent(t *testing.T) {
 	t.Setenv(attendIntentEnv, "intent_imperative_lookatme")
 	t.Setenv(attendRefractoryEnv, "10ms")
