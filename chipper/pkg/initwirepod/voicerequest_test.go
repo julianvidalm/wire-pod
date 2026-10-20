@@ -3,7 +3,9 @@ package initwirepod
 import (
 	"context"
 	"errors"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -152,6 +154,9 @@ func newVoiceRequestTest(t *testing.T, text string, b *recBrain, voice func() (c
 	t.Setenv(conversationEnv, "on")
 	t.Setenv(voiceRequestsEnv, "on")
 	t.Setenv(thinkingIntentEnv, "")
+	if !strings.HasPrefix(os.Getenv(voiceDumpDirEnv), os.TempDir()) { // a dump test's own directory, else none
+		t.Setenv(voiceDumpDirEnv, "")
+	}
 	t.Setenv(owwMicRateEnv, "16000")
 	vt := &voiceRequestTest{stream: &fakeChipperStream{}, session: bigSender{got: make(chan *mictappb.Command, 4096)},
 		log: &lineLog{}, brain: b, tr: &recTranscriber{text: text}}

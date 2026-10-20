@@ -319,7 +319,32 @@ func (c *Conversation) signal(esn, intent string, wake uint64, what string) {
 func (c *Conversation) reply(esn string, u Utterance) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), c.cfg.Timeout)
 	defer cancel()
-	return c.replyTo(ctx, esn, u, nil) == Answered
+	return c.replyTo(ctx, esn, u, nil, &Result{}) == Answered
+}
+
+// Result is what Respond made of one utterance, for diagnosis.
+type Result struct {
+	Outcome    Outcome
+	Raw        string        // whisper's text
+	Text       string        // what the brain got: Raw without the wake phrase
+	Language   string        // whisper's language code
+	Answer     string        // "intent <name>", "voice", "knowledge", or empty when nothing was answered
+	Transcribe time.Duration // how long whisper took
+	Think      time.Duration // how long the brain took
+}
+
+func (o Outcome) String() string {
+	switch o {
+	case Answered:
+		return "answered"
+	case NothingHeard:
+		return "nothing heard"
+	case Failed:
+		return "failed"
+	case SelfAnswered:
+		return "self answered"
+	}
+	return fmt.Sprintf("outcome %d", int(o))
 }
 
 // Outcome is how one answer ended.
@@ -408,24 +433,26 @@ func (r *RequestCapture) End(reason EndReason) Utterance {
 // within ctx: the same transcription, wake phrase and silence filters and brain as a MicTap capture. It never
 // sends anything over the robot's session but the cortex voice's audio. An utterance without speech (the user
 // never spoke, or quieter than MinLevel) is nothing heard without being transcribed.
-func (c *Conversation) Respond(ctx context.Context, u Utterance, to Reply) Outcome {
+func (c *Conversation) Respond(ctx context.Context, u Utterance, to Reply) Result {
 	switch {
 	case u.Reason == EndNoSpeech:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard: no speech in %.1f s (%s), nothing transcribed", u.ESN,
 			u.Duration().Seconds(), speech(u)))
-		return NothingHeard
+		return Result{Outcome: NothingHeard}
 	case u.Level < c.cfg.Capture.MinLevel:
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard in %.1f s (%s, %s), nothing transcribed", u.ESN,
 			u.Duration().Seconds(), u.Reason, speech(u)))
-		return NothingHeard
+		return Result{Outcome: NothingHeard}
 	}
 	c.cfg.Logf(fmt.Sprintf("Cortex: %s heard %.1f s (%s, %s)", u.ESN, u.Duration().Seconds(), u.Reason, speech(u)))
-	return c.replyTo(ctx, u.ESN, u, to)
+	var r Result
+	r.Outcome = c.replyTo(ctx, u.ESN, u, to, &r)
+	return r
 }
 
 // replyTo transcribes one utterance, asks the brain and sends its answer to to, or over the robot's session
-// (Robot, Speaker) when to is nil.
-func (c *Conversation) replyTo(ctx context.Context, esn string, u Utterance, to Reply) Outcome {
+// (Robot, Speaker) when to is nil. It records what it heard and answered in r.
+func (c *Conversation) replyTo(ctx context.Context, esn string, u Utterance, to Reply, r *Result) Outcome {
 	began := c.cfg.Now()
 	t, err := c.cfg.Transcriber.Transcribe(ctx, u)
 	if err != nil {
@@ -435,6 +462,7 @@ func (c *Conversation) replyTo(ctx context.Context, esn string, u Utterance, to 
 	raw := strings.TrimSpace(t.Text)
 	t.Text = stripWakePhrase(raw)
 	heard := c.cfg.Now()
+	r.Raw, r.Text, r.Language, r.Transcribe = raw, t.Text, t.Language, heard.Sub(began)
 	if !hasWord(t.Text) && hasWord(raw) {
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s nothing heard after the wake phrase %q (%.2f s), nothing sent", esn, raw,
 			heard.Sub(began).Seconds()))
@@ -460,12 +488,14 @@ func (c *Conversation) replyTo(ctx context.Context, esn string, u Utterance, to 
 		c.cfg.Logf("Cortex: ", esn, " brain failed: ", err)
 		return Failed
 	}
-	took := c.cfg.Now().Sub(heard).Seconds()
+	r.Think = c.cfg.Now().Sub(heard)
+	took := r.Think.Seconds()
 	if to == nil {
 		c.afterSignals(esn)
 	}
 	switch {
 	case a.Intent != "":
+		r.Answer = "intent " + a.Intent
 		if to != nil {
 			err = to.Intent(a.Intent, a.ParamsJSON, t.Text)
 		} else {
@@ -473,6 +503,7 @@ func (c *Conversation) replyTo(ctx context.Context, esn string, u Utterance, to 
 		}
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s answer intent %s %s (%.2f s), %s", esn, a.Intent, a.ParamsJSON, took, outcome(err)))
 	case strings.TrimSpace(a.Text) != "" && c.cfg.Speaker != nil && (to == nil || isTargetSpeaker(c.cfg.Speaker)):
+		r.Answer = "voice"
 		c.cfg.Logf(fmt.Sprintf("Cortex: %s answer %q (%.2f s), speaking it", esn, a.Text, took))
 		if to != nil {
 			err = c.cfg.Speaker.(TargetSpeaker).SayTo(esn, a.Text, t.Text, t.Language, to)
@@ -483,6 +514,7 @@ func (c *Conversation) replyTo(ctx context.Context, esn string, u Utterance, to 
 			c.cfg.Logf(fmt.Sprintf("Cortex: %s answer not spoken: %v", esn, err))
 		}
 	case strings.TrimSpace(a.Text) != "":
+		r.Answer = "knowledge"
 		if to != nil {
 			err = to.Knowledge(a.Text, t.Text)
 		} else {

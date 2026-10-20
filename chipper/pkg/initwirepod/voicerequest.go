@@ -43,6 +43,7 @@ type voiceRequests struct {
 	// audio streams the request's audio as 16 kHz PCM until the robot ends it or stop closes (tests replace it).
 	audio func(req any, stop <-chan struct{}) <-chan voiceAudio
 	now   func() time.Time
+	dump  *voiceDump // nil: CORTEX_VOICE_DUMP_DIR unset
 }
 
 // voiceRequestsOn reads CORTEX_VOICE_REQUESTS.
@@ -71,7 +72,7 @@ func newVoiceRequests(conv *cortex.Conversation, logf func(a ...any)) (*voiceReq
 	if logf == nil {
 		logf = func(...any) {}
 	}
-	return &voiceRequests{conv: conv, logf: logf, audio: chipperAudio, now: time.Now}, nil
+	return &voiceRequests{conv: conv, logf: logf, audio: chipperAudio, now: time.Now, dump: newVoiceDump(logf)}, nil
 }
 
 // installVoiceRequests hands wire-pod's voice requests to the cortex when CORTEX_VOICE_REQUESTS=on; otherwise
@@ -92,6 +93,9 @@ func installVoiceRequests() {
 		return
 	}
 	wp.VoiceRequest = h.Handle
+	if h.dump != nil {
+		logger.Println(fmt.Sprintf("Cortex voice requests dumped to %s (at most %d MB)", h.dump.dir, h.dump.maxBytes>>20))
+	}
 	logger.Println(fmt.Sprintf("Cortex voice requests on: the robot's wakes are answered by the conversation; "+
 		"listening at most %v, answering within %v of the request", voiceListenMax, voiceAnswerBy))
 }
@@ -101,10 +105,15 @@ func installVoiceRequests() {
 func (v *voiceRequests) Handle(req any) {
 	began := v.now()
 	to := newChipperReply(req, began, v.logf)
-	u, err := v.capture(req, to.esn)
+	u, heard, err := v.capture(req, to.esn)
+	rec := newVoiceDumpRecord(to.esn, began, voiceRate, heard, u)
+	rec.CaptureMs = v.now().Sub(began).Milliseconds()
 	if err != nil {
 		v.logf("Cortex: ", to.esn, " voice request stream failed: ", err)
 		to.end(cortex.Failed)
+		rec.Outcome, rec.Error, rec.Response = cortex.Failed.String(), err.Error(), to.response()
+		rec.TotalMs = v.now().Sub(began).Milliseconds()
+		v.dump.write(rec, heard)
 		return
 	}
 	v.logf(fmt.Sprintf("Cortex: %s voice request: %.1f s of audio, %s after %.2f s", to.esn, u.Duration().Seconds(),
@@ -113,7 +122,16 @@ func (v *voiceRequests) Handle(req any) {
 	done := make(chan cortex.Outcome, 1)
 	go func() {
 		defer cancel()
-		done <- v.conv.Respond(ctx, u, to)
+		res := v.conv.Respond(ctx, u, to)
+		done <- res.Outcome
+		if v.dump == nil {
+			return
+		}
+		<-to.answered // the request's one response, sent here or by Handle
+		rec.answered(res)
+		rec.Response = to.response()
+		rec.TotalMs = v.now().Sub(began).Milliseconds()
+		v.dump.write(rec, heard)
 	}()
 	select {
 	case <-to.answered:
@@ -123,8 +141,8 @@ func (v *voiceRequests) Handle(req any) {
 }
 
 // capture cuts the question out of the request's audio with the conversation's capture rules; the robot ending
-// the stream and voiceListenMax end it too.
-func (v *voiceRequests) capture(req any, esn string) (cortex.Utterance, error) {
+// the stream and voiceListenMax end it too. It also returns all the audio it received.
+func (v *voiceRequests) capture(req any, esn string) (cortex.Utterance, []int16, error) {
 	stop := make(chan struct{})
 	defer close(stop)
 	c := v.conv.NewRequestCapture(voiceRate)
@@ -132,6 +150,7 @@ func (v *voiceRequests) capture(req any, esn string) (cortex.Utterance, error) {
 	timer := time.NewTimer(voiceListenMax)
 	defer timer.Stop()
 	var u cortex.Utterance
+	var heard []int16
 	for done := false; !done; {
 		select {
 		case a, ok := <-audio:
@@ -139,8 +158,9 @@ func (v *voiceRequests) capture(req any, esn string) (cortex.Utterance, error) {
 			case !ok:
 				u, done = c.End(cortex.EndStream), true
 			case a.err != nil:
-				return cortex.Utterance{}, a.err
+				return cortex.Utterance{}, heard, a.err
 			default:
+				heard = append(heard, a.samples...)
 				u, done = c.Feed(a.samples)
 			}
 		case <-timer.C:
@@ -148,7 +168,7 @@ func (v *voiceRequests) capture(req any, esn string) (cortex.Utterance, error) {
 		}
 	}
 	u.ESN = esn
-	return u, nil
+	return u, heard, nil
 }
 
 // chipperReply is one voice request's cortex.Reply: the first answer goes on the request's own stream, any later
@@ -161,6 +181,7 @@ type chipperReply struct {
 
 	mu       sync.Mutex
 	sent     bool
+	what     string        // the response sent
 	answered chan struct{} // closed once the response was sent
 }
 
@@ -185,7 +206,7 @@ func (r *chipperReply) send(what string, f func() error) error {
 		r.logf(fmt.Sprintf("Cortex: %s voice request already answered, %s not sent", r.esn, what))
 		return errAlreadyAnswered
 	}
-	r.sent = true
+	r.sent, r.what = true, what
 	r.mu.Unlock()
 	err := f()
 	result := "sent"
@@ -196,6 +217,13 @@ func (r *chipperReply) send(what string, f func() error) error {
 		time.Since(r.began).Seconds(), result))
 	close(r.answered)
 	return err
+}
+
+// response is what the request was answered with, or empty.
+func (r *chipperReply) response() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.what
 }
 
 func (r *chipperReply) intent(intent, query string, params map[string]string) error {

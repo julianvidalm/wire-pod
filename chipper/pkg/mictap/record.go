@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"sync"
 	"time"
 )
@@ -108,64 +107,22 @@ func (r *RecordSink) prune() {
 	if r.MaxBytes <= 0 {
 		return
 	}
-	entries, err := os.ReadDir(r.dir)
-	if err != nil {
-		return
-	}
 	r.mu.Lock()
 	running := map[string]bool{}
 	for _, rec := range r.sessions {
 		running[filepath.Base(rec.base)] = true
 	}
 	r.mu.Unlock()
-	type session struct {
-		name, time string
-		files      []string
-		bytes      int64
+	session := func(name string) (string, string, bool) {
+		m := sessionFile.FindStringSubmatch(name)
+		if m == nil {
+			return "", "", false
+		}
+		return m[1], m[2], true
 	}
-	byName := map[string]*session{}
-	var total int64
-	for _, e := range entries {
-		m := sessionFile.FindStringSubmatch(e.Name())
-		info, err := e.Info()
-		if m == nil || err != nil || !info.Mode().IsRegular() {
-			continue
-		}
-		total += info.Size()
-		s := byName[m[1]]
-		if s == nil {
-			s = &session{name: m[1], time: m[2]}
-			byName[m[1]] = s
-		}
-		s.files = append(s.files, e.Name())
-		s.bytes += info.Size()
-	}
-	var oldest []*session
-	for name, s := range byName {
-		if !running[name] {
-			oldest = append(oldest, s)
-		}
-	}
-	sort.Slice(oldest, func(i, j int) bool {
-		if oldest[i].time != oldest[j].time {
-			return oldest[i].time < oldest[j].time
-		}
-		return oldest[i].name < oldest[j].name
+	deleted, freed := PruneOldest(r.dir, r.MaxBytes, session, running, func(err error) {
+		r.logf("MicTap: cannot delete old recording: ", err)
 	})
-	deleted, freed := 0, int64(0)
-	for _, s := range oldest {
-		if total <= r.MaxBytes {
-			break
-		}
-		for _, f := range s.files {
-			if err := os.Remove(filepath.Join(r.dir, f)); err != nil {
-				r.logf("MicTap: cannot delete old recording: ", err)
-			}
-		}
-		total -= s.bytes
-		deleted++
-		freed += s.bytes
-	}
 	if deleted > 0 {
 		r.logf("MicTap: deleted ", deleted, " old recorded sessions (", freed>>20, " MB) to stay under ", r.MaxBytes>>20, " MB")
 	}

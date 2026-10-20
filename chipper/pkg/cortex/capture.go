@@ -27,6 +27,7 @@ type Utterance struct {
 	Voiced  time.Duration // speech the VAD heard after the wake (the margin before it is not counted)
 	Level   float64       // RMS of that speech in dBFS; -inf without any
 	Wake    uint64        // which of the robot's wakes started it (Conversation counts them from 1)
+	Onset   time.Duration // when the user's speech began, after the wake; 0 when they never spoke
 }
 
 // Duration is how much audio the utterance holds.
@@ -264,6 +265,9 @@ func (c *Capture) finish(r EndReason) Utterance {
 	u := c.cur
 	u.Reason = r
 	u.Voiced = time.Duration(c.voiced) * time.Second / time.Duration(c.cfg.MicRate)
+	if c.spoke {
+		u.Onset = time.Duration(c.onset) * time.Second / time.Duration(c.cfg.MicRate)
+	}
 	u.Level = math.Inf(-1)
 	if c.voiced > 0 {
 		u.Level = 20 * math.Log10(math.Sqrt(c.voicedSq/float64(c.voiced))/32768)

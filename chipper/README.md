@@ -124,6 +124,8 @@ answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
 | `CORTEX_THINKING_INTENT` | `intent_cortex_thinking` | intent sent when a capture ends with speech, before whisper, so the robot shows its thinking face until the answer; in order with the attends, skipped when a newer wake is already listening, and the answer waits (at most 2 s) for it; empty sends nothing |
 | `CORTEX_PERSONA` | `-` | the robot's name in the LLM prompt (replaces "Vector"); unset or `-` keeps the prompt as is, so the robot is Vector |
 | `CORTEX_VOICE_REQUESTS` | `off` | `on` (with `CORTEX_CONVERSATION=on`) answers the robot's own voice requests with the conversation; see below |
+| `CORTEX_VOICE_DUMP_DIR` | unset | saves each voice request as `<esn>_<YYYYMMDD-HHMMSS.mmm>_request.wav` (the whole request audio received, 16 kHz mono, before endpointing) and `_request.json` (end reason, utterance and speech onset sample offsets in the WAV, voiced time, level, whisper's raw and stripped text, language, outcome, answer, the chipper response, capture/transcribe/think/total ms), to tell audio, endpointing and whisper problems apart; a failure is logged once and never disturbs the answer |
+| `CORTEX_VOICE_DUMP_MAX_MB` | `200` | caps the dump directory: after each dump the oldest request pairs are deleted until it fits; `0` keeps everything |
 
 ### The robot's own wake
 
