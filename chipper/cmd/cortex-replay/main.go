@@ -8,7 +8,7 @@
 //
 //	cortex-replay -python ~/.cache/v3ctor/corpus-venv/bin/python -oww-model hey_jarvis_v3ctor.onnx \
 //	    [-clock session_clock.jsonl -labels labels.jsonl [-ids s]] [-whisper-model ../whisper.cpp/models/ggml-small.bin] \
-//	    [-llm=false] [-answer text] [-tts piper] [-speed 1] [-half-duplex=false] [-hangover 600ms] \
+//	    [-llm=false] [-answer text] [-tts piper] [-speed 1] [-half-duplex=false] [-hangover 600ms] [-wake-grace 1.5s] \
 //	    [-half-duplex-db -60] session_mic.wav
 //
 // -tts piper speaks knowledge answers with the cortex's voice (CORTEX_TTS_* settings) into a fake robot that

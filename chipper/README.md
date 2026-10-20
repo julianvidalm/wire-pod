@@ -83,7 +83,7 @@ Every step is a port in `pkg/cortex` with its adapter:
 | VAD | webrtc VAD (`pkg/vad`) |
 | echo canceller | pass-through (the robot's processed mic already removes most of its sound) |
 | transcriber | whisper.cpp with its own model context (`pkg/cortex/whispercpp`), en or es per utterance |
-| brain | wire-pod's intent matching in the transcript's language (`intent-data/en-US.json`, `es-ES.json`), then its LLM (`pkg/cortex/wirepodbrain`) |
+| brain | wire-pod's intent matching in the transcript's language (`intent-data/en-US.json`, `es-ES.json`), then its LLM (`pkg/cortex/wirepodbrain`), told to answer in the question's language: "Responde siempre en español." when whisper heard Spanish or the question reads Spanish, else "Answer in English." (added to the system prompt of the cortex's requests only; wire-pod's own LLM requests are unchanged) |
 | robot | MicTap session commands: an intent result, or knowledge (an answer to say), with `CORTEX_TTS=piper` spoken by the cortex as an audio stream |
 
 The capture starts `CORTEX_WAKE_MARGIN` (1 s) before the wake's end, so whisper hears the whole "hey jarvis": on
@@ -97,7 +97,7 @@ started. The robot first turns to the voice (S6), so the user speaks late: with 
 and the end, and is skipped when a newer wake is already listening. Only speech after the wake's end counts, and only once it lasts 200 ms:
 the margin holds "hey jarvis" and is sent to whisper, but it never starts the utterance, so a pause between the
 name and the question does not end it. A leading wake phrase in the transcript ("Hey Jarvis,", "Oye Jarvis",
-whisper's "Hey, Jorby.") is removed before the brain; a transcript that is only the wake phrase is nothing heard. These times count audio samples at `OWW_MIC_RATE`,
+"Hola Jarvis", whisper's "Hey, Jorby.", "Ay, Jarvis.", "Hey Jorbit") is removed before the brain; a transcript that is only the wake phrase is nothing heard. These times count audio samples at `OWW_MIC_RATE`,
 and the utterance is resampled from that rate to whisper's 16 kHz. Each robot has one worker that transcribes and
 answers in order. A second utterance waits; more are dropped and logged, so the mic stream and the wake detector
 never wait for whisper or the LLM.
@@ -138,10 +138,20 @@ its time, at most 300 ms (normally one 32 ms speaker frame: the robot sends spea
 silenced frame is zeros of the same length, so the pre-roll and every timestamp stay intact. The recorder
 (`MICTAP_RECORD_DIR`) and the stream log still get the real mic audio.
 
+The wake gesture is the exception for the capture (L101): the robot plays its wake reaction (the earcon at about
++0.2..+0.7 s, -12 dBFS on its speaker) while the user often goes straight on with the question ("Hola Jarvis,
+cuéntame un chiste" in one breath), so the gate would zero the question. The gate hands the conversation the real
+mic beside every frame it silenced, and the capture listens to it from its start (`CORTEX_WAKE_MARGIN` before the
+wake) until `CORTEX_HALF_DUPLEX_WAKE_GRACE` after the wake, or until the capture ends if sooner. The wake detector
+always hears the gate, and so does the capture after the window (robot speech, answers). The earcon's echo on the
+mic (-31..-41 dBFS) is not speech to the VAD: a wake with nobody speaking after it still prompts at 6 s and gives
+up at 9 s (`TestTheEarconEchoAloneIsNotSpeech`, a recorded wake gesture).
+
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `CORTEX_HALF_DUPLEX` | `on` | `off` lets the detector and the conversation hear the robot talk (the behavior before half duplex) |
 | `CORTEX_HALF_DUPLEX_HANGOVER` | `600ms` | Go duration the mic stays silenced after the robot's last sound |
+| `CORTEX_HALF_DUPLEX_WAKE_GRACE` | `1.5s` | Go duration after the wake until which the capture hears the mic the gate silenced; `0s` never |
 | `CORTEX_HALF_DUPLEX_DB` | `-50` | speaker level (dBFS, RMS of one 32 ms frame) that counts as talking; the idle speaker is digital zero or dither at -115 to -75 dBFS and can hold at -58/-59 for seconds after an answer, speech -45 to -10 |
 
 A bad `CORTEX_HALF_DUPLEX_HANGOVER` (not a duration, or negative) or `CORTEX_HALF_DUPLEX_DB` (not a number, or
@@ -261,6 +271,7 @@ next to the mic recording: speaker frames are interleaved by robot time, taken f
 and `<session>_speaker_frames.jsonl` when the recorder wrote them, else by counting samples from the session
 start (recordings made before the frame logs did not fill speaker gaps and drift by seconds, so the gate
 silences the wrong audio there; the replays warn). `-half-duplex=false` turns
-the gate off and replays exactly as before it (same timing and WAKE lines); `-hangover` and `-half-duplex-db` match `CORTEX_HALF_DUPLEX_HANGOVER` and `CORTEX_HALF_DUPLEX_DB`.
+the gate off and replays exactly as before it (same timing and WAKE lines); `-hangover`, `-half-duplex-db` and (cortex-replay) `-wake-grace` match `CORTEX_HALF_DUPLEX_HANGOVER`,
+`CORTEX_HALF_DUPLEX_DB` and `CORTEX_HALF_DUPLEX_WAKE_GRACE`.
 With the gate on and frame logs, wakes and labels are on the robot's clock and oww-replay adds each wake's robot
 time.
