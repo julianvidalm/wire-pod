@@ -100,7 +100,7 @@ func TestHalfDuplexSettings(t *testing.T) {
 		want         *cortex.HalfDuplexConfig
 		desc         string
 	}{
-		{"", "", "", &def, "while the robot's speaker is above -50 dBFS and for 600ms after"},
+		{"", "", "", &def, "while the robot's speaker is above -40 dBFS and for 600ms after"},
 		{"ON", "1s", "-50", &cortex.HalfDuplexConfig{Hangover: time.Second, Threshold: -50, MaxDelay: def.MaxDelay,
 			StallTimeout: def.StallTimeout}, "above -50 dBFS and for 1s after"},
 		{"on", "0s", "-120", &cortex.HalfDuplexConfig{Hangover: 0, Threshold: -120, MaxDelay: def.MaxDelay,

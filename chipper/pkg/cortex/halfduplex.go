@@ -17,7 +17,9 @@ type HalfDuplexConfig struct {
 	// speaker frame's timestamp (L53) and fades into the room noise within ~300 ms more.
 	Hangover time.Duration
 	// Threshold is the speaker level (dBFS, RMS of one speaker frame) above which the robot counts as
-	// talking. Recordings: the idle speaker is digital zero or dither at -115 to -75 dBFS, speech -45 to -10.
+	// talking. Recordings: the idle speaker is digital zero or dither at -115 to -75 dBFS, speech -45 to -10,
+	// the explorer's animation sounds -48 to -53 (L108: at -50 they flicker the gate and swallow a wake; -40
+	// keeps every robot-speech replay as gated and lets that wake through).
 	Threshold float64
 	// MaxDelay is the longest a mic frame waits for the speaker frames covering its time. The robot sends
 	// speaker frames all the time (silence included), so frames normally wait one speaker frame (32 ms).
@@ -28,7 +30,7 @@ type HalfDuplexConfig struct {
 }
 
 func DefaultHalfDuplexConfig() HalfDuplexConfig {
-	return HalfDuplexConfig{Hangover: 600 * time.Millisecond, Threshold: -50, MaxDelay: 300 * time.Millisecond,
+	return HalfDuplexConfig{Hangover: 600 * time.Millisecond, Threshold: -40, MaxDelay: 300 * time.Millisecond,
 		StallTimeout: 2 * time.Second}
 }
 

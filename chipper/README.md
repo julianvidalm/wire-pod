@@ -152,7 +152,7 @@ up at 9 s (`TestTheEarconEchoAloneIsNotSpeech`, a recorded wake gesture).
 | `CORTEX_HALF_DUPLEX` | `on` | `off` lets the detector and the conversation hear the robot talk (the behavior before half duplex) |
 | `CORTEX_HALF_DUPLEX_HANGOVER` | `600ms` | Go duration the mic stays silenced after the robot's last sound |
 | `CORTEX_HALF_DUPLEX_WAKE_GRACE` | `1.5s` | Go duration after the wake until which the capture hears the mic the gate silenced; `0s` never |
-| `CORTEX_HALF_DUPLEX_DB` | `-50` | speaker level (dBFS, RMS of one 32 ms frame) that counts as talking; the idle speaker is digital zero or dither at -115 to -75 dBFS and can hold at -58/-59 for seconds after an answer, speech -45 to -10 |
+| `CORTEX_HALF_DUPLEX_DB` | `-40` | speaker level (dBFS, RMS of one 32 ms frame) that counts as talking; the idle speaker is digital zero or dither at -115 to -75 dBFS and can hold at -58/-59 for seconds after an answer, the explorer's animation sounds sit at -48 to -53 (at -50 they flickered the gate over a wake), speech -45 to -10 |
 
 A bad `CORTEX_HALF_DUPLEX_HANGOVER` (not a duration, or negative) or `CORTEX_HALF_DUPLEX_DB` (not a number, or
 outside -120..0) is logged (`Cortex half duplex: … using the default …`) and its default is used; the gate stays
@@ -217,7 +217,7 @@ test runs when both voices and the Python (`CORTEX_TTS_PYTHON`, else `~/.cache/v
 It applies whenever a wake word detector is on. Logs, at startup and when a robot's stream ends:
 
 ```
-Cortex half duplex on: the detector and the conversation hear silence while the robot's speaker is above -50 dBFS and for 600ms after, the mic waits at most 300ms for the speaker audio
+Cortex half duplex on: the detector and the conversation hear silence while the robot's speaker is above -40 dBFS and for 600ms after, the mic waits at most 300ms for the speaker audio
 Cortex half duplex: <esn> silenced 12 spans, 34.5 s of 600.2 s of mic audio (0 mic frames released before their speaker audio arrived, 0 speaker sounds arrived too late)
 ```
 
