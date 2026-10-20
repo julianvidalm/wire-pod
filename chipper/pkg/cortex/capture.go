@@ -1,6 +1,7 @@
 package cortex
 
 import (
+	"fmt"
 	"math"
 	"time"
 )
@@ -46,10 +47,16 @@ type CaptureConfig struct {
 	WakeMargin time.Duration
 	// MinSpeech is the consecutive speech after the wake needed before the user counts as speaking. Audio up to
 	// the wake (the margin, which holds the end of the wake word) is sent to the transcriber but never counts.
-	MinSpeech  time.Duration
-	EndSilence time.Duration // silence after speech that ends the utterance
-	MaxLength  time.Duration // longest utterance, counted from the user's speech onset (T3g)
-	NoSpeech   time.Duration // the capture gives up when nobody speaks this long after the wake
+	MinSpeech time.Duration
+	// GatedMinSpeech is the consecutive speech needed instead when the run holds a frame heard through the wake
+	// grace, that is while the robot itself was sounding (L110): its earcon echo and the gesture's noise make
+	// speech-like runs of up to ~0.6 s that are not the user, while a question said in the same breath as the
+	// wake word runs on past them (L101). Shorter runs are kept for the transcriber but never start the
+	// utterance. Below MinSpeech, MinSpeech applies.
+	GatedMinSpeech time.Duration
+	EndSilence     time.Duration // silence after speech that ends the utterance
+	MaxLength      time.Duration // longest utterance, counted from the user's speech onset (T3g)
+	NoSpeech       time.Duration // the capture gives up when nobody speaks this long after the wake
 	// PromptAfter is when, without speech since the wake, the robot is asked to show it is still listening
 	// (PromptDue); 0 never asks. The robot turns to the voice first, so the user speaks late (S6, L71).
 	PromptAfter time.Duration
@@ -63,22 +70,27 @@ type CaptureConfig struct {
 	// speech reached ClearLevel.
 	MinLevel   float64
 	ClearLevel float64
+	// Trace, when set, gets one line per frame listened to after the wake (diagnosis, cortex-replay -trace).
+	Trace func(line string)
 }
 
 // DefaultCaptureConfig is the capture the live cortex uses.
 func DefaultCaptureConfig() CaptureConfig {
 	return CaptureConfig{
-		MicRate:     15662,
-		PreRoll:     time.Second,
-		WakeMargin:  time.Second, // L61: whisper hears "hey jarvis", which tells it a short question's language
-		MinSpeech:   200 * time.Millisecond,
-		EndSilence:  700 * time.Millisecond,
-		MaxLength:   8 * time.Second,
-		NoSpeech:    9 * time.Second, // S6: the prompt at 6 s, then 3 s more
-		PromptAfter: 6 * time.Second,
-		WakeGrace:   1500 * time.Millisecond, // the earcon ends ~0.7 s after the wake, the gate's hangover 0.6 s later
-		MinLevel:    -48,
-		ClearLevel:  -38,
+		MicRate:    15662,
+		PreRoll:    time.Second,
+		WakeMargin: time.Second, // L61: whisper hears "hey jarvis", which tells it a short question's language
+		MinSpeech:  200 * time.Millisecond,
+		// L110: earcon echo runs 0.2-0.36 s and gesture noise 0.57-0.59 s (12:08 session, 5 wakes); the
+		// one-breath question of L101 W2 runs 0.98 s
+		GatedMinSpeech: 750 * time.Millisecond,
+		EndSilence:     700 * time.Millisecond,
+		MaxLength:      8 * time.Second,
+		NoSpeech:       9 * time.Second, // S6: the prompt at 6 s, then 3 s more
+		PromptAfter:    6 * time.Second,
+		WakeGrace:      1500 * time.Millisecond, // the earcon ends ~0.7 s after the wake, the gate's hangover 0.6 s later
+		MinLevel:       -48,
+		ClearLevel:     -38,
 	}
 }
 
@@ -98,6 +110,7 @@ type Capture struct {
 	voiced    int     // speech samples after the wake
 	voicedSq  float64 // sum of their squares
 	voicedRun int     // consecutive speech samples after the wake
+	runGated  bool    // ... and that run holds a frame heard through the wake grace (the robot was sounding)
 	silentRun int     // consecutive non-speech samples since the user started speaking
 	spoke     bool
 	onset     int  // samples after the wake when the user's speech began
@@ -147,7 +160,7 @@ func (c *Capture) Start(wakeTs uint64) (Utterance, bool) {
 		from = wakeTs - margin
 	}
 	c.capturing, c.wakeTs, c.spoke, c.prompted, c.promptDue = true, wakeTs, false, false, false
-	c.afterWake, c.voiced, c.voicedSq, c.voicedRun, c.silentRun = 0, 0, 0, 0, 0
+	c.afterWake, c.voiced, c.voicedSq, c.voicedRun, c.silentRun, c.runGated = 0, 0, 0, 0, 0, false
 	c.cur = Utterance{Rate: c.cfg.MicRate}
 	for _, f := range c.ring {
 		if f.Timestamp < from {
@@ -166,32 +179,40 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 		c.cur.Start = f.Timestamp
 	}
 	c.cur.End = f.Timestamp
-	samples := f.Samples
-	if f.Real != nil && c.inWakeGrace(f.Timestamp) {
+	samples, gated := f.Samples, f.Real != nil && c.inWakeGrace(f.Timestamp)
+	if gated {
 		samples = f.Real
 	}
 	c.cur.Samples = append(c.cur.Samples, samples...)
 	if f.Timestamp <= c.wakeTs {
+		if c.cfg.Trace != nil {
+			c.trace(f, samples, false)
+		}
 		return Utterance{}, false // the margin: kept for the transcriber, never the start of speech
 	}
 	n := len(samples)
 	c.afterWake += n
-	if c.vad.IsSpeech(samples) {
+	speech := c.vad.IsSpeech(samples)
+	if speech {
 		c.voiced += n
 		for _, s := range samples {
 			c.voicedSq += float64(s) * float64(s)
 		}
 		c.voicedRun += n
+		c.runGated = c.runGated || gated
 		c.silentRun = 0
-		if !c.spoke && c.voicedRun >= c.samples(c.cfg.MinSpeech) {
+		if !c.spoke && c.voicedRun >= c.minSpeech() {
 			c.spoke = true
 			c.onset = c.afterWake - c.voicedRun
 		}
 	} else {
-		c.voicedRun = 0
+		c.voicedRun, c.runGated = 0, false
 		if c.spoke {
 			c.silentRun += n
 		}
+	}
+	if c.cfg.Trace != nil {
+		c.trace(f, samples, speech)
 	}
 	switch {
 	case c.spoke && c.silentRun >= c.samples(c.cfg.EndSilence):
@@ -206,6 +227,31 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 	}
 	return Utterance{}, false
 }
+
+// minSpeech is the run, in samples, that makes the speech in progress the user's onset.
+func (c *Capture) minSpeech() int {
+	if c.runGated && c.cfg.GatedMinSpeech > c.cfg.MinSpeech {
+		return c.samples(c.cfg.GatedMinSpeech)
+	}
+	return c.samples(c.cfg.MinSpeech)
+}
+
+// trace reports one frame: its time after the wake, level, VAD verdict and the onset state.
+func (c *Capture) trace(f Frame, samples []int16, speech bool) {
+	sq := 0.0
+	for _, s := range samples {
+		sq += float64(s) * float64(s)
+	}
+	db := math.Inf(-1)
+	if len(samples) > 0 && sq > 0 {
+		db = 20 * math.Log10(math.Sqrt(sq/float64(len(samples)))/32768)
+	}
+	c.cfg.Trace(fmt.Sprintf("capture %+6d ms %6.1f dBFS gated=%-5v speech=%-5v run=%4d ms spoke=%v onset=%d ms silent=%d ms",
+		int64(f.Timestamp)-int64(c.wakeTs), db, f.Real != nil, speech, c.ms(c.voicedRun), c.spoke, c.ms(c.onset), c.ms(c.silentRun)))
+}
+
+// ms converts a sample count at the mic rate to milliseconds.
+func (c *Capture) ms(n int) int { return n * 1000 / c.cfg.MicRate }
 
 // inWakeGrace says whether the capture hears the real mic of a gated frame at robot time ts: from the start of
 // the capture (the margin before the wake) until WakeGrace after the wake. The window belongs to the capture in

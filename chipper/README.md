@@ -144,8 +144,14 @@ cuéntame un chiste" in one breath), so the gate would zero the question. The ga
 mic beside every frame it silenced, and the capture listens to it from its start (`CORTEX_WAKE_MARGIN` before the
 wake) until `CORTEX_HALF_DUPLEX_WAKE_GRACE` after the wake, or until the capture ends if sooner. The wake detector
 always hears the gate, and so does the capture after the window (robot speech, answers). The earcon's echo on the
-mic (-31..-41 dBFS) is not speech to the VAD: a wake with nobody speaking after it still prompts at 6 s and gives
-up at 9 s (`TestTheEarconEchoAloneIsNotSpeech`, a recorded wake gesture).
+mic (-31..-41 dBFS) and the gesture's noise can still look like speech to the VAD, in runs of up to ~0.6 s
+(L110: five live wakes ended 2.3-3.2 s after the wake, before the user spoke). So a speech run that holds a frame
+heard through the window needs 750 ms (`CaptureConfig.GatedMinSpeech`) instead of 200 ms before it is the user's
+onset; shorter runs are still sent to the transcriber. A question said in the same breath runs on past the earcon
+(0.98 s in L101); speech with the robot quiet still needs only 200 ms. A wake with nobody speaking after it prompts
+at 6 s and gives up at 9 s (`TestTheEarconEchoAloneIsNotSpeech`, `TestTheEarconEchoIsNotTheOnsetWhileTheUserWaits`,
+`TestTheGestureNoiseIsNotTheOnsetWhileTheUserWaits`, recorded wake gestures). `cortex-replay -trace-capture`
+prints every frame the capture hears after a wake (level, gated, VAD, run, onset), `-gated-min-speech` tunes the rule.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |

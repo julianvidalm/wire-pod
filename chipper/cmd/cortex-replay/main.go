@@ -9,7 +9,7 @@
 //	cortex-replay -python ~/.cache/v3ctor/corpus-venv/bin/python -oww-model hey_jarvis_v3ctor.onnx \
 //	    [-clock session_clock.jsonl -labels labels.jsonl [-ids s]] [-whisper-model ../whisper.cpp/models/ggml-small.bin] \
 //	    [-llm=false] [-answer text] [-tts piper] [-speed 1] [-half-duplex=false] [-hangover 600ms] [-wake-grace 1.5s] \
-//	    [-half-duplex-db -60] session_mic.wav
+//	    [-half-duplex-db -60] [-gated-min-speech 750ms] [-trace-capture] session_mic.wav
 //
 // -tts piper speaks knowledge answers with the cortex's voice (CORTEX_TTS_* settings) into a fake robot that
 // reports each stream started and records every audio command, and prints the voice timing: answer ready to
@@ -76,6 +76,9 @@ func main() {
 	hd := cortex.DefaultHalfDuplexConfig()
 	flag.DurationVar(&hd.Hangover, "hangover", hd.Hangover, "half duplex: mic stays silenced this long after the sound")
 	flag.Float64Var(&hd.Threshold, "half-duplex-db", hd.Threshold, "half duplex: speaker level (dBFS) that counts as talking")
+	gatedMinSpeech := flag.Duration("gated-min-speech", cortex.DefaultCaptureConfig().GatedMinSpeech,
+		"speech run heard under the gate in the wake grace that counts as the user's onset")
+	traceCapture := flag.Bool("trace-capture", false, "print every frame the capture listens to after a wake")
 	flag.Parse()
 	if *owwModel == "" || (*labelsPath != "") != (*clockPath != "") || flag.NArg() != 1 || *speed <= 0 {
 		fmt.Fprintln(os.Stderr, "usage: cortex-replay -oww-model m.onnx [-clock c.jsonl -labels l.jsonl] [flags] <mic.wav>")
@@ -139,6 +142,10 @@ func main() {
 	}
 	capture := cortex.DefaultCaptureConfig()
 	capture.MicRate, capture.WakeMargin, capture.WakeGrace = *micRate, *margin, *wakeGrace
+	capture.GatedMinSpeech = *gatedMinSpeech
+	if *traceCapture {
+		capture.Trace = func(line string) { fmt.Fprintln(os.Stderr, line) }
+	}
 	conv := cortex.NewConversation(cortex.Config{
 		Capture: capture,
 		NewVAD: func() cortex.VAD {

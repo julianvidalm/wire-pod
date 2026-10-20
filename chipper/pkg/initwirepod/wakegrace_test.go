@@ -57,7 +57,7 @@ func TestTheCaptureHearsTheQuestionUnderTheWakeReaction(t *testing.T) {
 
 	sink.Start("0dd1b652", mictap.Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
 	spk := uint64(0)
-	for ts := uint64(0); ts < 2600; ts += 10 {
+	for ts := uint64(0); ts < 3200; ts += 10 {
 		for ; spk <= ts; spk += 32 {
 			p := make([]byte, 2048)
 			if spk >= 992 && spk < 1500 { // the earcon (speaker frames are 32 ms)
@@ -67,7 +67,7 @@ func TestTheCaptureHearsTheQuestionUnderTheWakeReaction(t *testing.T) {
 			}
 			sink.Frame("0dd1b652", mictap.Frame{Type: mictap.FrameSpeaker, Timestamp: spk, Payload: p})
 		}
-		sink.Frame("0dd1b652", micFrame(uint32(ts/10), ts, ts >= 1000 && ts < 1600))
+		sink.Frame("0dd1b652", micFrame(uint32(ts/10), ts, ts >= 1000 && ts < 2000))
 		if ts == 990 {
 			wake := testDetection
 			wake.FrameTimestamp = ts
@@ -83,13 +83,16 @@ func TestTheCaptureHearsTheQuestionUnderTheWakeReaction(t *testing.T) {
 			t.Fatalf("answer %v, want intent_clock_time", cmd)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatalf("no answer; log %q", log.lines)
+		log.mu.Lock()
+		lines := append([]string(nil), log.lines...)
+		log.mu.Unlock()
+		t.Fatalf("no answer; log %q", lines)
 	}
 	tr.mu.Lock()
 	u := tr.heard[0]
 	tr.mu.Unlock()
 	if u.Voiced < 500*time.Millisecond {
-		t.Fatalf("voiced %v, want the 0.6 s question", u.Voiced)
+		t.Fatalf("voiced %v, want the 1 s question", u.Voiced)
 	}
 	sink.End("0dd1b652", nil)
 	det.mu.Lock()
