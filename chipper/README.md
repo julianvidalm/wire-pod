@@ -130,7 +130,8 @@ answer is `intent_system_unmatched`, as in wire-pod's own voice flow.
 With `CORTEX_VOICE_REQUESTS=on` the robot wakes on its own "hey vector" and streams the question as a stock voice
 request; the cortex answers it instead of wire-pod's STT and intent matching (wire-pod logs `Cortex voice requests
 on` at start). The request's Opus audio is decoded to 16 kHz and cut with the conversation's capture rules: the user
-speaks once the VAD hears 200 ms of speech in a row, a pause shorter than 700 ms does not end the question, and the
+speaks once the VAD hears 200 ms of speech in a row (750 ms when the run starts in the first
+`CORTEX_HALF_DUPLEX_WAKE_GRACE`, 1.5 s, which holds the robot's own earcon and get-in sound), a pause shorter than 700 ms does not end the question, and the
 robot ending the stream or 6.5 s end it too; a request where the user never spoke (a short noise burst) is nothing
 heard and never reaches whisper. The conversation's whisper (`CORTEX_WHISPER_MODEL`), wake phrase and silence filters and brain answer
 it, all within 8.5 s of the request (vic-cloud gives up at 9 s). The request gets exactly one response on its own

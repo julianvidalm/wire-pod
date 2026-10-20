@@ -422,3 +422,49 @@ func TestAVoiceRequestWithANoiseBurstOnlyIsNoAudioWithoutWhisper(t *testing.T) {
 	}
 	noSessionCommand(t, vt)
 }
+
+// pcmAt is spans of 16 kHz audio like pcmOf, with speech at amplitude amp.
+func pcmAt(amp int16, spans ...span) []int16 {
+	pcm := pcmOf(spans...)
+	for i, v := range pcm {
+		if v != 0 {
+			pcm[i] = amp
+		}
+	}
+	return pcm
+}
+
+// Live 15:5x: the request starts at the wake, so its first second holds the robot's own earcon and get-in sound.
+// A 0.2 s burst of it (-28 dBFS) in the wake grace window does not start the utterance (GatedMinSpeech 750 ms,
+// L110), so its silence does not end the request: the question said at 1.8 s is the utterance.
+func TestAVoiceRequestIgnoresTheWakeEarcon(t *testing.T) {
+	b := &recBrain{answer: cortex.Answer{Intent: "intent_clock_time"}}
+	pcm := pcmAt(1300, span{false, 100 * time.Millisecond}, span{true, 200 * time.Millisecond},
+		span{false, 1500 * time.Millisecond}, span{true, time.Second}, span{false, 2 * time.Second})
+	vt := newVoiceRequestTest(t, "¿qué hora es?", b, nil, pcm)
+	vt.ask()
+	wantIntent(t, vt.only(t), "intent_clock_time")
+	us := vt.tr.utterances()
+	if len(us) != 1 {
+		t.Fatalf("transcribed %d utterances, want 1", len(us))
+	}
+	// the question (1.8-2.8 s) ended 700 ms after it, not 700 ms after the burst
+	if u := us[0]; u.Reason != cortex.EndSilence || u.Duration() < 3400*time.Millisecond ||
+		u.Duration() > 3600*time.Millisecond {
+		t.Fatalf("utterance %s after %v, want the question ended by the silence after it", u.Reason, u.Duration())
+	}
+}
+
+// A question said right after the wake, in the same breath, still starts the utterance at once.
+func TestAVoiceRequestHearsAQuestionRightAfterTheWake(t *testing.T) {
+	b := &recBrain{answer: cortex.Answer{Intent: "intent_clock_time"}}
+	pcm := pcmOf(span{false, 100 * time.Millisecond}, span{true, 1200 * time.Millisecond}, span{false, 2 * time.Second})
+	vt := newVoiceRequestTest(t, "¿qué hora es?", b, nil, pcm)
+	vt.ask()
+	wantIntent(t, vt.only(t), "intent_clock_time")
+	us := vt.tr.utterances()
+	if len(us) != 1 || us[0].Reason != cortex.EndSilence || us[0].Voiced < 1150*time.Millisecond ||
+		us[0].Duration() > 2100*time.Millisecond {
+		t.Fatalf("utterances %v, want the whole question ended by the silence after it", us)
+	}
+}

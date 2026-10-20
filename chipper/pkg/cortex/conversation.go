@@ -355,7 +355,10 @@ type TargetSpeaker interface {
 // RequestCapture cuts the question out of a robot's own voice request: audio that starts at the robot's wake, at
 // one rate, without timestamps. It applies the conversation's capture rules (MinSpeech of speech before the user
 // counts as speaking, EndSilence after it, MaxLength from its onset, NoSpeech) through a Capture, with no margin
-// before the wake and no listening prompt. It is not safe for concurrent use.
+// before the wake and no listening prompt. The audio starts at the wake, so its first WakeGrace holds the robot's
+// own earcon and get-in sound: its frames go through the Capture as heard under the half-duplex gate, and a speech
+// run there needs GatedMinSpeech to start the utterance, as on the MicTap path (L110). It is not safe for
+// concurrent use.
 type RequestCapture struct {
 	c    *Capture
 	rate int
@@ -366,7 +369,7 @@ type RequestCapture struct {
 // NewRequestCapture starts the capture of one voice request whose audio comes at rate (mono).
 func (c *Conversation) NewRequestCapture(rate int) *RequestCapture {
 	cfg := c.cfg.Capture
-	cfg.MicRate, cfg.WakeMargin, cfg.PreRoll, cfg.WakeGrace, cfg.PromptAfter = rate, 0, 0, 0, 0
+	cfg.MicRate, cfg.WakeMargin, cfg.PreRoll, cfg.PromptAfter = rate, 0, 0, 0
 	r := &RequestCapture{c: NewCapture(cfg, c.cfg.NewVAD()), rate: rate}
 	r.c.Start(0)
 	return r
@@ -378,6 +381,9 @@ func (r *RequestCapture) Feed(samples []int16) (Utterance, bool) {
 	r.rest = append(r.rest, samples...)
 	for frame > 0 && len(r.rest) >= frame && r.c.Capturing() {
 		f := Frame{Samples: append([]int16(nil), r.rest[:frame]...), Timestamp: r.ts + 10}
+		if r.c.inWakeGrace(f.Timestamp) {
+			f.Real = f.Samples // the robot's wake sound: heard, but only GatedMinSpeech starts the utterance
+		}
 		r.ts += 10
 		r.rest = r.rest[frame:]
 		if u, done := r.c.Feed(f); done {
