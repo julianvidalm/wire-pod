@@ -28,7 +28,7 @@ type HalfDuplexConfig struct {
 }
 
 func DefaultHalfDuplexConfig() HalfDuplexConfig {
-	return HalfDuplexConfig{Hangover: 600 * time.Millisecond, Threshold: -60, MaxDelay: 300 * time.Millisecond,
+	return HalfDuplexConfig{Hangover: 600 * time.Millisecond, Threshold: -50, MaxDelay: 300 * time.Millisecond,
 		StallTimeout: 2 * time.Second}
 }
 

@@ -89,7 +89,7 @@ func TestHalfDuplexSilencesTheMicWhileTheSpeakerSoundsByRobotTime(t *testing.T) 
 }
 
 func TestHalfDuplexKeepsTheMicOpenOnSilenceAndNoiseBelowTheThreshold(t *testing.T) {
-	cfg := DefaultHalfDuplexConfig() // -60 dBFS
+	cfg := DefaultHalfDuplexConfig() // -50 dBFS
 	g := NewHalfDuplex[Frame](cfg)
 	var out []Frame
 	for i, level := range []int16{0, 1, 10, 20} { // digital silence and dither up to -64 dBFS
@@ -208,7 +208,7 @@ func TestHalfDuplexSilencedFramesKeepTheirLengthAndTime(t *testing.T) {
 
 func TestHalfDuplexDefaults(t *testing.T) {
 	cfg := DefaultHalfDuplexConfig()
-	if cfg.Hangover != 600*time.Millisecond || cfg.Threshold != -60 || cfg.MaxDelay != 300*time.Millisecond ||
+	if cfg.Hangover != 600*time.Millisecond || cfg.Threshold != -50 || cfg.MaxDelay != 300*time.Millisecond ||
 		cfg.StallTimeout != 2*time.Second {
 		t.Fatalf("defaults %+v", cfg)
 	}

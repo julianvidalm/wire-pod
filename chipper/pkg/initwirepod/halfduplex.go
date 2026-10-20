@@ -16,7 +16,7 @@ import (
 const (
 	halfDuplexEnv         = "CORTEX_HALF_DUPLEX"          // on (the default) or off
 	halfDuplexHangoverEnv = "CORTEX_HALF_DUPLEX_HANGOVER" // Go duration the mic stays silenced after the sound, default 600ms
-	halfDuplexDBEnv       = "CORTEX_HALF_DUPLEX_DB"       // speaker level (dBFS) that counts as talking, default -60
+	halfDuplexDBEnv       = "CORTEX_HALF_DUPLEX_DB"       // speaker level (dBFS) that counts as talking, default -50
 )
 
 // Lowest and highest CORTEX_HALF_DUPLEX_DB accepted; outside it the default is used.
