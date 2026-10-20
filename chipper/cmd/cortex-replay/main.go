@@ -8,7 +8,13 @@
 //
 //	cortex-replay -python ~/.cache/v3ctor/corpus-venv/bin/python -oww-model hey_jarvis_v3ctor.onnx \
 //	    [-clock session_clock.jsonl -labels labels.jsonl [-ids s]] [-whisper-model ../whisper.cpp/models/ggml-small.bin] \
-//	    [-llm=false] [-speed 1] [-half-duplex=false] [-hangover 600ms] [-half-duplex-db -60] session_mic.wav
+//	    [-llm=false] [-answer text] [-tts piper] [-speed 1] [-half-duplex=false] [-hangover 600ms] \
+//	    [-half-duplex-db -60] session_mic.wav
+//
+// -tts piper speaks knowledge answers with the cortex's voice (CORTEX_TTS_* settings) into a fake robot that
+// reports each stream started and records every audio command, and prints the voice timing: answer ready to
+// first chunk, the chunks' lead over real-time playback and the longest wait between chunks. -answer makes every
+// question that reaches the brain get that text (an LLM answer without the LLM).
 //
 // The WAV's samples are sent as 10 ms MicTap mic frames (160 samples) timestamped at the true mic rate, at
 // -speed times real time, over the span of the selected labels (without labels: the whole recording). When
@@ -62,6 +68,8 @@ func main() {
 	useLLM := flag.Bool("llm", true, "ask wire-pod's configured LLM when no intent matches")
 	persona := flag.String("persona", "Jarvis", "the robot's name in the LLM prompt")
 	speed := flag.Float64("speed", 1, "replay speed, times real time")
+	tts := flag.String("tts", "off", "piper speaks knowledge answers into a fake robot and prints the voice timing")
+	fixedAnswer := flag.String("answer", "", "answer every question with this text instead of asking the brain")
 	halfDuplex := flag.Bool("half-duplex", true, "silence the mic while the recorded speaker sounds (needs _speaker.wav)")
 	hd := cortex.DefaultHalfDuplexConfig()
 	flag.DurationVar(&hd.Hangover, "hangover", hd.Hangover, "half duplex: mic stays silenced this long after the sound")
@@ -115,6 +123,18 @@ func main() {
 		brainCfg.LLM = (&wirepodbrain.LLM{Persona: *persona}).Answer
 	}
 	rec := &recorder{}
+	var brain cortex.Brain = wirepodbrain.New(brainCfg)
+	if *fixedAnswer != "" {
+		brain = fixedBrain(*fixedAnswer)
+	}
+	var speaker cortex.Speaker
+	if *tts != "off" {
+		t, err := newReplayTalker(*tts, rec, logf)
+		if err != nil {
+			fail(err)
+		}
+		speaker = t
+	}
 	capture := cortex.DefaultCaptureConfig()
 	capture.MicRate, capture.WakeMargin = *micRate, *margin
 	conv := cortex.NewConversation(cortex.Config{
@@ -127,8 +147,9 @@ func main() {
 			return v
 		},
 		Transcriber: recordingTranscriber{tr, rec},
-		Brain:       recordingBrain{wirepodbrain.New(brainCfg), rec},
+		Brain:       recordingBrain{brain, rec},
 		Robot:       rec,
+		Speaker:     speaker,
 		Logf:        logf,
 	})
 	det := oww.New(oww.Config{
@@ -175,6 +196,7 @@ func main() {
 		labels[i].endTs = recording.MicTime(clock.position(labels[i].EndMs, rate))
 	}
 	rec.print(labels)
+	rec.printVoice()
 }
 
 // replaySink hands the stream to the conversation first (so the pre-roll holds each frame before the detector
@@ -298,6 +320,11 @@ type recorder struct {
 	wakes   []uint64
 	heard   []*heard
 	changed time.Time
+
+	talker   *cortex.Talker
+	answerAt time.Time // when the brain's last answer was ready
+	voiceMu  sync.Mutex
+	voices   []*voiceStream
 }
 
 func (r *recorder) touch() { r.changed = time.Now() }
@@ -372,6 +399,7 @@ func (rb recordingBrain) Answer(ctx context.Context, esn string, t cortex.Transc
 	rb.rec.mu.Lock()
 	if n := len(rb.rec.heard); n > 0 {
 		rb.rec.heard[n-1].brainTook = time.Since(began)
+		rb.rec.answerAt = time.Now()
 		if err != nil {
 			rb.rec.heard[n-1].answer = "error: " + err.Error()
 		} else if a == (cortex.Answer{}) {

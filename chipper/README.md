@@ -250,7 +250,10 @@ go run -tags nolibopusfile ./cmd/cortex-replay -python "$OWW_PYTHON" -oww-model 
 ```
 
 It prints one row per labeled line: the wake, the captured utterance, its transcription and the brain's answer.
-`-llm=false` skips the LLM. Without `-clock` and `-labels` it replays the whole recording.
+`-llm=false` skips the LLM. Without `-clock` and `-labels` it replays the whole recording. `-answer <text>` answers
+every question with that text; `-tts piper` speaks knowledge answers with the cortex's voice into a fake robot (it
+reports each stream started) and prints one `VOICE` line per answer: answer ready to first chunk, chunks and audio
+sent, the expected duration, the largest lead over real-time playback and the longest wait between chunks.
 
 Both replays (`cmd/cortex-replay`, `cmd/oww-replay`) run the half-duplex gate when `<session>_speaker.wav` sits
 next to the mic recording: speaker frames are interleaved by robot time, taken from `<session>_mic_frames.jsonl`
