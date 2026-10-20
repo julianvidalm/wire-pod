@@ -132,9 +132,9 @@ request; the cortex answers it instead of wire-pod's STT and intent matching (wi
 on` at start). The request's Opus audio is decoded to 16 kHz and cut with the conversation's capture rules: the user
 speaks once the VAD hears 200 ms of speech in a row (750 ms when the run starts in the first
 `CORTEX_HALF_DUPLEX_WAKE_GRACE`, 1.5 s, which holds the robot's own earcon and get-in sound), a pause shorter than 700 ms does not end the question, and the
-robot ending the stream or 6.5 s end it too; a request where the user never spoke (a short noise burst) is nothing
+robot ending the stream or 14.5 s end it too; a request where the user never spoke (a short noise burst) is nothing
 heard and never reaches whisper. The conversation's whisper (`CORTEX_WHISPER_MODEL`), wake phrase and silence filters and brain answer
-it, all within 8.5 s of the request (vic-cloud gives up at 9 s). The request gets exactly one response on its own
+it, all within 19 s of the request (vic-cloud gives up at 20 s). The request gets exactly one response on its own
 stream, never a MicTap intent:
 
 | Answer | Response |

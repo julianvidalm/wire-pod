@@ -26,11 +26,11 @@ import (
 const (
 	voiceRequestsEnv = "CORTEX_VOICE_REQUESTS" // on or off (the default): off keeps wire-pod's own voice requests
 
-	// The robot streams its question for at most about 6 s after the wake, and vic-cloud gives up on the request
-	// 9 s after it (L6): the capture ends at voiceListenMax, and transcribing and answering at voiceAnswerBy, both
-	// from the start of the request.
-	voiceListenMax = 6500 * time.Millisecond
-	voiceAnswerBy  = 8500 * time.Millisecond
+	// The robot streams its question for at most about 14 s after the wake (room for its '?' prompt and give-up,
+	// robot-wake T3), and vic-cloud gives up on the request 20 s after it: the capture ends at voiceListenMax, and
+	// transcribing and answering at voiceAnswerBy, both from the start of the request.
+	voiceListenMax = 14500 * time.Millisecond
+	voiceAnswerBy  = 19 * time.Second
 	voiceRate      = 16000 // the request's Opus decodes to 16 kHz mono
 
 	knowledgeBypassIntent = "intent_knowledge_response_extend_bypass"
