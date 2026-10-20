@@ -53,6 +53,11 @@ type CaptureConfig struct {
 	// PromptAfter is when, without speech since the wake, the robot is asked to show it is still listening
 	// (PromptDue); 0 never asks. The robot turns to the voice first, so the user speaks late (S6, L71).
 	PromptAfter time.Duration
+	// WakeGrace: from WakeMargin before the wake until WakeGrace after it, the capture hears the real mic of
+	// frames the half-duplex gate silenced (Frame.Real), so the robot's own wake reaction (the earcon, its
+	// get-in sound) does not zero what the user says in the same breath as the wake word (L101). Later frames,
+	// and the wake detector always, hear the gate's silence. 0 turns the window off.
+	WakeGrace time.Duration
 	// An utterance whose speech is quieter than MinLevel (dBFS) is not transcribed: nothing was heard (speech
 	// shorter than MinSpeech never starts the utterance). A transcript that is one of whisper's silence phrases ("Thank you.") is answered only when its
 	// speech reached ClearLevel.
@@ -71,6 +76,7 @@ func DefaultCaptureConfig() CaptureConfig {
 		MaxLength:   8 * time.Second,
 		NoSpeech:    9 * time.Second, // S6: the prompt at 6 s, then 3 s more
 		PromptAfter: 6 * time.Second,
+		WakeGrace:   1500 * time.Millisecond, // the earcon ends ~0.7 s after the wake, the gate's hangover 0.6 s later
 		MinLevel:    -48,
 		ClearLevel:  -38,
 	}
@@ -160,15 +166,19 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 		c.cur.Start = f.Timestamp
 	}
 	c.cur.End = f.Timestamp
-	c.cur.Samples = append(c.cur.Samples, f.Samples...)
+	samples := f.Samples
+	if f.Real != nil && c.inWakeGrace(f.Timestamp) {
+		samples = f.Real
+	}
+	c.cur.Samples = append(c.cur.Samples, samples...)
 	if f.Timestamp <= c.wakeTs {
 		return Utterance{}, false // the margin: kept for the transcriber, never the start of speech
 	}
-	n := len(f.Samples)
+	n := len(samples)
 	c.afterWake += n
-	if c.vad.IsSpeech(f.Samples) {
+	if c.vad.IsSpeech(samples) {
 		c.voiced += n
-		for _, s := range f.Samples {
+		for _, s := range samples {
 			c.voicedSq += float64(s) * float64(s)
 		}
 		c.voicedRun += n
@@ -195,6 +205,13 @@ func (c *Capture) listen(f Frame) (Utterance, bool) {
 		c.prompted, c.promptDue = true, true
 	}
 	return Utterance{}, false
+}
+
+// inWakeGrace says whether the capture hears the real mic of a gated frame at robot time ts: from the start of
+// the capture (the margin before the wake) until WakeGrace after the wake. The window belongs to the capture in
+// progress, so it ends early when the capture does.
+func (c *Capture) inWakeGrace(ts uint64) bool {
+	return c.capturing && c.cfg.WakeGrace > 0 && ts <= c.wakeTs+uint64(c.cfg.WakeGrace/time.Millisecond)
 }
 
 func (c *Capture) finish(r EndReason) Utterance {

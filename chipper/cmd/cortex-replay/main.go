@@ -65,6 +65,8 @@ func main() {
 	languages := flag.String("languages", "en,es", "languages whisper chooses among")
 	vadMode := flag.Int("vad-mode", 3, "webrtc VAD aggressiveness, 0-3")
 	margin := flag.Duration("margin", cortex.DefaultCaptureConfig().WakeMargin, "capture starts this long before the wake")
+	wakeGrace := flag.Duration("wake-grace", cortex.DefaultCaptureConfig().WakeGrace,
+		"the capture hears the mic under the half-duplex gate until this long after the wake (0: never)")
 	useLLM := flag.Bool("llm", true, "ask wire-pod's configured LLM when no intent matches")
 	persona := flag.String("persona", "Jarvis", "the robot's name in the LLM prompt")
 	speed := flag.Float64("speed", 1, "replay speed, times real time")
@@ -136,7 +138,7 @@ func main() {
 		speaker = t
 	}
 	capture := cortex.DefaultCaptureConfig()
-	capture.MicRate, capture.WakeMargin = *micRate, *margin
+	capture.MicRate, capture.WakeMargin, capture.WakeGrace = *micRate, *margin, *wakeGrace
 	conv := cortex.NewConversation(cortex.Config{
 		Capture: capture,
 		NewVAD: func() cortex.VAD {
@@ -181,12 +183,12 @@ func main() {
 	case recording.Speaker == nil:
 		fmt.Fprintln(os.Stderr, "half duplex off")
 	default:
-		fmt.Fprintf(os.Stderr, "half duplex on (speaker aligned by %s): above %g dBFS, hangover %v\n",
-			recording.Alignment, hd.Threshold, hd.Hangover)
+		fmt.Fprintf(os.Stderr, "half duplex on (speaker aligned by %s): above %g dBFS, hangover %v, wake grace %v\n",
+			recording.Alignment, hd.Threshold, hd.Hangover, *wakeGrace)
 		if recording.Alignment != "frame logs" {
 			fmt.Fprintln(os.Stderr, replay.SampleClockWarning)
 		}
-		sink = mictapgate.New(sink, hd, *micRate, logf)
+		sink = mictapgate.NewWithCapture(replayCapture{conv}, det, hd, *micRate, logf)
 	}
 	recording.Play(sink, esn, from, to, 0, *speed)
 	rec.settle(15 * time.Second)
@@ -223,6 +225,18 @@ func (s replaySink) End(esn string, err error) {
 	s.det.End(esn, err)
 	s.conv.Close(esn)
 }
+
+// replayCapture is the conversation behind the half-duplex gate: it hears the real mic under the gate's silence
+// during the wake gesture (L101). The gate ends the detector before it.
+type replayCapture struct{ conv *cortex.Conversation }
+
+func (c replayCapture) Start(esn string, _ mictap.Hello) { c.conv.Open(esn) }
+
+func (c replayCapture) Mic(esn string, f mictap.Frame, real []int16) {
+	c.conv.Feed(esn, cortex.Frame{Samples: f.Samples(), Real: real, Timestamp: f.Timestamp})
+}
+
+func (c replayCapture) End(esn string, _ error) { c.conv.Close(esn) }
 
 type wakeFunc func(wakeword.Detection)
 

@@ -17,6 +17,9 @@ type Frame struct {
 	Samples       []int16
 	Timestamp     uint64
 	SpeakerActive bool // the robot was playing sound
+	// Real is the mic audio under Samples when the half-duplex gate silenced the frame (Samples are zeros), nil
+	// otherwise. Only the capture's wake grace window listens to it (CaptureConfig.WakeGrace).
+	Real []int16
 }
 
 // VAD says whether one mic frame holds speech. Each robot stream gets its own instance (see Config.NewVAD).

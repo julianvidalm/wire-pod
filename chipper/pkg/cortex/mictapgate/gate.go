@@ -2,7 +2,8 @@
 // that hands its inner sink every robot's stream with the mic frames heard while the robot talked replaced by
 // zeros of the same length. Speaker and other frames pass through unchanged; mic frames may reach the inner
 // sink up to the gate's MaxDelay later than they arrived, always in order. Anything that must keep the real
-// audio (the recorder) sits beside this sink, not behind it.
+// audio (the recorder) sits beside this sink, not behind it; the conversation's capture, which needs it only
+// during the wake gesture, is the gate's Capture side.
 package mictapgate
 
 import (
@@ -16,6 +17,7 @@ import (
 // Sink gates the mic frames of every stream it receives before passing them to its inner sink.
 type Sink struct {
 	inner   mictap.Sink
+	capture Capture // nil: none
 	cfg     cortex.HalfDuplexConfig
 	micRate int
 	logf    func(a ...any)
@@ -30,6 +32,24 @@ type stream struct {
 	speakerRate int
 }
 
+// Capture is the conversation side of the gate (NewWithCapture): it gets every mic frame the gate releases, in
+// order and before the inner sink, silenced like the inner sink's, with real holding the mic audio the gate
+// silenced (nil when it let the frame through). The capture listens to real only during the wake gesture
+// (cortex.CaptureConfig.WakeGrace, L101). Speaker and other frames go to the inner sink only.
+type Capture interface {
+	Start(esn string, h mictap.Hello)
+	Mic(esn string, f mictap.Frame, real []int16)
+	End(esn string, err error)
+}
+
+// NewWithCapture is New with a capture side: Start reaches c before inner, End reaches inner first (its last
+// wakes still find the capture open).
+func NewWithCapture(c Capture, inner mictap.Sink, cfg cortex.HalfDuplexConfig, micRate int, logf func(a ...any)) *Sink {
+	s := New(inner, cfg, micRate, logf)
+	s.capture = c
+	return s
+}
+
 // New returns the gate in front of inner; logf gets one summary line per stream when it ends, with times at
 // micRate, the mic's true rate.
 func New(inner mictap.Sink, cfg cortex.HalfDuplexConfig, micRate int, logf func(a ...any)) *Sink {
@@ -39,6 +59,9 @@ func New(inner mictap.Sink, cfg cortex.HalfDuplexConfig, micRate int, logf func(
 // Start gates the stream only when the robot streams its speaker (a SpeakerRate in its hello); without one,
 // the stream passes through untouched.
 func (s *Sink) Start(esn string, h mictap.Hello) {
+	if s.capture != nil {
+		s.capture.Start(esn, h)
+	}
 	if h.SpeakerRate == 0 {
 		s.mu.Lock()
 		delete(s.streams, esn)
@@ -62,7 +85,11 @@ func (s *Sink) stream(esn string) *stream {
 func (s *Sink) Frame(esn string, f mictap.Frame) {
 	st := s.stream(esn)
 	if st == nil {
-		s.inner.Frame(esn, f) // no Start: nothing to gate against
+		if f.Type == mictap.FrameMic { // no Start: nothing to gate against
+			s.mic(esn, micFrame{Frame: f})
+			return
+		}
+		s.inner.Frame(esn, f)
 		return
 	}
 	st.mu.Lock()
@@ -70,7 +97,7 @@ func (s *Sink) Frame(esn string, f mictap.Frame) {
 	var out []micFrame
 	switch f.Type {
 	case mictap.FrameMic:
-		out = st.gate.Mic(micFrame(f))
+		out = st.gate.Mic(micFrame{Frame: f})
 	case mictap.FrameSpeaker:
 		s.inner.Frame(esn, f)
 		out = st.gate.Speaker(f.Timestamp, f.Samples(), st.speakerRate)
@@ -78,8 +105,20 @@ func (s *Sink) Frame(esn string, f mictap.Frame) {
 		s.inner.Frame(esn, f)
 	}
 	for _, m := range out {
-		s.inner.Frame(esn, mictap.Frame(m))
+		s.mic(esn, m)
 	}
+}
+
+// mic hands one released mic frame to the capture side, then to the inner sink.
+func (s *Sink) mic(esn string, m micFrame) {
+	if s.capture != nil {
+		var real []int16
+		if m.real != nil {
+			real = mictap.Frame{Type: mictap.FrameMic, Payload: m.real}.Samples()
+		}
+		s.capture.Mic(esn, m.Frame, real)
+	}
+	s.inner.Frame(esn, m.Frame)
 }
 
 func (s *Sink) End(esn string, err error) {
@@ -90,12 +129,15 @@ func (s *Sink) End(esn string, err error) {
 	if st != nil {
 		st.mu.Lock()
 		for _, m := range st.gate.Flush() {
-			s.inner.Frame(esn, mictap.Frame(m))
+			s.mic(esn, m)
 		}
 		s.logf(Summary(esn, st.gate.Stats(), s.micRate))
 		st.mu.Unlock()
 	}
 	s.inner.End(esn, err)
+	if s.capture != nil {
+		s.capture.End(esn, err)
+	}
 }
 
 // Summary is the one line logged per stream (mic frames hold 160 samples at micRate).
@@ -106,12 +148,16 @@ func Summary(esn string, st cortex.HalfDuplexStats, micRate int) string {
 		esn, st.Spans, sec(st.GatedFrames), sec(st.Frames), st.Unconfirmed, st.Late)
 }
 
-// micFrame is a MicTap mic frame as the gate holds it.
-type micFrame mictap.Frame
+// micFrame is a MicTap mic frame as the gate holds it; once silenced, real keeps the payload it replaced.
+type micFrame struct {
+	mictap.Frame
+	real []byte
+}
 
 func (m micFrame) RobotTime() uint64 { return m.Timestamp }
 
 func (m micFrame) Silenced() micFrame {
+	m.real = m.Payload
 	m.Payload = make([]byte, len(m.Payload))
 	return m
 }

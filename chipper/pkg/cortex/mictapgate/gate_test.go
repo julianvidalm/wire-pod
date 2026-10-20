@@ -119,3 +119,76 @@ func TestSinkPassesTheMicThroughWithoutASpeakerStream(t *testing.T) {
 	}
 	s.End("a", nil)
 }
+
+// convSide records what the capture side of the gate gets.
+type convSide struct {
+	frames      []mictap.Frame
+	real        [][]int16
+	start, ends int
+	order       *[]string
+}
+
+func (c *convSide) Start(string, mictap.Hello) { c.start++; c.log("capture start") }
+func (c *convSide) Mic(_ string, f mictap.Frame, real []int16) {
+	c.frames = append(c.frames, f)
+	c.real = append(c.real, real)
+}
+func (c *convSide) End(string, error) { c.ends++; c.log("capture end") }
+func (c *convSide) log(s string) {
+	if c.order != nil {
+		*c.order = append(*c.order, s)
+	}
+}
+
+// L101: the capture side gets the same silenced frames as the detector, with the real mic audio beside each
+// silenced one (nil beside the others); the detector stays gated.
+func TestTheCaptureSideGetsTheRealMicBesideTheSilence(t *testing.T) {
+	det, conv := &capture{}, &convSide{}
+	s := NewWithCapture(conv, det, cortex.DefaultHalfDuplexConfig(), 16000, func(...any) {})
+	s.Start("a", mictap.Hello{Version: 1, MicRate: 16000, SpeakerRate: 32000})
+	spk := uint64(0)
+	for ts := uint64(0); ts < 3000; ts += 10 {
+		for ; spk <= ts; spk += 32 {
+			level := int16(0)
+			if spk >= 512 && spk < 1024 {
+				level = 8000
+			}
+			s.Frame("a", mictap.Frame{Type: mictap.FrameSpeaker, Timestamp: spk, Payload: payload(1024, level)})
+		}
+		s.Frame("a", mictap.Frame{Type: mictap.FrameMic, Seq: uint32(ts / 10), Timestamp: ts, Payload: payload(160, 300)})
+	}
+	s.End("a", nil)
+	mic := det.mic()
+	if len(mic) != 300 || len(conv.frames) != 300 || conv.start != 1 || conv.ends != 1 {
+		t.Fatalf("detector %d, capture %d mic frames, capture starts %d ends %d", len(mic), len(conv.frames),
+			conv.start, conv.ends)
+	}
+	for i, f := range conv.frames {
+		gated := f.Timestamp >= 512 && f.Timestamp <= 1024+600
+		if zero(mic[i].Payload) != gated || zero(f.Payload) != gated || f.Seq != mic[i].Seq {
+			t.Fatalf("frame %d at %d ms: detector zero %v, capture zero %v, want %v", i, f.Timestamp,
+				zero(mic[i].Payload), zero(f.Payload), gated)
+		}
+		switch {
+		case gated && (len(conv.real[i]) != 160 || conv.real[i][0] != 300):
+			t.Fatalf("frame at %d ms: real %v, want the mic's 300s", f.Timestamp, conv.real[i])
+		case !gated && conv.real[i] != nil:
+			t.Fatalf("frame at %d ms was not silenced but has real audio", f.Timestamp)
+		}
+	}
+	if n := len(det.frames) - len(mic); n != 94 {
+		t.Fatalf("%d speaker frames reached the detector, want 94", n)
+	}
+}
+
+// Without a speaker stream nothing is gated: the capture side gets every frame at once, without real audio.
+func TestTheCaptureSidePassesThroughWithoutASpeakerStream(t *testing.T) {
+	det, conv := &capture{}, &convSide{}
+	s := NewWithCapture(conv, det, cortex.DefaultHalfDuplexConfig(), 16000, func(...any) {})
+	s.Start("a", mictap.Hello{Version: 1, MicRate: 16000})
+	s.Frame("a", mictap.Frame{Type: mictap.FrameMic, Timestamp: 0, Payload: payload(160, 300)})
+	if len(conv.frames) != 1 || conv.real[0] != nil || zero(conv.frames[0].Payload) || len(det.mic()) != 1 {
+		t.Fatalf("capture %d frames (real %v), detector %d", len(conv.frames), conv.real, len(det.mic()))
+	}
+	s.End("a", nil)
+}

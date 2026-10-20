@@ -35,6 +35,9 @@ const (
 	promptIntentEnv = "CORTEX_LISTEN_PROMPT_INTENT" // intent the prompt sends; set but empty sends nothing
 	noSpeechEnv     = "CORTEX_NO_SPEECH"            // Go duration without speech after the wake before giving up, default 9s
 	captureMaxEnv   = "CORTEX_CAPTURE_MAX"          // Go duration of the longest question from its start, default 8s
+	// wakeGraceEnv: Go duration after the wake until which the capture hears the mic the half-duplex gate
+	// silenced (the robot's wake reaction), default 1.5s; 0 never (L101).
+	wakeGraceEnv = "CORTEX_HALF_DUPLEX_WAKE_GRACE"
 
 	defaultPromptIntent = "intent_cortex_listening_prompt"
 
@@ -111,7 +114,8 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 	}
 	capture.MicRate = int(rate)
 	for env, d := range map[string]*time.Duration{cortexMarginEnv: &capture.WakeMargin,
-		promptAfterEnv: &capture.PromptAfter, noSpeechEnv: &capture.NoSpeech, captureMaxEnv: &capture.MaxLength} {
+		promptAfterEnv: &capture.PromptAfter, noSpeechEnv: &capture.NoSpeech, captureMaxEnv: &capture.MaxLength,
+		wakeGraceEnv: &capture.WakeGrace} {
 		if v := os.Getenv(env); v != "" {
 			if *d, err = time.ParseDuration(v); err != nil {
 				return nil, "", fmt.Errorf("%s: %w", env, err)
@@ -203,6 +207,12 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 	desc := fmt.Sprintf("%s, %s, %s; capture from %v before the wake, ends after %v of silence, at most %v from "+
 		"the speech start, %sgives up after %v without speech; mic %d Hz", trDesc, brainDesc, vadDesc,
 		capture.WakeMargin, capture.EndSilence, capture.MaxLength, prompt, capture.NoSpeech, capture.MicRate)
+	if capture.WakeGrace > 0 {
+		desc += fmt.Sprintf("; the capture hears the mic under the half-duplex gate until %v after the wake",
+			capture.WakeGrace)
+	} else {
+		desc += "; the capture hears the half-duplex gate from the wake on"
+	}
 	if thinkingIntent != "" {
 		desc += "; " + thinkingIntent + " when the question ends"
 	}
@@ -250,6 +260,17 @@ func (a micTapAudio) Frame(esn string, f mictap.Frame) {
 
 func (a micTapAudio) End(esn string, _ error) { a.conv.Close(esn) }
 
+// Mic is the gate's Capture side: real is the mic audio under a silenced frame, which the capture hears only
+// during the wake gesture (L101).
+func (a micTapAudio) Mic(esn string, f mictap.Frame, real []int16) {
+	a.conv.Feed(esn, cortex.Frame{
+		Samples:       f.Samples(),
+		Real:          real,
+		Timestamp:     f.Timestamp,
+		SpeakerActive: f.Flags&mictap.MicFlagSpeakerActive != 0,
+	})
+}
+
 // micRate is the mic's true rate (OWW_MIC_RATE), or its default when the setting is invalid.
 func micRate() int {
 	rate, err := envFloat(owwMicRateEnv, owwDefaultMicRate)
@@ -261,17 +282,17 @@ func micRate() int {
 
 // detectorSink runs the wake word detector on every stream and, with the conversation on, hands the stream to
 // it first, so the pre-roll already holds each frame when the detector reports a wake in it. With half duplex
-// on (hd not nil) both hear silence while the robot talks; logSink (and the recorder in it) gets the real mic.
+// on (hd not nil) both hear silence while the robot talks, except that the conversation's capture hears the real
+// mic during the wake gesture (CORTEX_HALF_DUPLEX_WAKE_GRACE); logSink (and the recorder in it) gets the real mic.
 func detectorSink(logSink, detector mictap.Sink, conv *cortex.Conversation, hd *cortex.HalfDuplexConfig) mictap.Sink {
-	var listeners mictap.Sink = detector
-	if conv != nil {
-		listeners = mictap.Tee(micTapAudio{conv}, detector)
-	}
 	if hd == nil {
 		if conv == nil {
 			return mictap.Tee(logSink, detector)
 		}
 		return mictap.Tee(logSink, micTapAudio{conv}, detector)
 	}
-	return mictap.Tee(logSink, mictapgate.New(listeners, *hd, micRate(), logger.Println))
+	if conv == nil {
+		return mictap.Tee(logSink, mictapgate.New(detector, *hd, micRate(), logger.Println))
+	}
+	return mictap.Tee(logSink, mictapgate.NewWithCapture(micTapAudio{conv}, detector, *hd, micRate(), logger.Println))
 }
