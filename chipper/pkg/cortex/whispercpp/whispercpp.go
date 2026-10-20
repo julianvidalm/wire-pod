@@ -42,6 +42,8 @@ type Transcriber struct {
 }
 
 // New loads the model.
+const beamSize = 5
+
 func New(cfg Config) (*Transcriber, error) {
 	ctx := whisper.Whisper_init(cfg.ModelPath)
 	if ctx == nil {
@@ -59,7 +61,10 @@ func New(cfg Config) (*Transcriber, error) {
 		}
 		t.langIDs = append(t.langIDs, id)
 	}
-	t.params = ctx.Whisper_full_default_params(whisper.SamplingStrategy(whisper.SAMPLING_GREEDY))
+	// Beam search: greedy decoding misheard short Spanish requests on the robot mic ("Cuéntame un chiste" as
+	// "¿Cuánto munciaste?", robot-wake L20); 5 beams cost about 0.1 s on the GPU.
+	t.params = ctx.Whisper_full_default_params(whisper.SamplingStrategy(whisper.SAMPLING_BEAM_SEARCH))
+	t.params.SetBeamSize(beamSize)
 	t.params.SetTranslate(false)
 	t.params.SetPrintSpecial(false)
 	t.params.SetPrintProgress(false)
