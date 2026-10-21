@@ -8,6 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap/mictappb"
 	mictapserver "github.com/julianvidalm/wire-pod/chipper/pkg/servers/mictap"
 )
@@ -15,16 +17,18 @@ import (
 var (
 	micTapServerOnce sync.Once
 	micTapServerVal  *mictapserver.Server
-	// liveAudioStatus gets the robots' audio stream reports once the conversation has a voice. It is set while
-	// the server is being built (the server's sink builds the conversation), so the server reads it per report.
+	// liveAudioStatus gets the robots' audio stream reports once the conversation has a voice. The conversation
+	// is built at startup (installVoiceRequests), independently of the server, so the server reads it per report.
 	liveAudioStatus atomic.Pointer[func(esn string, st *mictappb.AudioStatus)]
 )
 
 // micTapServer is the one MicTap gRPC service shared by both TLS listeners, so a command finds the robot's
-// session whichever listener the robot connected to.
+// session whichever listener the robot connected to. The robot's command link (robot-wake T1) sends no mic audio:
+// the session carries commands and the cortex's voice down and audio stream reports up; a robot that still streams
+// its mic is only logged.
 func micTapServer() *mictapserver.Server {
 	micTapServerOnce.Do(func() {
-		micTapServerVal = mictapserver.New(micTapSink())
+		micTapServerVal = mictapserver.New(mictap.NewLogSink(logger.Println))
 		micTapServerVal.OnAudioStatus(func(esn string, st *mictappb.AudioStatus) {
 			if f := liveAudioStatus.Load(); f != nil {
 				(*f)(esn, st)
@@ -39,7 +43,7 @@ type commandSender interface {
 }
 
 // micTapCommandHandler sends one command to a robot over its MicTap session, to try the robot side of the
-// PC-led conversation by hand:
+// cortex by hand:
 //
 //	/api-mictap/command?serial=<esn>&intent=intent_clock_time[&params=<json>]
 //	/api-mictap/command?serial=<esn>&say=<text>

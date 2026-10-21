@@ -9,42 +9,21 @@ import (
 	"time"
 
 	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex"
-	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex/mictapgate"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex/wirepodbrain"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
-	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap/mictappb"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/vad"
 )
 
-// The PC-led conversation: after a wake the cortex captures what the user says from the MicTap stream,
-// transcribes it, decides the answer and sends it to the robot over its MicTap session.
+// The cortex conversation: its whisper, brain and voice answer the robot's own voice requests (voicerequest.go).
+// The robot wakes itself ("hey vector") and streams the question to wire-pod; the conversation cuts it with its
+// capture rules, transcribes it, decides the answer and speaks it over the robot's MicTap session.
 const (
-	conversationEnv  = "CORTEX_CONVERSATION" // on or off (the default): off keeps attend-only wakes
-	cortexMarginEnv  = "CORTEX_WAKE_MARGIN"  // Go duration the capture starts before the wake's end, default 1s (whisper hears "hey jarvis")
+	conversationEnv  = "CORTEX_CONVERSATION" // on or off (the default): builds the conversation the voice requests use
 	cortexVADModeEnv = "CORTEX_VAD_MODE"     // webrtc VAD aggressiveness 0-3, default 3
 	cortexPersonaEnv = "CORTEX_PERSONA"      // the robot's name in the LLM prompt; unset or "-" keeps Vector (S1)
-	// attendEndIntentEnv is the intent sent when a capture ends without an answer, so the robot stops listening
-	// (L63); set but empty sends nothing.
-	attendEndIntentEnv = "CORTEX_ATTEND_END_INTENT"
-
-	defaultAttendEndIntent = "intent_cortex_listening_end"
-
-	// The no-speech timeline (S6): the robot turns to the voice first, so the user speaks late.
-	promptAfterEnv  = "CORTEX_LISTEN_PROMPT_AFTER"  // Go duration without speech after the wake before the prompt, default 6s; 0 never
-	promptIntentEnv = "CORTEX_LISTEN_PROMPT_INTENT" // intent the prompt sends; set but empty sends nothing
-	noSpeechEnv     = "CORTEX_NO_SPEECH"            // Go duration without speech after the wake before giving up, default 9s
-	captureMaxEnv   = "CORTEX_CAPTURE_MAX"          // Go duration of the longest question from its start, default 8s
-	// wakeGraceEnv: Go duration after the wake until which the capture hears the mic the half-duplex gate
-	// silenced (the robot's wake reaction), default 1.5s; 0 never (L101).
-	wakeGraceEnv = "CORTEX_HALF_DUPLEX_WAKE_GRACE"
-
-	defaultPromptIntent = "intent_cortex_listening_prompt"
-
-	// thinkingIntentEnv is the intent sent when a capture ends with speech, so the robot shows its thinking face
-	// until the answer (L80); set but empty sends nothing.
-	thinkingIntentEnv     = "CORTEX_THINKING_INTENT"
-	defaultThinkingIntent = "intent_cortex_thinking"
+	noSpeechEnv      = "CORTEX_NO_SPEECH"    // Go duration without speech after the wake before giving up, default 9s
+	captureMaxEnv    = "CORTEX_CAPTURE_MAX"  // Go duration of the longest question from its start, default 8s
 
 	defaultVADMode = 3
 	defaultPersona = "-"           // S1: the prompt's own robot, Vector
@@ -60,7 +39,7 @@ var (
 	conversationVal  *cortex.Conversation
 )
 
-// liveConversation is the one conversation both TLS listeners and the wake handler share, or nil when off.
+// liveConversation is the one conversation the voice requests share, or nil when off.
 func liveConversation() *cortex.Conversation {
 	conversationOnce.Do(func() {
 		c, desc, err := newConversation(conversationDeps{
@@ -86,7 +65,7 @@ type conversationDeps struct {
 	transcriber func() (cortex.Transcriber, string, error)
 	brain       cortex.Brain      // nil: wire-pod's intents and LLM
 	newVAD      func() cortex.VAD // nil: webrtc with CORTEX_VAD_MODE
-	sender      commandSender
+	sender      commandSender     // the robots' MicTap sessions, for the cortex's voice
 	logf        func(a ...any)
 	// voice replaces piper as the cortex's voice (tests); nil reads CORTEX_TTS.
 	voice func() (cortex.Voice, string, error)
@@ -108,23 +87,13 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 		return nil, "", fmt.Errorf("this build has no transcriber (it needs STT_SERVICE=whisper.cpp)")
 	}
 	capture := cortex.DefaultCaptureConfig()
-	rate, err := envFloat(owwMicRateEnv, owwDefaultMicRate)
-	if err != nil {
-		return nil, "", err
-	}
-	capture.MicRate = int(rate)
-	for env, d := range map[string]*time.Duration{cortexMarginEnv: &capture.WakeMargin,
-		promptAfterEnv: &capture.PromptAfter, noSpeechEnv: &capture.NoSpeech, captureMaxEnv: &capture.MaxLength,
-		wakeGraceEnv: &capture.WakeGrace} {
+	var err error
+	for env, d := range map[string]*time.Duration{noSpeechEnv: &capture.NoSpeech, captureMaxEnv: &capture.MaxLength} {
 		if v := os.Getenv(env); v != "" {
 			if *d, err = time.ParseDuration(v); err != nil {
 				return nil, "", fmt.Errorf("%s: %w", env, err)
 			}
 		}
-	}
-	promptIntent, set := os.LookupEnv(promptIntentEnv)
-	if !set {
-		promptIntent = defaultPromptIntent
 	}
 	newVAD := d.newVAD
 	vadDesc := "test VAD"
@@ -161,14 +130,6 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 			brainDesc += " as " + persona
 		}
 	}
-	endIntent, set := os.LookupEnv(attendEndIntentEnv)
-	if !set {
-		endIntent = defaultAttendEndIntent
-	}
-	thinkingIntent, set := os.LookupEnv(thinkingIntentEnv)
-	if !set {
-		thinkingIntent = defaultThinkingIntent
-	}
 	tr, trDesc, err := d.transcriber()
 	if err != nil {
 		return nil, "", err
@@ -186,49 +147,26 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 		}
 	}
 	c := cortex.NewConversation(cortex.Config{
-		Speaker:        speaker,
-		Capture:        capture,
-		NewVAD:         newVAD,
-		Transcriber:    tr,
-		Brain:          brain,
-		Robot:          robot,
-		Logf:           d.logf,
-		EndIntent:      endIntent,
-		PromptIntent:   promptIntent,
-		ThinkingIntent: thinkingIntent,
+		Speaker:     speaker,
+		Capture:     capture,
+		NewVAD:      newVAD,
+		Transcriber: tr,
+		Brain:       brain,
+		Logf:        d.logf,
 	})
-	prompt := ""
-	if promptIntent != "" && capture.PromptAfter > 0 && capture.PromptAfter < capture.NoSpeech {
-		prompt = fmt.Sprintf("%s after %v without speech, ", promptIntent, capture.PromptAfter)
-	}
-	desc := fmt.Sprintf("%s, %s, %s; capture from %v before the wake, ends after %v of silence, at most %v from "+
-		"the speech start, %sgives up after %v without speech; mic %d Hz", trDesc, brainDesc, vadDesc,
-		capture.WakeMargin, capture.EndSilence, capture.MaxLength, prompt, capture.NoSpeech, capture.MicRate)
-	if capture.WakeGrace > 0 {
-		desc += fmt.Sprintf("; the capture hears the mic under the half-duplex gate until %v after the wake",
-			capture.WakeGrace)
-	} else {
-		desc += "; the capture hears the half-duplex gate from the wake on"
-	}
-	if thinkingIntent != "" {
-		desc += "; " + thinkingIntent + " when the question ends"
-	}
-	if endIntent != "" {
-		desc += "; " + endIntent + " when nothing is answered"
-	}
+	desc := fmt.Sprintf("%s, %s, %s; a question ends after %v of silence, at most %v from the speech start, "+
+		"gives up after %v without speech", trDesc, brainDesc, vadDesc, capture.EndSilence, capture.MaxLength,
+		capture.NoSpeech)
 	if talker != nil {
 		desc += "; answers spoken by the cortex: " + voiceDesc
 	}
 	return c, desc, nil
 }
 
-// robotCommands adapts the MicTap sessions to the cortex Robot port.
+// robotCommands adapts the MicTap sessions to the cortex's voice (cortex.AudioRobot).
 type robotCommands struct{ commandSender }
 
-func (r robotCommands) SendIntentResult(esn, intent, paramsJSON string) error {
-	return r.Send(esn, intentCommand(intent, paramsJSON))
-}
-
+// SendKnowledge makes the robot say answer itself: the Talker's fallback when its voice cannot start.
 func (r robotCommands) SendKnowledge(esn, answer, queryText string) error {
 	return r.Send(esn, knowledgeCommand(answer, queryText))
 }
@@ -239,59 +177,10 @@ func knowledgeCommand(answer, queryText string) *mictappb.Command {
 	}}
 }
 
-// micTapAudio is the cortex AudioSource adapter: it hands every robot's MicTap mic frames to the conversation.
-type micTapAudio struct{ conv *cortex.Conversation }
-
-func (a micTapAudio) Start(esn string, _ mictap.Hello) { a.conv.Open(esn) }
-
-func (a micTapAudio) Frame(esn string, f mictap.Frame) {
-	if f.Type != mictap.FrameMic {
-		return
-	}
-	a.conv.Feed(esn, cortex.Frame{
-		Samples:       f.Samples(),
-		Timestamp:     f.Timestamp,
-		SpeakerActive: f.Flags&mictap.MicFlagSpeakerActive != 0,
-	})
-}
-
-func (a micTapAudio) End(esn string, _ error) { a.conv.Close(esn) }
-
-// Mic is the gate's Capture side: real is the mic audio under a silenced frame, which the capture hears only
-// during the wake gesture (L101).
-func (a micTapAudio) Mic(esn string, f mictap.Frame, real []int16) {
-	a.conv.Feed(esn, cortex.Frame{
-		Samples:       f.Samples(),
-		Real:          real,
-		Timestamp:     f.Timestamp,
-		SpeakerActive: f.Flags&mictap.MicFlagSpeakerActive != 0,
-	})
-}
-
-// micRate is the mic's true rate (OWW_MIC_RATE), or its default when the setting is invalid.
-func micRate() int {
-	rate, err := envFloat(owwMicRateEnv, owwDefaultMicRate)
-	if err != nil || rate <= 0 {
-		return owwDefaultMicRate
-	}
-	return int(rate)
-}
-
-// detectorSink runs the wake word detector on every stream and, with the conversation on, hands the stream to
-// it first, so the pre-roll already holds each frame when the detector reports a wake in it. With half duplex
-// on (hd not nil) both hear silence while the robot talks, except that the conversation's capture hears the real
-// mic during the wake gesture (CORTEX_HALF_DUPLEX_WAKE_GRACE); logSink (and the recorder in it) gets the real mic.
-func detectorSink(logSink, detector mictap.Sink, conv *cortex.Conversation, hd *cortex.HalfDuplexConfig) mictap.Sink {
-	if hd == nil {
-		if conv == nil {
-			return mictap.Tee(logSink, detector)
-		}
-		return mictap.Tee(logSink, micTapAudio{conv}, detector)
-	}
-	if conv == nil {
-		return mictap.Tee(logSink, mictapgate.New(detector, *hd, micRate(), logger.Println))
-	}
-	return mictap.Tee(logSink, mictapgate.NewWithCapture(micTapAudio{conv}, detector, *hd, micRate(), logger.Println))
+func intentCommand(intent, paramsJSON string) *mictappb.Command {
+	return &mictappb.Command{Command: &mictappb.Command_IntentResult{
+		IntentResult: &mictappb.IntentResult{Intent: intent, ParametersJson: paramsJSON},
+	}}
 }
 
 // cortexPersona is the robot's name in the LLM prompt (CORTEX_PERSONA), or "" to keep the prompt's own.
@@ -301,4 +190,11 @@ func cortexPersona() string {
 		persona = ""
 	}
 	return persona
+}
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
 }

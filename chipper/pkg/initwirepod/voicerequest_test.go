@@ -157,11 +157,9 @@ func newVoiceRequestTest(t *testing.T, text string, b *recBrain, voice func() (c
 	t.Helper()
 	t.Setenv(conversationEnv, "on")
 	t.Setenv(voiceRequestsEnv, "on")
-	t.Setenv(thinkingIntentEnv, "")
 	if !strings.HasPrefix(os.Getenv(voiceDumpDirEnv), os.TempDir()) { // a dump test's own directory, else none
 		t.Setenv(voiceDumpDirEnv, "")
 	}
-	t.Setenv(owwMicRateEnv, "16000")
 	vt := &voiceRequestTest{stream: &fakeChipperStream{}, session: bigSender{got: make(chan *mictappb.Command, 4096)},
 		log: &lineLog{}, brain: b, tr: &recTranscriber{text: text}}
 	conv, _, err := newConversation(conversationDeps{
@@ -341,7 +339,6 @@ func TestAVoiceRequestStripsHeyVector(t *testing.T) {
 // (f) CORTEX_VOICE_REQUESTS unset or off: no handler, so wire-pod answers voice requests exactly as before.
 func TestVoiceRequestsOffByDefault(t *testing.T) {
 	t.Setenv(conversationEnv, "on")
-	t.Setenv(owwMicRateEnv, "16000")
 	conv, _, err := newConversation(conversationDeps{transcriber: stubTranscriberFunc("x"), brain: &recBrain{},
 		newVAD: func() cortex.VAD { return loudVAD{} }, sender: newChanSender()})
 	if err != nil {
