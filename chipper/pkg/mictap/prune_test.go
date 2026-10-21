@@ -74,3 +74,10 @@ func TestWriteWAVWritesTheHeaderAndSamples(t *testing.T) {
 		t.Fatalf("wav % x", b)
 	}
 }
+
+func writeFile(t *testing.T, path string, size int) {
+	t.Helper()
+	if err := os.WriteFile(path, make([]byte, size), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}

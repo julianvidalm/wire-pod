@@ -6,7 +6,8 @@ import (
 )
 
 // LogSink logs each robot's stream: when it starts, when the robot reports new dropped frames, and a summary with
-// sequence gaps when it ends. It is the default sink until a consumer (the wake word detector) replaces it.
+// sequence gaps when it ends. It is the MicTap server's sink; the robot's command link sends no audio, so it
+// logs only a robot that still streams its mic.
 type LogSink struct {
 	logf    func(a ...any)
 	mu      sync.Mutex

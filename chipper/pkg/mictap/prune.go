@@ -1,13 +1,12 @@
 package mictap
 
 import (
-	"encoding/binary"
 	"os"
 	"path/filepath"
 	"sort"
 )
 
-// PruneOldest caps a directory of recordings: it deletes whole groups of files, oldest first, until the files of
+// PruneOldest caps a directory of dumps: it deletes whole groups of files, oldest first, until the files of
 // every group fit in maxBytes, and returns how many groups and bytes it deleted. group names a file's group (id)
 // and its age (key, ordered as a string), or says the file belongs to none: such files are never deleted nor
 // counted. The groups in keep (in progress) are never deleted but count toward the total. maxBytes 0 or less
@@ -69,27 +68,4 @@ func PruneOldest(dir string, maxBytes int64, group func(name string) (id, key st
 		freed += g.bytes
 	}
 	return deleted, freed
-}
-
-// WriteWAV writes samples as a 16-bit mono PCM WAV at rate.
-func WriteWAV(path string, rate uint32, samples []int16) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-	if err != nil {
-		return err
-	}
-	w := &wavFile{f: f, rate: rate, channels: 1}
-	pcm := make([]byte, 2*len(samples))
-	for i, s := range samples {
-		binary.LittleEndian.PutUint16(pcm[2*i:], uint16(s))
-	}
-	if _, err := f.WriteAt(pcm, 44); err != nil {
-		f.Close()
-		return err
-	}
-	w.data = uint32(len(pcm))
-	if err := w.header(); err != nil {
-		f.Close()
-		return err
-	}
-	return f.Close()
 }

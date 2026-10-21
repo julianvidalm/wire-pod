@@ -6,7 +6,7 @@ import (
 )
 
 // Sink receives one robot's MicTap stream: Start once after a valid hello, Frame for every frame in order, and
-// End once when the stream stops (err is nil for a clean end). The wake word detector implements it.
+// End once when the stream stops (err is nil for a clean end).
 type Sink interface {
 	Start(esn string, h Hello)
 	Frame(esn string, f Frame)
