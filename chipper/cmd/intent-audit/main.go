@@ -1,7 +1,9 @@
 // Command intent-audit runs sentences that are not commands (negatives) and sentences that are (positives)
 // through the cortex brain's intent step (wirepodbrain.Brain.Route: wire-pod's keyphrase matcher and the
 // partial-match coverage rule) and reports, per intent and keyphrase, the commands it answers, the questions it
-// takes from the LLM and the commands it loses, for several coverage thresholds. No LLM is called.
+// takes from the LLM and the commands it loses, for several coverage thresholds. No LLM is called, except with -llm
+// <apiConfig.json>, which probes the LLM's runIntent with the configured (paid) LLM and keeps the results in
+// <llm-probe>/results.md for the report.
 //
 // From chipper:
 //
@@ -38,8 +40,11 @@ func main() {
 	thresholds := flag.String("thresholds", "0.2,0.25,0.3,0.4,0.5", "coverage thresholds to compare")
 	before := flag.String("before", "", "intent lists before the cleaning, to compare (for example a copy from git)")
 	previous := flag.String("previous", "", "intent lists before the latest phrase additions (robot-wake T7), to compare")
+	llmConfig := flag.String("llm", "", "wire-pod's apiConfig.json: also probe runIntent with the real LLM (paid calls)")
+	llmProbe := flag.String("llm-probe", "pkg/cortex/wirepodbrain/testdata/llm-probe", "LLM probe commands and results")
 	flag.Parse()
-	if err := run(*intentDir, *corpus, *generate, *dumps, *out, *thresholds, *before, *previous); err != nil {
+	if err := run(*intentDir, *corpus, *generate, *dumps, *out, *thresholds, *before, *previous, *llmConfig,
+		*llmProbe); err != nil {
 		fmt.Fprintln(os.Stderr, "intent-audit:", err)
 		os.Exit(1)
 	}
@@ -47,7 +52,8 @@ func main() {
 
 var locales = map[string]string{"en": "en-US", "es": "es-ES"}
 
-func run(intentDir, corpus string, generate bool, dumps, out, thresholdList, beforeDir, previousDir string) error {
+func run(intentDir, corpus string, generate bool, dumps, out, thresholdList, beforeDir, previousDir, llmConfig,
+	llmProbe string) error {
 	intents, err := wirepodbrain.LoadIntents(intentDir, locales)
 	if err != nil {
 		return err
@@ -81,6 +87,11 @@ func run(intentDir, corpus string, generate bool, dumps, out, thresholdList, bef
 	live := variants[len(variants)-1]
 	current := brain(intents, live, 0).Audit(cases)
 	fmt.Println(current.Summary())
+	if llmConfig != "" {
+		if err := runLLMProbe(llmConfig, llmProbe, intents, cases, brain(intents, live, 0)); err != nil {
+			return err
+		}
+	}
 	if out == "" {
 		return nil
 	}
@@ -103,6 +114,9 @@ func run(intentDir, corpus string, generate bool, dumps, out, thresholdList, bef
 			return err
 		}
 		b.WriteString(additionsSection(brain(prev, live, 0).Audit(cases), current))
+	}
+	if md, err := os.ReadFile(filepath.Join(llmProbe, llmResults)); err == nil {
+		b.Write(md) // the last LLM probe (-llm)
 	}
 	if beforeDir != "" {
 		old, err := wirepodbrain.LoadIntents(beforeDir, locales)

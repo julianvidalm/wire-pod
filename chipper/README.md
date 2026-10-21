@@ -102,7 +102,10 @@ is `ven aquí`, "What do you think about the first conditional?" goes to the LLM
 `go run ./cmd/intent-audit -generate -out <report.md> [-before <dir of older intent lists>]` runs the corpora in
 `pkg/cortex/wirepodbrain/testdata/intent-audit` (template, hand-written, real and held-out sentences, in English and
 Spanish) through that same step without calling the LLM, and reports per keyphrase the commands it answers, the
-questions it takes from the LLM and the commands it loses, for several rules and thresholds.
+questions it takes from the LLM and the commands it loses, for several rules and thresholds. `-previous <dir>`
+compares with the lists before the latest additions. `-llm apiConfig.json` also sends the lost commands and the
+held-out non-commands through the brain with the configured LLM (paid calls, remembered chat off) and keeps the
+runIntent results in `testdata/llm-probe/results.md`, which the report includes.
 
 ### PC voice (piper)
 
