@@ -24,6 +24,8 @@ const (
 // Persona, when set, replaces the robot's name "Vector" in the system prompt.
 type LLM struct {
 	Persona string
+	// WithoutRunIntent leaves runIntent out of the prompt; for the intent audit's latency comparison only.
+	WithoutRunIntent bool
 
 	mu     sync.Mutex
 	key    string
@@ -62,10 +64,15 @@ func (l *LLM) Answer(ctx context.Context, esn, text, lang string) (string, error
 // wire-pod's default prompt is English, so a Spanish question got an English answer.
 var replyInstructions = map[string]string{"es": "Responde siempre en español.", "en": "Answer in English."}
 
-// request is wire-pod's LLM request for text, with the persona's name and, for lang "es" or "en", the
-// instruction to answer in it. wire-pod's own requests (ttr.CreateAIReq) are not changed.
+// request is wire-pod's LLM request for text, with the persona's name, the runIntent command (when wire-pod's LLM
+// commands are on) and, for lang "es" or "en", the instruction to answer in it. wire-pod's own requests
+// (ttr.CreateAIReq) are not changed.
 func (l *LLM) request(esn, text, lang string) openai.ChatCompletionRequest {
-	req := ttr.CreateAIReq(text, esn, false, false)
+	cmds := llmCommands
+	if l.WithoutRunIntent {
+		cmds = nil
+	}
+	req := ttr.CreateAIReqWith(text, esn, false, false, cmds)
 	req.Stream = false
 	req.MaxCompletionTokens = maxAnswerTokens
 	l.rename(&req)

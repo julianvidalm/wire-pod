@@ -13,11 +13,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
 	pb "github.com/digital-dream-labs/api/go/chipperpb"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/cortex"
+	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/vars"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/vtt"
 	ttr "github.com/julianvidalm/wire-pod/chipper/pkg/wirepod/ttr"
@@ -74,19 +76,7 @@ func (b *Brain) Answer(ctx context.Context, esn string, t cortex.Transcript) (co
 		text = phrase // the keyphrase whisper's punctuation hid from wire-pod's exact comparison
 	}
 	if ttr.ProcessTextAll(req, text, intents, true) {
-		got, ok := rec.result()
-		if !ok {
-			return cortex.Answer{}, nil // a plugin or custom intent answered by itself
-		}
-		params := ""
-		if len(got.Parameters) > 0 {
-			js, err := json.Marshal(got.Parameters)
-			if err != nil {
-				return cortex.Answer{}, err
-			}
-			params = string(js)
-		}
-		return cortex.Answer{Intent: got.Action, ParamsJSON: params}, nil
+		return rec.answer()
 	}
 	if b.cfg.LLM == nil {
 		return cortex.Answer{Intent: unmatchedIntent}, nil
@@ -98,7 +88,21 @@ func (b *Brain) Answer(ctx context.Context, esn string, t cortex.Transcript) (co
 	if err != nil {
 		return cortex.Answer{}, err
 	}
-	return cortex.Answer{Text: SpokenText(text)}, nil
+	intent, ok := requestedIntent(text)
+	if !ok {
+		if intent != "" {
+			logger.Println("Cortex: the LLM asked for intent " + intent + ", which is not in runIntent's whitelist; answering its text")
+		}
+		return cortex.Answer{Text: SpokenText(text)}, nil
+	}
+	// The intent is the request's one answer, as if the matcher had picked it: its parameters come from the user's
+	// words. The LLM's words are dropped: the robot answers a chipper request once, and a stock intent has its own
+	// animations and speech (the cortex's Respond already lets an intent win over text).
+	logger.Println("Cortex: the LLM runs intent " + intent + " (dropped text: " + strconv.Quote(SpokenText(text)) + ")")
+	rec = &recordingStream{ctx: ctx}
+	req = &vtt.IntentRequest{Device: esn, Session: "cortex", Stream: rec, FirstReq: &pb.StreamingIntentRequest{}}
+	ttr.ParamChecker(req, intent, strings.ToLower(t.Text), esn)
+	return rec.answer()
 }
 
 // intents is the intent list for the transcript's language.
@@ -250,11 +254,11 @@ func ReplyLanguage(t cortex.Transcript) string {
 	return "en"
 }
 
-// SpokenText drops the {{command||parameter}} actions wire-pod's LLM prompt asks for: the robot says the answer
-// with its knowledge-graph animations instead.
+// SpokenText drops the {{command||parameter}} actions wire-pod's LLM prompt asks for (runIntent included): the robot
+// says the answer with its knowledge-graph animations instead.
 func SpokenText(answer string) string {
 	var said []string
-	for _, a := range ttr.GetActionsFromString(answer) {
+	for _, a := range ttr.GetActionsFromStringWith(answer, llmCommands) {
 		if a.Action == ttr.ActionSayText && strings.TrimSpace(a.Parameter) != "" {
 			said = append(said, strings.TrimSpace(a.Parameter))
 		}
@@ -284,6 +288,24 @@ func (s *recordingStream) Recv() (*pb.StreamingIntentRequest, error) {
 }
 
 func (s *recordingStream) Context() context.Context { return s.ctx }
+
+// answer is the recorded intent as the cortex's Answer; none (a plugin or custom intent answered by itself) is the
+// empty Answer.
+func (s *recordingStream) answer() (cortex.Answer, error) {
+	got, ok := s.result()
+	if !ok {
+		return cortex.Answer{}, nil
+	}
+	params := ""
+	if len(got.Parameters) > 0 {
+		js, err := json.Marshal(got.Parameters)
+		if err != nil {
+			return cortex.Answer{}, err
+		}
+		params = string(js)
+	}
+	return cortex.Answer{Intent: got.Action, ParamsJSON: params}, nil
+}
 
 func (s *recordingStream) result() (*pb.IntentResult, bool) {
 	s.mu.Lock()

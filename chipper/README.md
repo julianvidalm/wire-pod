@@ -51,7 +51,14 @@ response on its own stream, never a MicTap intent:
 | transcription or brain error | `intent_system_unmatched` |
 
 When no intent matches, the LLM configured in the web interface answers (provider, key, prompt and remembered
-chat); its `{{command}}` actions are dropped.
+chat); its `{{command}}` actions are dropped, except one: with LLM commands on in the web interface, the cortex adds
+wire-pod's command `{{runIntent||<intent>}}` to the prompt, listing the robot's action intents
+(`wirepodbrain.ActionIntents`: charger, sleep, turns, come, explore, dance, tricks, cube games, eye color, volume,
+photo, timers, messages, goodnight, goodbye …, each with what it does and an English and a Spanish example). When
+the LLM answers a request with a whitelisted intent, that intent is the request's one chipper response, its
+parameters parsed from the user's words by wire-pod's parameter code as if the matcher had picked it, and the LLM's
+words are dropped (the intent has its own animations and speech). An intent outside the list is ignored and the
+LLM's words are answered. wire-pod's own LLM path does not get runIntent.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |

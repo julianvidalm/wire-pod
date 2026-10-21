@@ -44,18 +44,22 @@ func (s *fakeChipperStream) responses() []*pb.IntentGraphResponse {
 	return append([]*pb.IntentGraphResponse(nil), s.sent...)
 }
 
-// recBrain answers every transcript with answer (or err) and records what it got.
+// recBrain answers every transcript with answer (or err), or with inner when set, and records what it got.
 type recBrain struct {
 	mu     sync.Mutex
 	got    []cortex.Transcript
 	answer cortex.Answer
 	err    error
+	inner  cortex.Brain
 }
 
-func (b *recBrain) Answer(_ context.Context, _ string, t cortex.Transcript) (cortex.Answer, error) {
+func (b *recBrain) Answer(ctx context.Context, esn string, t cortex.Transcript) (cortex.Answer, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.got = append(b.got, t)
+	if b.inner != nil {
+		return b.inner.Answer(ctx, esn, t)
+	}
 	return b.answer, b.err
 }
 
