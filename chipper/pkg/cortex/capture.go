@@ -77,7 +77,7 @@ type CaptureConfig struct {
 	// speech reached ClearLevel.
 	MinLevel   float64
 	ClearLevel float64
-	// Trace, when set, gets one line per frame listened to after the wake (diagnosis, cortex-replay -trace).
+	// Trace, when set, gets one line per frame listened to after the wake (diagnosis).
 	Trace func(line string)
 }
 
