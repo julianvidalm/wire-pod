@@ -1,0 +1,17 @@
+# Real transcripts from the voice request dumps (robot-wake, 2026-10-20), labelled by hand. lang\ttext\texpected\tsource
+es	Cuéntame un chiste	none	real
+es	Cuéntame un chiste.	none	real
+en	What's the capital of Canada?	none	real
+en	What is the capital of Canada?	none	real
+en	What time is it? What time is it?	intent_clock_time	real
+en	What time is it?	intent_clock_time	real
+en	Hey, big girl.	none	real
+en	I'm Vector. Happy to chat with you. What can I do for you today?	none	real
+es	¿Cuánto mongiste? ¿Cuánto mongiste?	none	real
+en	Go to sleep.	intent_system_sleep	real
+en	Who are you?	none	real
+en	Go Charger	intent_system_charger	real
+en	What's your name?	none	real
+en	What do you think about the first conditional?	none	real
+en	What do you think about the first conditional? Or explain me the first conditional.	none	real
+en	Can you explain me the first conditional please?	none	real
