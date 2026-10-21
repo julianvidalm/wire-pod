@@ -160,3 +160,126 @@ func TestSessionRoutesAudioStatus(t *testing.T) {
 		t.Fatalf("sink %+v", sink)
 	}
 }
+
+// openSession opens a robot's Session and forwards every command it receives to the returned channel, which
+// closes when the call ends.
+func openSession(t *testing.T, c mictappb.MicTapClient, esn string) (mictappb.MicTap_SessionClient, <-chan *mictappb.Command) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(metadata.AppendToOutgoingContext(context.Background(), ESNMetadataKey, esn))
+	t.Cleanup(cancel)
+	session, err := c.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make(chan *mictappb.Command, 64)
+	go func() {
+		defer close(got)
+		for {
+			cmd, err := session.Recv()
+			if err != nil {
+				return
+			}
+			got <- cmd
+		}
+	}()
+	return session, got
+}
+
+// sendUntil sends clockTime to the robot until a command arrives on got, and fails after two seconds.
+func sendUntil(t *testing.T, srv *Server, esn string, got <-chan *mictappb.Command) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		srv.Sessions().Send(esn, clockTime())
+		select {
+		case cmd, ok := <-got:
+			if !ok {
+				t.Fatal("the session ended")
+			}
+			if cmd.GetIntentResult().GetIntent() != "intent_clock_time" {
+				t.Fatalf("command %v", cmd)
+			}
+			return
+		case <-time.After(10 * time.Millisecond):
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no command reached the session")
+		}
+	}
+}
+
+// robot-wake T1 (L5 advisory 5): the robot's command link opens a Session and never sends a hello nor any mic
+// audio. It stays registered, commands reach it, and its audio status reports (chunks with no data) still reach
+// the status callback; the sink never starts.
+func TestASessionWithoutHelloStaysRegisteredAndCarriesCommandsAndStatus(t *testing.T) {
+	sink := &recordingSink{}
+	srv := New(sink)
+	reports := make(chan *mictappb.AudioStatus, 4)
+	srv.OnAudioStatus(func(esn string, s *mictappb.AudioStatus) {
+		if esn == "0dd1b652" {
+			reports <- s
+		}
+	})
+	session, got := openSession(t, dialServer(t, srv), "0dd1b652")
+	sendUntil(t, srv, "0dd1b652", got)
+
+	time.Sleep(100 * time.Millisecond) // a quiet link stays open
+	if err := srv.Sessions().Send("0dd1b652", clockTime()); err != nil {
+		t.Fatalf("the hello-less session is no longer registered: %v", err)
+	}
+	select {
+	case <-got:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the second command did not reach the session")
+	}
+
+	for _, st := range []mictappb.AudioStatus_State{mictappb.AudioStatus_STARTED, mictappb.AudioStatus_COMPLETED} {
+		if err := session.Send(&mictappb.Chunk{AudioStatus: &mictappb.AudioStatus{StreamId: 9, State: st}}); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case r := <-reports:
+			if r.GetStreamId() != 9 || r.GetState() != st {
+				t.Fatalf("report %v, want stream 9 %v", r, st)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("no %v report", st)
+		}
+	}
+	sink.mu.Lock()
+	if sink.esn != "" || sink.frames != 0 {
+		t.Fatalf("the sink started without a hello: %+v", sink)
+	}
+	sink.mu.Unlock()
+	session.CloseSend()
+	for range got { // the call ends
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for !errors.Is(srv.Sessions().Send("0dd1b652", clockTime()), ErrNoSession) {
+		if time.Now().After(deadline) {
+			t.Fatal("session still registered after the robot closed it")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// robot-wake T1 (L5 advisory 5): a robot that reconnects opens a new Session before the old call ends. The newer
+// session replaces the older one, and the old call ending removes only its own entry: commands keep reaching the
+// newer session.
+func TestASameESNReconnectRemovesOnlyItsOwnEntry(t *testing.T) {
+	srv := New(&recordingSink{})
+	c := dialServer(t, srv)
+	older, olderGot := openSession(t, c, "0dd1b652")
+	sendUntil(t, srv, "0dd1b652", olderGot)
+	_, newerGot := openSession(t, c, "0dd1b652")
+	sendUntil(t, srv, "0dd1b652", newerGot)
+
+	older.CloseSend()
+	for range olderGot { // the older call ends and removes its entry
+	}
+	sendUntil(t, srv, "0dd1b652", newerGot)
+	time.Sleep(50 * time.Millisecond) // nothing removes the newer entry later
+	if err := srv.Sessions().Send("0dd1b652", clockTime()); err != nil {
+		t.Fatalf("the newer session was removed with the older one: %v", err)
+	}
+}
