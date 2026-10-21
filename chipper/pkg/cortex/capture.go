@@ -26,7 +26,6 @@ type Utterance struct {
 	Reason  EndReason
 	Voiced  time.Duration // speech the VAD heard after the wake (the margin before it is not counted)
 	Level   float64       // RMS of that speech in dBFS; -inf without any
-	Wake    uint64        // which of the robot's wakes started it (Conversation counts them from 1)
 	Onset   time.Duration // when the user's speech began, after the wake; 0 when they never spoke
 }
 
@@ -59,7 +58,7 @@ type CaptureConfig struct {
 	// grace that is not one consecutive run: WindowSpeech of speech within any SpeechWindow of those frames (the
 	// robot firmware's sustained-speech rule, minSpeech_s 0.6 in speechWindow_s 1.0). The VAD fragments a question
 	// said in the same breath as the wake word, so no run of it may reach GatedMinSpeech (robot-wake, 16:55:49).
-	// The onset is the first speech frame of that window. Zero (the MicTap path) leaves GatedMinSpeech alone.
+	// The onset is the first speech frame of that window. Zero leaves GatedMinSpeech alone.
 	WindowSpeech time.Duration
 	SpeechWindow time.Duration
 	EndSilence   time.Duration // silence after speech that ends the utterance
@@ -87,7 +86,7 @@ func DefaultCaptureConfig() CaptureConfig {
 	return CaptureConfig{
 		MicRate:    15662,
 		PreRoll:    time.Second,
-		WakeMargin: time.Second, // L61: whisper hears "hey jarvis", which tells it a short question's language
+		WakeMargin: time.Second, // L61 (PC wake, retired); a voice request starts at the wake and uses none
 		MinSpeech:  200 * time.Millisecond,
 		// L110: earcon echo runs 0.2-0.36 s and gesture noise 0.57-0.59 s (12:08 session, 5 wakes); the
 		// one-breath question of L101 W2 runs 0.98 s

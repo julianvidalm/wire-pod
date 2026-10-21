@@ -13,10 +13,7 @@ func askWith(t *testing.T, text string, level int16) (*fakeBrain, *fakeRobot, *l
 	logs := &logLines{}
 	tr := &fakeTranscriber{text: text}
 	c := newTestConversation(tr, b, r, logs)
-	wakeThenAsk(c, "esn1", 500*time.Millisecond, time.Second, level)
-	for deadline := time.Now().Add(2 * time.Second); tr.count() == 0 && time.Now().Before(deadline); {
-		time.Sleep(time.Millisecond)
-	}
+	ask(c, "esn1", 2*time.Second, time.Second, level)
 	return b, r, logs
 }
 

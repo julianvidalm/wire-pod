@@ -54,18 +54,31 @@ func (f *fakeBrain) count() int {
 	return len(f.calls)
 }
 
-// fakeRobot records each command as one line on a channel.
+// fakeRobot records each answer a voice request got as one line on a channel.
 type fakeRobot struct{ sent chan string }
 
 func newFakeRobot() *fakeRobot { return &fakeRobot{sent: make(chan string, 16)} }
 
-func (r *fakeRobot) SendIntentResult(esn, intent, params string) error {
-	r.sent <- fmt.Sprintf("intent %s %s %s", esn, intent, params)
+// to is the reply of one of the robot's voice requests.
+func (r *fakeRobot) to(esn string) Reply { return robotReply{r, esn} }
+
+type robotReply struct {
+	r   *fakeRobot
+	esn string
+}
+
+func (x robotReply) Intent(intent, params, _ string) error {
+	x.r.sent <- fmt.Sprintf("intent %s %s %s", x.esn, intent, params)
 	return nil
 }
 
-func (r *fakeRobot) SendKnowledge(esn, answer, query string) error {
-	r.sent <- fmt.Sprintf("knowledge %s %q for %q", esn, answer, query)
+func (x robotReply) Knowledge(answer, query string) error {
+	x.r.sent <- fmt.Sprintf("knowledge %s %q for %q", x.esn, answer, query)
+	return nil
+}
+
+func (x robotReply) KnowledgeVoice(answer, query string, _ time.Duration) error {
+	x.r.sent <- fmt.Sprintf("knowledge voice %s %q for %q", x.esn, answer, query)
 	return nil
 }
 
@@ -75,7 +88,7 @@ func (r *fakeRobot) next(t *testing.T) string {
 	case s := <-r.sent:
 		return s
 	case <-time.After(2 * time.Second):
-		t.Fatal("the robot got no command")
+		t.Fatal("the robot got no answer")
 		return ""
 	}
 }
@@ -84,7 +97,7 @@ func (r *fakeRobot) none(t *testing.T) {
 	t.Helper()
 	select {
 	case s := <-r.sent:
-		t.Fatalf("unexpected command %s", s)
+		t.Fatalf("unexpected answer %s", s)
 	case <-time.After(50 * time.Millisecond):
 	}
 }
@@ -111,154 +124,124 @@ func (l *logLines) has(want string) bool {
 	return false
 }
 
-func newTestConversation(tr Transcriber, b Brain, r Robot, logs *logLines) *Conversation {
-	return NewConversation(Config{
+// testConversation is a conversation whose voice requests are answered into robot.
+type testConversation struct {
+	*Conversation
+	robot *fakeRobot
+}
+
+func newTestConversation(tr Transcriber, b Brain, r *fakeRobot, logs *logLines) *testConversation {
+	return &testConversation{NewConversation(Config{
 		Capture:     testCaptureConfig(),
 		NewVAD:      func() VAD { return markVAD{} },
 		Transcriber: tr,
 		Brain:       b,
-		Robot:       r,
 		Logf:        logs.logf,
-	})
+	}), r}
 }
 
-// speak feeds one second of quiet, a wake at its end, half a second of speech and a second of silence, starting
-// at robot time t0; it returns the time after the last frame.
-func speak(c *Conversation, esn string, t0 uint64) uint64 {
-	ts := t0
-	feed := func(n int, speech bool) {
-		for i := 0; i < n; i++ {
-			c.Feed(esn, testFrame(ts, speech))
-			ts += 10
+// ask is one voice request from robot esn: its audio starts at the wake with pause of silence, then question at
+// amplitude (none when question is 0) and two seconds of silence. The capture cuts it with the conversation's
+// rules and the utterance is answered into the robot.
+func ask(c *testConversation, esn string, pause, question time.Duration, amplitude int16) Result {
+	rc := c.NewRequestCapture(16000)
+	var pcm []int16
+	add := func(d time.Duration, amp int16) {
+		for i := 0; i < int(d*16000/time.Second); i++ {
+			pcm = append(pcm, amp)
 		}
 	}
-	feed(100, false)
-	c.Wake(esn, ts-10)
-	feed(50, true)
-	feed(100, false)
-	return ts
+	add(pause, 0)
+	add(question, amplitude)
+	add(2*time.Second, 0)
+	u, done := rc.Feed(pcm)
+	if !done {
+		u = rc.End(EndStream)
+	}
+	u.ESN = esn
+	return c.Respond(context.Background(), u, c.robot.to(esn))
 }
 
-func TestConversationTranscribesAndAnswersEachUtteranceOnce(t *testing.T) {
+// speak is a voice request with a clear half-second question two seconds after the wake, past the wake grace.
+func speak(c *testConversation, esn string) Result {
+	return ask(c, esn, 2*time.Second, 500*time.Millisecond, clearAmplitude)
+}
+
+func TestConversationTranscribesAndAnswersEachRequestOnce(t *testing.T) {
 	tr := &fakeTranscriber{text: "qué hora es"}
 	b := &fakeBrain{answer: Answer{Intent: "intent_clock_time"}}
 	r := newFakeRobot()
 	c := newTestConversation(tr, b, r, &logLines{})
-	c.Open("esn1")
-	ts := speak(c, "esn1", 0)
+	if res := speak(c, "esn1"); res.Outcome != Answered || res.Answer != "intent intent_clock_time" {
+		t.Fatalf("result %+v", res)
+	}
 	r.next(t)
-	speak(c, "esn1", ts)
+	speak(c, "esn1")
 	r.next(t)
 	r.none(t)
 	if tr.count() != 2 || b.count() != 2 {
 		t.Fatalf("transcriber called %d times, brain %d times; want 2 and 2", tr.count(), b.count())
 	}
-	if got := tr.calls[0]; got.ESN != "esn1" || got.Reason != EndSilence || got.Duration() != 1310*time.Millisecond {
-		t.Fatalf("first utterance %s %q %v, want esn1, %q, 1.31s", got.ESN, got.Reason, got.Duration(), EndSilence)
+	if got := tr.calls[0]; got.ESN != "esn1" || got.Reason != EndSilence {
+		t.Fatalf("first utterance %s %q, want esn1, %q", got.ESN, got.Reason, EndSilence)
 	}
 	if got := b.calls[0]; got.Text != "qué hora es" || got.Language != "es" {
 		t.Fatalf("brain got %+v", got)
 	}
 }
 
-func TestAnIntentAnswerSendsAnIntentResult(t *testing.T) {
+func TestAnIntentAnswerIsTheRequestsIntent(t *testing.T) {
 	r := newFakeRobot()
 	b := &fakeBrain{answer: Answer{Intent: "intent_clock_settimer", ParamsJSON: `{"timer_duration":"300"}`}}
 	c := newTestConversation(&fakeTranscriber{text: "set a timer for five minutes"}, b, r, &logLines{})
-	speak(c, "esn1", 0)
+	speak(c, "esn1")
 	if got, want := r.next(t), `intent esn1 intent_clock_settimer {"timer_duration":"300"}`; got != want {
 		t.Fatalf("robot got %s, want %s", got, want)
 	}
 	r.none(t)
 }
 
-func TestATextAnswerSendsKnowledge(t *testing.T) {
+func TestATextAnswerWithoutVoiceIsKnowledge(t *testing.T) {
 	r := newFakeRobot()
 	b := &fakeBrain{answer: Answer{Text: "Estoy muy bien, gracias."}}
 	c := newTestConversation(&fakeTranscriber{text: "¿cómo estás?"}, b, r, &logLines{})
-	speak(c, "esn1", 0)
+	speak(c, "esn1")
 	if got, want := r.next(t), `knowledge esn1 "Estoy muy bien, gracias." for "¿cómo estás?"`; got != want {
 		t.Fatalf("robot got %s, want %s", got, want)
 	}
 	r.none(t)
 }
 
-func TestNoSpeechAfterAWakeSendsNothing(t *testing.T) {
-	tr := &fakeTranscriber{text: "x"}
+func TestNoSpeechAfterAWakeIsNothingHeard(t *testing.T) {
+	tr := &fakeTranscriber{text: "Thank you."}
 	r := newFakeRobot()
 	logs := &logLines{}
-	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "x"}}, r, logs)
-	c.Wake("esn1", 0)
-	for ts := uint64(0); ts < 5000; ts += 10 {
-		c.Feed("esn1", testFrame(ts, false))
+	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "You're welcome!"}}, r, logs)
+	if res := ask(c, "esn1", 4*time.Second, 0, 0); res.Outcome != NothingHeard {
+		t.Fatalf("outcome %v, want nothing heard", res.Outcome)
 	}
 	r.none(t)
 	if tr.count() != 0 {
 		t.Fatalf("transcriber called %d times for silence", tr.count())
 	}
-	if !logs.has("no speech") {
+	if !logs.has("nothing heard: no speech in") {
 		t.Fatalf("no log line about the missing speech in %q", logs.lines)
 	}
 }
 
-// Whisper turns the robot's own greeting sounds into "." or nothing; there is no question to answer.
+// Whisper turns the robot's own sounds into "." or nothing; there is no question to answer.
 func TestATranscriptWithoutWordsIsNotAnswered(t *testing.T) {
 	for _, text := range []string{"  ", ".", "¿?", "..."} {
 		b := &fakeBrain{answer: Answer{Text: "x"}}
 		r := newFakeRobot()
-		tr := &fakeTranscriber{text: text}
-		c := newTestConversation(tr, b, r, &logLines{})
-		speak(c, "esn1", 0)
-		for deadline := time.Now().Add(2 * time.Second); tr.count() == 0 && time.Now().Before(deadline); {
-			time.Sleep(time.Millisecond)
+		c := newTestConversation(&fakeTranscriber{text: text}, b, r, &logLines{})
+		if res := speak(c, "esn1"); res.Outcome != NothingHeard {
+			t.Fatalf("%q: outcome %v, want nothing heard", text, res.Outcome)
 		}
 		r.none(t)
 		if b.count() != 0 {
 			t.Fatalf("brain called %d times for the transcript %q", b.count(), text)
 		}
-	}
-}
-
-func TestABlockedBrainDoesNotBlockTheMic(t *testing.T) {
-	hold := make(chan struct{})
-	b := &fakeBrain{answer: Answer{Intent: "intent_clock_time"}, hold: hold}
-	tr := &fakeTranscriber{text: "qué hora es"}
-	r := newFakeRobot()
-	logs := &logLines{}
-	c := newTestConversation(tr, b, r, logs)
-
-	fed := make(chan struct{})
-	go func() {
-		defer close(fed)
-		ts := uint64(0)
-		for i := 0; i < 5; i++ { // one being answered, one waiting, three dropped
-			ts = speak(c, "esn1", ts)
-			if i == 0 {
-				for b.count() == 0 {
-					time.Sleep(time.Millisecond)
-				}
-			}
-		}
-		// The mic keeps flowing long after the brain stopped answering.
-		for i := 0; i < 10000; i++ {
-			c.Feed("esn1", testFrame(ts, false))
-			ts += 10
-		}
-	}()
-	select {
-	case <-fed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("feeding the mic blocked while the brain was blocked")
-	}
-	if !logs.has("dropped") {
-		t.Fatalf("no log line about dropped utterances in %q", logs.lines)
-	}
-	close(hold)
-	r.next(t)
-	r.next(t)
-	r.none(t)
-	if b.count() != 2 {
-		t.Fatalf("brain called %d times, want 2 (the one in flight and the one queued)", b.count())
 	}
 }
 
@@ -272,9 +255,8 @@ func TestABrainErrorIsLoggedAndSendsNothing(t *testing.T) {
 	r := newFakeRobot()
 	logs := &logLines{}
 	c := newTestConversation(&fakeTranscriber{text: "hola"}, failingBrain{}, r, logs)
-	speak(c, "esn1", 0)
-	for deadline := time.Now().Add(2 * time.Second); !logs.has("no LLM") && time.Now().Before(deadline); {
-		time.Sleep(time.Millisecond)
+	if res := speak(c, "esn1"); res.Outcome != Failed {
+		t.Fatalf("outcome %v, want failed", res.Outcome)
 	}
 	if !logs.has("no LLM") {
 		t.Fatalf("brain error not logged in %q", logs.lines)
@@ -282,77 +264,18 @@ func TestABrainErrorIsLoggedAndSendsNothing(t *testing.T) {
 	r.none(t)
 }
 
-func TestAStreamThatEndsMidCaptureSendsNothing(t *testing.T) {
-	tr := &fakeTranscriber{text: "x"}
-	r := newFakeRobot()
-	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "x"}}, r, &logLines{})
-	c.Open("esn1")
-	c.Wake("esn1", 0)
-	for ts := uint64(0); ts < 300; ts += 10 {
-		c.Feed("esn1", testFrame(ts, true))
-	}
-	c.Close("esn1")
-	r.none(t)
-	if tr.count() != 0 {
-		t.Fatalf("transcriber called %d times for a cut capture", tr.count())
-	}
-}
-
-// wakeThenAsk feeds the tail of "jarvis" ending at the wake, a pause, then question frames at amplitude (none
-// when question is 0) and two seconds of silence, all from robot time 0.
-func wakeThenAsk(c *Conversation, esn string, pause, question time.Duration, amplitude int16) {
-	ts := uint64(0)
-	feed := func(d time.Duration, amp int16) {
-		for end := ts + uint64(d/time.Millisecond); ts < end; ts += 10 {
-			c.Feed(esn, levelFrame(ts, amp))
-		}
-	}
-	feed(900*time.Millisecond, 0)
-	feed(100*time.Millisecond, clearAmplitude) // "...jarvis"
-	c.Wake(esn, ts-10)
-	feed(pause, 0)
-	feed(question, amplitude)
-	feed(2*time.Second, 0)
-}
-
-// L35: "hey jarvis", a pause, then the question. The tail of "jarvis" must not end the capture before it.
+// L35: the wake, a pause, then the question: the pause must not end the capture before it.
 func TestAPauseAfterTheWakeStillCapturesTheQuestion(t *testing.T) {
 	tr := &fakeTranscriber{text: "¿qué hora es?"}
 	r := newFakeRobot()
 	c := newTestConversation(tr, &fakeBrain{answer: Answer{Intent: "intent_clock_time"}}, r, &logLines{})
-	wakeThenAsk(c, "esn1", time.Second, 1500*time.Millisecond, clearAmplitude)
+	ask(c, "esn1", time.Second, 1500*time.Millisecond, clearAmplitude)
 	if got, want := r.next(t), "intent esn1 intent_clock_time "; got != want {
 		t.Fatalf("robot got %q, want %q", got, want)
 	}
 	r.none(t)
-	if tr.count() != 1 {
-		t.Fatalf("transcriber called %d times, want 1", tr.count())
-	}
-	// From 100 ms before the wake at 990 ms to 700 ms after the question (ends at 3.5 s).
-	if u := tr.calls[0]; u.Start != 890 || u.End != 4190 || u.Reason != EndSilence {
-		t.Fatalf("captured %d to %d (%q), want 890 to 4190 (%q)", u.Start, u.End, u.Reason, EndSilence)
-	}
-}
-
-func TestAPauseWithoutAQuestionSendsNothing(t *testing.T) {
-	tr := &fakeTranscriber{text: "Thank you."}
-	r := newFakeRobot()
-	logs := &logLines{}
-	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "You're welcome!"}}, r, logs)
-	wakeThenAsk(c, "esn1", 4*time.Second, 0, 0)
-	r.none(t)
-	if tr.count() != 0 {
-		t.Fatalf("transcriber called %d times for a pause", tr.count())
-	}
-	if !logs.has("nothing heard: no speech after 4.1 s, nothing sent") {
-		t.Fatalf("no no-speech line in %q", logs.lines)
-	}
-}
-
-// waitTranscribed waits until the transcriber was called n times, or a little longer when n is 0.
-func waitTranscribed(tr *fakeTranscriber, n int) {
-	for deadline := time.Now().Add(2 * time.Second); tr.count() < n && time.Now().Before(deadline); {
-		time.Sleep(time.Millisecond)
+	if tr.count() != 1 || tr.calls[0].Reason != EndSilence {
+		t.Fatalf("transcribed %+v, want one utterance ended by silence", tr.calls)
 	}
 }
 
@@ -364,8 +287,7 @@ func TestNearSilenceAfterTheWakeSendsNothing(t *testing.T) {
 		r := newFakeRobot()
 		logs := &logLines{}
 		c := newTestConversation(tr, b, r, logs)
-		wakeThenAsk(c, "esn1", 500*time.Millisecond, 600*time.Millisecond, amplitude)
-		waitTranscribed(tr, 1)
+		ask(c, "esn1", 2*time.Second, 600*time.Millisecond, amplitude)
 		r.none(t)
 		if b.count() != 0 {
 			t.Fatalf("amplitude %d: brain called %d times", amplitude, b.count())
@@ -381,7 +303,7 @@ func TestAShortSoundAfterTheWakeSendsNothing(t *testing.T) {
 	r := newFakeRobot()
 	logs := &logLines{}
 	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "x"}}, r, logs)
-	wakeThenAsk(c, "esn1", 2*time.Second, 150*time.Millisecond, clearAmplitude)
+	ask(c, "esn1", 2*time.Second, 150*time.Millisecond, clearAmplitude)
 	r.none(t)
 	if tr.count() != 0 || !logs.has("nothing heard") {
 		t.Fatalf("transcriber called %d times, logs %q; want 0 and a nothing-heard line", tr.count(), logs.lines)
@@ -393,7 +315,7 @@ func TestAClearlySpokenGraciasIsAnswered(t *testing.T) {
 	tr := &fakeTranscriber{text: "Gracias."}
 	r := newFakeRobot()
 	c := newTestConversation(tr, &fakeBrain{answer: Answer{Text: "De nada."}}, r, &logLines{})
-	wakeThenAsk(c, "esn1", 500*time.Millisecond, 600*time.Millisecond, clearAmplitude)
+	ask(c, "esn1", 2*time.Second, 600*time.Millisecond, clearAmplitude)
 	if got, want := r.next(t), `knowledge esn1 "De nada." for "Gracias."`; got != want {
 		t.Fatalf("robot got %s, want %s", got, want)
 	}
@@ -404,7 +326,7 @@ func TestAQuietRealQuestionIsAnswered(t *testing.T) {
 	tr := &fakeTranscriber{text: "¿qué hora es?"}
 	r := newFakeRobot()
 	c := newTestConversation(tr, &fakeBrain{answer: Answer{Intent: "intent_clock_time"}}, r, &logLines{})
-	wakeThenAsk(c, "esn1", 500*time.Millisecond, time.Second, 260)
+	ask(c, "esn1", 2*time.Second, time.Second, 260)
 	if got, want := r.next(t), "intent esn1 intent_clock_time "; got != want {
 		t.Fatalf("robot got %q, want %q", got, want)
 	}
@@ -415,7 +337,7 @@ func TestAShortClearCommandIsAnswered(t *testing.T) {
 	tr := &fakeTranscriber{text: "Stop."}
 	r := newFakeRobot()
 	c := newTestConversation(tr, &fakeBrain{answer: Answer{Intent: "intent_imperative_quiet"}}, r, &logLines{})
-	wakeThenAsk(c, "esn1", 500*time.Millisecond, 200*time.Millisecond, clearAmplitude)
+	ask(c, "esn1", 2*time.Second, 200*time.Millisecond, clearAmplitude)
 	if got, want := r.next(t), "intent esn1 intent_imperative_quiet "; got != want {
 		t.Fatalf("robot got %q, want %q", got, want)
 	}

@@ -61,7 +61,8 @@ func (r *fakeAudioRobot) add(e audioEvent) {
 	r.mu.Unlock()
 }
 
-func (r *fakeAudioRobot) SendKnowledgeVoice(_, answer, _ string, expected time.Duration) error {
+// KnowledgeVoice and Knowledge make the fake robot the request's KnowledgeTarget too.
+func (r *fakeAudioRobot) KnowledgeVoice(answer, _ string, expected time.Duration) error {
 	r.add(audioEvent{kind: "knowledge-voice", text: answer, expected: expected})
 	return nil
 }
@@ -92,7 +93,7 @@ func (r *fakeAudioRobot) CancelAudio(_ string, stream uint32) error {
 	return nil
 }
 
-func (r *fakeAudioRobot) say(_, answer, _ string) error {
+func (r *fakeAudioRobot) Knowledge(answer, _ string) error {
 	r.add(audioEvent{kind: "say", text: answer})
 	return nil
 }
@@ -161,7 +162,7 @@ func (v *scriptedVoice) Speak(ctx context.Context, text, lang string) *Speech {
 }
 
 func newTestTalker(v Voice, r *fakeAudioRobot) *Talker {
-	return NewTalker(TalkerConfig{Voice: v, Robot: r, RobotSay: r.say, FirstID: 40, Now: r.clock.Now,
+	return NewTalker(TalkerConfig{Voice: v, Robot: r, FirstID: 40, Now: r.clock.Now,
 		Sleep: r.clock.Sleep})
 }
 
@@ -177,7 +178,7 @@ func TestTheAnswerGoesWithExternalVoiceThenPrepareChunksComplete(t *testing.T) {
 	var tk *Talker
 	r.onPrepare = started(&tk)
 	tk = newTestTalker(&scriptedVoice{sentences: []int{16000, 24000}}, r)
-	if err := tk.Say("esn1", twoSentences, "¿qué hora es?", "es"); err != nil {
+	if err := tk.SayTo("esn1", twoSentences, "¿qué hora es?", "es", r); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.sequence(); got != "knowledge-voice prepare chunk complete" {
@@ -205,7 +206,7 @@ func TestTheAnswerGoesWithExternalVoiceThenPrepareChunksComplete(t *testing.T) {
 func TestChunksAreAtMost1024EvenBytes(t *testing.T) {
 	r := &fakeAudioRobot{clock: newVirtualClock()}
 	tk := newTestTalker(&scriptedVoice{sentences: []int{1001, 513}}, r)
-	tk.Say("esn1", twoSentences, "", "es")
+	tk.SayTo("esn1", twoSentences, "", "es", r)
 	for _, c := range r.kinds("chunk") {
 		if c.bytes > 1024 || c.bytes%2 != 0 || c.bytes == 0 {
 			t.Fatalf("chunk of %d bytes", c.bytes)
@@ -216,7 +217,7 @@ func TestChunksAreAtMost1024EvenBytes(t *testing.T) {
 func TestTheStreamStaysAtMost3SecondsAheadAfterABurst(t *testing.T) {
 	r := &fakeAudioRobot{clock: newVirtualClock()}
 	tk := newTestTalker(&scriptedVoice{sentences: []int{5 * 16000, 5 * 16000}}, r)
-	tk.Say("esn1", twoSentences, "", "es")
+	tk.SayTo("esn1", twoSentences, "", "es", r)
 	chunks := r.kinds("chunk")
 	t0 := chunks[0].at
 	sent := time.Duration(0)
@@ -239,7 +240,7 @@ func TestTheFirstFifthOfASecondGoesAtOnceEvenWithASmallLead(t *testing.T) {
 	r := &fakeAudioRobot{clock: newVirtualClock()}
 	tk := newTestTalker(&scriptedVoice{sentences: []int{16000}}, r)
 	tk.cfg.MaxLead = 50 * time.Millisecond
-	tk.Say("esn1", "Son las tres.", "", "es")
+	tk.SayTo("esn1", "Son las tres.", "", "es", r)
 	chunks := r.kinds("chunk")
 	sent := time.Duration(0)
 	for _, c := range chunks {
@@ -256,7 +257,7 @@ func TestTheFirstFifthOfASecondGoesAtOnceEvenWithASmallLead(t *testing.T) {
 func TestSynthesisFailingBeforeTheFirstSentenceFallsBackToTheRobotVoice(t *testing.T) {
 	r := &fakeAudioRobot{clock: newVirtualClock()}
 	tk := newTestTalker(&scriptedVoice{sentences: []int{16000}, failAt: 1}, r)
-	if err := tk.Say("esn1", twoSentences, "", "es"); err != nil {
+	if err := tk.SayTo("esn1", twoSentences, "", "es", r); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.sequence(); got != "say" {
@@ -270,7 +271,7 @@ func TestAStreamFailingBeforeItStartedFallsBackToTheRobotVoice(t *testing.T) {
 		var tk *Talker
 		r.onPrepare = func(id uint32) { tk.Status("esn1", id, state) }
 		tk = newTestTalker(&scriptedVoice{sentences: []int{16000, 16000}}, r)
-		if err := tk.Say("esn1", twoSentences, "", "es"); err != nil {
+		if err := tk.SayTo("esn1", twoSentences, "", "es", r); err != nil {
 			t.Fatal(err)
 		}
 		if got := r.sequence(); got != "knowledge-voice prepare say" {
@@ -290,7 +291,7 @@ func TestAShortAnswerThatFailsBeforeStartingStillFallsBack(t *testing.T) {
 	}
 	tk = newTestTalker(&scriptedVoice{sentences: []int{8000}}, r)
 	tk.cfg.Sleep = func(d time.Duration) { r.clock.Sleep(d); time.Sleep(d) }
-	tk.Say("esn1", "Son las tres.", "", "es")
+	tk.SayTo("esn1", "Son las tres.", "", "es", r)
 	if got := r.sequence(); got != "knowledge-voice prepare chunk complete say" {
 		t.Fatalf("commands %q", got)
 	}
@@ -301,7 +302,7 @@ func TestSynthesisFailingMidStreamCancelsWithoutTheRobotVoice(t *testing.T) {
 	var tk *Talker
 	r.onPrepare = started(&tk)
 	tk = newTestTalker(&scriptedVoice{sentences: []int{16000, 16000}, failAt: 2}, r)
-	tk.Say("esn1", twoSentences, "", "es")
+	tk.SayTo("esn1", twoSentences, "", "es", r)
 	if got := r.sequence(); got != "knowledge-voice prepare chunk cancel" {
 		t.Fatalf("commands %q, want the stream cancelled and nothing said", got)
 	}
@@ -317,7 +318,7 @@ func TestARobotFailureAfterTheStartStopsWithoutTheRobotVoice(t *testing.T) {
 		}
 	}
 	tk = newTestTalker(&scriptedVoice{sentences: []int{5 * 16000, 5 * 16000}}, r)
-	tk.Say("esn1", twoSentences, "", "es")
+	tk.SayTo("esn1", twoSentences, "", "es", r)
 	if got := r.sequence(); got != "knowledge-voice prepare chunk" {
 		t.Fatalf("commands %q, want the stream to stop", got)
 	}
@@ -332,7 +333,7 @@ func TestReportsOnOtherStreamsAreIgnored(t *testing.T) {
 	r.onPrepare = func(id uint32) { tk.Status("esn1", id-1, AudioFailed); tk.Status("esn2", id, AudioFailed) }
 	tk = newTestTalker(&scriptedVoice{sentences: []int{8000}}, r)
 	tk.cfg.StatusWait = time.Millisecond
-	tk.Say("esn1", "Son las tres.", "", "es")
+	tk.SayTo("esn1", "Son las tres.", "", "es", r)
 	if got := r.sequence(); got != "knowledge-voice prepare chunk complete" {
 		t.Fatalf("commands %q", got)
 	}
@@ -366,18 +367,19 @@ func TestTheVoiceFollowsTheAnswerLanguage(t *testing.T) {
 	}
 	r := &fakeAudioRobot{clock: newVirtualClock()}
 	v := &scriptedVoice{sentences: []int{8000}}
-	newTestTalker(v, r).Say("esn1", "It is three in the afternoon.", "", "es")
+	newTestTalker(v, r).SayTo("esn1", "It is three in the afternoon.", "", "es", r)
 	if fmt.Sprint(v.langs) != "[en]" {
 		t.Fatalf("voice languages %v", v.langs)
 	}
 }
 
-// With a Speaker the conversation speaks text answers through it; intent answers keep their robot behavior.
+// With a Speaker the conversation speaks text answers through it, to the request's reply; intent answers keep
+// going to the reply.
 type recordingSpeaker struct{ said chan string }
 
-func (s recordingSpeaker) Say(esn, answer, query, lang string) error {
+func (s recordingSpeaker) SayTo(esn, answer, query, lang string, to KnowledgeTarget) error {
 	s.said <- fmt.Sprintf("%s %q for %q in %s", esn, answer, query, lang)
-	return nil
+	return to.KnowledgeVoice(answer, query, time.Second)
 }
 
 func TestTheConversationSpeaksTextAnswersThroughTheSpeaker(t *testing.T) {
@@ -385,7 +387,9 @@ func TestTheConversationSpeaksTextAnswersThroughTheSpeaker(t *testing.T) {
 	sp := recordingSpeaker{said: make(chan string, 2)}
 	c := newTestConversation(&fakeTranscriber{text: "¿cómo estás?"}, &fakeBrain{answer: Answer{Text: "Bien."}}, r, &logLines{})
 	c.cfg.Speaker = sp
-	speak(c, "esn1", 0)
+	if res := speak(c, "esn1"); res.Answer != "voice" {
+		t.Fatalf("result %+v, want a voice answer", res)
+	}
 	select {
 	case got := <-sp.said:
 		if !strings.Contains(got, `"Bien." for "¿cómo estás?"`) {
@@ -394,11 +398,13 @@ func TestTheConversationSpeaksTextAnswersThroughTheSpeaker(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("nothing said")
 	}
-	r.none(t)
+	if got := r.next(t); got != `knowledge voice esn1 "Bien." for "¿cómo estás?"` {
+		t.Fatalf("reply %q", got)
+	}
 
 	c = newTestConversation(&fakeTranscriber{text: "¿qué hora es?"}, &fakeBrain{answer: Answer{Intent: "intent_clock_time"}}, r, &logLines{})
 	c.cfg.Speaker = sp
-	speak(c, "esn1", 0)
+	speak(c, "esn1")
 	if got := r.next(t); got != "intent esn1 intent_clock_time " {
 		t.Fatalf("intent answer %q", got)
 	}

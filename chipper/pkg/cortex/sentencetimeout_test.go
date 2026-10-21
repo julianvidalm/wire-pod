@@ -39,14 +39,14 @@ func talkerOverHangingSynth(ok int) (*Talker, *fakeAudioRobot) {
 	var tk *Talker
 	r.onPrepare = started(&tk)
 	tk = NewTalker(TalkerConfig{Voice: NewSentenceVoice(&hangingSynth{ok: ok}, -20).WithSentenceTimeout(50 * time.Millisecond),
-		Robot: r, RobotSay: r.say, FirstID: 40, Now: r.clock.Now, Sleep: r.clock.Sleep, Timeout: 2 * time.Second})
+		Robot: r, FirstID: 40, Now: r.clock.Now, Sleep: r.clock.Sleep, Timeout: 2 * time.Second})
 	return tk, r
 }
 
 func TestAHungFirstSentenceFallsBackToTheRobotVoice(t *testing.T) {
 	tk, r := talkerOverHangingSynth(0)
 	began := time.Now()
-	tk.Say("esn1", "Uno. Dos.", "", "es")
+	tk.SayTo("esn1", "Uno. Dos.", "", "es", r)
 	if got := r.sequence(); got != "say" || time.Since(began) > time.Second {
 		t.Fatalf("commands %q after %v, want the robot to say it at once", got, time.Since(began))
 	}
@@ -55,7 +55,7 @@ func TestAHungFirstSentenceFallsBackToTheRobotVoice(t *testing.T) {
 func TestAHungLaterSentenceCancelsTheStream(t *testing.T) {
 	tk, r := talkerOverHangingSynth(1)
 	began := time.Now()
-	tk.Say("esn1", "Uno. Dos.", "", "es")
+	tk.SayTo("esn1", "Uno. Dos.", "", "es", r)
 	if got := r.sequence(); got != "knowledge-voice prepare chunk cancel" || time.Since(began) > time.Second {
 		t.Fatalf("commands %q after %v, want the stream cancelled at once", got, time.Since(began))
 	}

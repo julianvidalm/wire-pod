@@ -5,38 +5,24 @@ import "context"
 // The cortex's ports. Every component of the conversation sits behind one of them, so an adapter can be
 // swapped by configuration and compared on the same corpus:
 //
-//   - AudioSource: an adapter pushes each robot's mic frames into Conversation.Open, Feed and Close (live:
-//     initwirepod's MicTap sink; offline: cmd/cortex-replay reading a recorded session).
-//   - WakeDetector: an adapter calls Conversation.Wake with the robot timestamp of the wake word's end (pkg/oww
-//     and pkg/wakeword, through initwirepod's wake handler).
-//   - VAD, EchoCanceller, Transcriber, Brain and Robot: the interfaces below.
+//   - the audio: initwirepod hands each voice request's audio to a RequestCapture, and its utterance to
+//     Conversation.Respond with the request's Reply.
+//   - VAD, Transcriber and Brain: the interfaces below; the cortex's voice: TargetSpeaker (the Talker).
 
-// Frame is one mic frame of one robot: samples at the true mic rate and the robot timestamp (ms) they were
-// heard at, on the same clock wake detections use.
+// Frame is 10 ms of a voice request's audio: samples at the request's rate and the time (ms from the request's
+// start) they were heard at.
 type Frame struct {
-	Samples       []int16
-	Timestamp     uint64
-	SpeakerActive bool // the robot was playing sound
-	// Real is the mic audio under Samples when the half-duplex gate silenced the frame (Samples are zeros), nil
+	Samples   []int16
+	Timestamp uint64
+	// Real is the audio of a frame heard through the wake grace window (Samples are zeros under the gate), nil
 	// otherwise. Only the capture's wake grace window listens to it (CaptureConfig.WakeGrace).
 	Real []int16
 }
 
-// VAD says whether one mic frame holds speech. Each robot stream gets its own instance (see Config.NewVAD).
+// VAD says whether one frame holds speech. Each request gets its own instance (see Config.NewVAD).
 type VAD interface {
 	IsSpeech(samples []int16) bool
 }
-
-// EchoCanceller removes the robot's own sound from its mic frames before anything listens to them.
-type EchoCanceller interface {
-	Cancel(esn string, f Frame) Frame
-}
-
-// PassThrough is the EchoCanceller that changes nothing: the robot's processed mic already removes most of
-// its own sound.
-type PassThrough struct{}
-
-func (PassThrough) Cancel(_ string, f Frame) Frame { return f }
 
 // Transcript is what the user said, in the language the transcriber chose (a whisper code such as "en").
 type Transcript struct {
@@ -60,12 +46,4 @@ type Answer struct {
 // Brain decides the answer to what the user said.
 type Brain interface {
 	Answer(ctx context.Context, esn string, t Transcript) (Answer, error)
-}
-
-// Robot executes the cortex's answers on one robot.
-type Robot interface {
-	// SendIntentResult delivers an intent as if the robot's cloud had matched it (for example intent_clock_time).
-	SendIntentResult(esn, intent, paramsJSON string) error
-	// SendKnowledge makes the robot say answer, the reply to queryText.
-	SendKnowledge(esn, answer, queryText string) error
 }

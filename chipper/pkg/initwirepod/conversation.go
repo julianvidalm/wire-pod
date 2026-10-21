@@ -138,7 +138,7 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 		d.logf = func(...any) {}
 	}
 	robot := robotCommands{d.sender}
-	var speaker cortex.Speaker
+	var speaker cortex.TargetSpeaker
 	talker, voiceDesc := newTalker(d.voice, robot, d.logf)
 	if talker != nil {
 		speaker = talker
@@ -165,11 +165,6 @@ func newConversation(d conversationDeps) (*cortex.Conversation, string, error) {
 
 // robotCommands adapts the MicTap sessions to the cortex's voice (cortex.AudioRobot).
 type robotCommands struct{ commandSender }
-
-// SendKnowledge makes the robot say answer itself: the Talker's fallback when its voice cannot start.
-func (r robotCommands) SendKnowledge(esn, answer, queryText string) error {
-	return r.Send(esn, knowledgeCommand(answer, queryText))
-}
 
 func knowledgeCommand(answer, queryText string) *mictappb.Command {
 	return &mictappb.Command{Command: &mictappb.Command_Knowledge{

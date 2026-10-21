@@ -38,12 +38,8 @@ func (s AudioState) String() string {
 	return fmt.Sprintf("state %d", int(s))
 }
 
-// AudioRobot is the Robot port's voice side: the robot shows its talking face for a knowledge answer the cortex
-// speaks itself, and plays the cortex's audio stream on its speaker.
+// AudioRobot plays the cortex's audio stream on the robot's speaker (over its MicTap session).
 type AudioRobot interface {
-	// SendKnowledgeVoice is SendKnowledge with the cortex's voice: the robot does not speak answer, it shows its
-	// talking face until the audio stream ends or expected (plus a margin) passes.
-	SendKnowledgeVoice(esn, answer, queryText string, expected time.Duration) error
 	PrepareAudio(esn string, stream uint32, rate, volume int, expected time.Duration) error
 	// SendAudio sends s16le mono samples, at most MaxAudioChunk bytes.
 	SendAudio(esn string, stream uint32, samples []byte) error
@@ -56,14 +52,11 @@ const MaxAudioChunk = 1024
 
 // TalkerConfig wires a Talker.
 type TalkerConfig struct {
-	Voice Voice
-	Robot AudioRobot
-	// RobotSay makes the robot say the answer with its own voice (Robot.SendKnowledge): the fallback when the
-	// cortex's voice cannot start.
-	RobotSay func(esn, answer, queryText string) error
-	Volume   int           // SDK playback volume 1-100; 0 means 100
-	MaxLead  time.Duration // how far the stream may run ahead of playback; default 3 s (the robot overflows past ~6.2 s)
-	Burst    time.Duration // audio sent at once so playback starts (the robot buffers 0.2 s first); default 0.2 s
+	Voice   Voice
+	Robot   AudioRobot
+	Volume  int           // SDK playback volume 1-100; 0 means 100
+	MaxLead time.Duration // how far the stream may run ahead of playback; default 3 s (the robot overflows past ~6.2 s)
+	Burst   time.Duration // audio sent at once so playback starts (the robot buffers 0.2 s first); default 0.2 s
 	// StatusWait is how long, after the last chunk, the talker still waits for the robot's first report so a
 	// stream that failed before playing falls back to the robot's voice; default 1.5 s.
 	StatusWait time.Duration
@@ -74,7 +67,7 @@ type TalkerConfig struct {
 	Sleep      func(d time.Duration) // defaults to time.Sleep
 }
 
-// Talker is the Speaker that speaks answers with the cortex's Voice on the robot's speaker (S7): it sends the
+// Talker is the TargetSpeaker that speaks answers with the cortex's Voice on the robot's speaker (S7): it sends the
 // answer with external voice, then streams the speech sentence by sentence as soon as the first one is
 // synthesized, at most MaxLead ahead of playback. When the voice cannot start (synthesis fails before the first
 // sentence, or the robot reports the stream failed before it started), the robot says the answer itself; when it
@@ -157,25 +150,6 @@ func (t *Talker) stop(esn string, s *talkStream) {
 		delete(t.open, esn)
 	}
 	t.mu.Unlock()
-}
-
-// Say implements Speaker: the knowledge answer goes over the robot's session too.
-func (t *Talker) Say(esn, answer, query, lang string) error {
-	return t.SayTo(esn, answer, query, lang, sessionKnowledge{t, esn})
-}
-
-// sessionKnowledge sends the talker's knowledge answer over the robot's session.
-type sessionKnowledge struct {
-	t   *Talker
-	esn string
-}
-
-func (s sessionKnowledge) Knowledge(answer, query string) error {
-	return s.t.cfg.RobotSay(s.esn, answer, query)
-}
-
-func (s sessionKnowledge) KnowledgeVoice(answer, query string, expected time.Duration) error {
-	return s.t.cfg.Robot.SendKnowledgeVoice(s.esn, answer, query, expected)
 }
 
 // SayTo implements TargetSpeaker: the knowledge answer (with the cortex's voice, or the robot's when the voice
@@ -433,7 +407,4 @@ func setOf(words ...string) map[string]bool {
 	return m
 }
 
-var (
-	_ Speaker       = (*Talker)(nil)
-	_ TargetSpeaker = (*Talker)(nil)
-)
+var _ TargetSpeaker = (*Talker)(nil)

@@ -18,17 +18,6 @@ func TestConversationOffBuildsNothing(t *testing.T) {
 	}
 }
 
-func TestATextAnswerIsSentAsKnowledge(t *testing.T) {
-	s := newChanSender()
-	if err := (robotCommands{s}).SendKnowledge("0dd1b652", "Estoy bien.", "¿cómo estás?"); err != nil {
-		t.Fatal(err)
-	}
-	k := (<-s.got).GetKnowledge()
-	if k.GetAnswer() != "Estoy bien." || k.GetQueryText() != "¿cómo estás?" {
-		t.Fatalf("sent %v", k)
-	}
-}
-
 func TestConversationOnNeedsATranscriber(t *testing.T) {
 	t.Setenv(conversationEnv, "on")
 	if _, _, err := newConversation(conversationDeps{sender: newChanSender()}); err == nil ||

@@ -12,15 +12,15 @@ import (
 	"github.com/julianvidalm/wire-pod/chipper/pkg/mictap/mictappb"
 )
 
-// The cortex's own voice (S7): CORTEX_TTS=piper speaks knowledge answers with piper on the robot's speaker; off
-// (the default) lets the robot say them, as before.
+// The cortex's own voice (S7): CORTEX_TTS=piper speaks the voice requests' text answers with piper on the robot's
+// speaker; off (the default) lets the robot say them.
 const (
 	ttsVolumeEnv     = "CORTEX_TTS_VOLUME" // SDK playback volume 1-100, default 100
 	defaultTTSVolume = 100
 )
 
-// newTalker reads the CORTEX_TTS* settings and builds the Speaker for the conversation, or nil when the robot keeps
-// its own voice. voice, when set, replaces piper (tests). A voice that cannot start leaves the robot's voice on.
+// newTalker reads the CORTEX_TTS* settings and builds the cortex's voice for the conversation, or nil when the robot
+// keeps its own voice. voice, when set, replaces piper (tests). A voice that cannot start leaves the robot's voice on.
 func newTalker(voice func() (cortex.Voice, string, error), robot robotCommands, logf func(a ...any)) (*cortex.Talker, string) {
 	if voice == nil {
 		cfg, err := piper.ConfigFromEnv(os.Getenv)
@@ -51,11 +51,10 @@ func newTalker(voice func() (cortex.Voice, string, error), robot robotCommands, 
 		}
 	}
 	t := cortex.NewTalker(cortex.TalkerConfig{
-		Voice:    v,
-		Robot:    robot,
-		RobotSay: robot.SendKnowledge,
-		Volume:   volume,
-		Logf:     logf,
+		Voice:  v,
+		Robot:  robot,
+		Volume: volume,
+		Logf:   logf,
 	})
 	return t, fmt.Sprintf("%s; volume %d, at most 3s ahead", desc, volume)
 }
@@ -80,13 +79,6 @@ func audioStatusTo(t *cortex.Talker) func(esn string, st *mictappb.AudioStatus) 
 		}
 		t.Status(esn, st.GetStreamId(), state)
 	}
-}
-
-func (r robotCommands) SendKnowledgeVoice(esn, answer, queryText string, expected time.Duration) error {
-	cmd := knowledgeCommand(answer, queryText)
-	cmd.GetKnowledge().ExternalVoice = true
-	cmd.GetKnowledge().ExpectedDurationMs = uint32(expected.Milliseconds())
-	return r.Send(esn, cmd)
 }
 
 func (r robotCommands) PrepareAudio(esn string, stream uint32, rate, volume int, expected time.Duration) error {
