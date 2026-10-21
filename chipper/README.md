@@ -150,6 +150,20 @@ stream, never a MicTap intent:
 
 Unset or `off`, wire-pod answers voice requests exactly as before.
 
+### Intent audit
+
+The cortex brain answers with wire-pod's intents only when the match is good enough; otherwise the LLM answers
+(`pkg/cortex/wirepodbrain`). An exact keyphrase match (comparing words, so whisper's punctuation does not hide it)
+always answers. Otherwise the intent with the longest keyphrase in the question answers when that keyphrase begins at
+a word and covers at least 30% of the question's words (`minPartialCoverage`), not counting politeness and filler
+words (`FillerWords`: please, a bit, por favor, un poco …): "Go to sleep." is `go to sleep`, "Ven aquí, por favor."
+is `ven aquí`, "What do you think about the first conditional?" goes to the LLM. wire-pod's own voice path keeps its matcher.
+
+`go run ./cmd/intent-audit -generate -out <report.md> [-before <dir of older intent lists>]` runs the corpora in
+`pkg/cortex/wirepodbrain/testdata/intent-audit` (template, hand-written, real and held-out sentences, in English and
+Spanish) through that same step without calling the LLM, and reports per keyphrase the commands it answers, the
+questions it takes from the LLM and the commands it loses, for several rules and thresholds.
+
 ### Half duplex
 
 While the robot talks, wire-pod does not listen: the wake word detector and the conversation capture get

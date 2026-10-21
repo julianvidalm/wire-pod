@@ -9,11 +9,11 @@
   },
   {
     "name": "intent_names_ask",
-    "keyphrases" : [ "cuál es mi nombre", "como me llamo", "quién soy" ]
+    "keyphrases" : [ "cuál es mi nombre", "como me llamo", "quién soy", "cómo me llamo" ]
   },
   {
     "name": "intent_imperative_eyecolor",
-    "keyphrases" : [ "color de ojos", "cambiar color", "ojos" ]
+    "keyphrases" : [ "color de ojos", "cambiar color", "ojos", "color de tus ojos", "tus ojos de color" ]
   },
   {
     "name": "intent_character_age",
@@ -33,11 +33,11 @@
   },
   {
     "name": "intent_greeting_goodmorning",
-    "keyphrases" : [ "dia", "mañana", "tarde" ]
+    "keyphrases" : [ "dia", "mañana", "tarde", "buenos días", "buen día", "buenas tardes" ]
   },
   {
     "name": "intent_greeting_goodnight",
-    "keyphrases" : [ "buenas noches", "buenas tardes" ]
+    "keyphrases" : [ "buenas noches" ]
   },
   {
     "name": "intent_greeting_goodbye",
@@ -65,7 +65,7 @@
   },
   {
     "name": "intent_imperative_turnaround",
-    "keyphrases" : [ "gira" ]
+    "keyphrases" : [ "gira", "date la vuelta" ]
   },
   {
     "name": "intent_imperative_turnleft",
@@ -81,7 +81,7 @@
   },
   {
     "name": "intent_play_popawheelie",
-    "keyphrases" : [ "silba" ]
+    "keyphrases" : [ "silba", "haz un caballito" ]
   },
   {
     "name": "intent_play_fistbump",
@@ -89,7 +89,7 @@
   },
   {
     "name": "intent_play_blackjack",
-    "keyphrases" : [ "veintiuna", "blackjack" ]
+    "keyphrases" : [ "veintiuna", "blackjack", "jugar blackjack", "a la veintiuna" ]
   },
   {
     "name": "intent_imperative_affirmative",
@@ -117,23 +117,23 @@
   },
   {
     "name": "intent_imperative_backup",
-    "keyphrases" : [ "regresa" ]
+    "keyphrases" : [ "regresa", "hacia atrás" ]
   },
   {
     "name": "intent_imperative_volumedown",
-    "keyphrases" : [ "baje el volumen" ]
+    "keyphrases" : [ "baje el volumen", "baja el volumen" ]
   },
   {
     "name": "intent_imperative_volumeup",
-    "keyphrases" : [ "sube el volumen" ]
+    "keyphrases" : [ "sube el volumen", "más volumen" ]
   },
   {
     "name": "intent_imperative_lookatme",
-    "keyphrases" : [ "mírame" ]
+    "keyphrases" : [ "mírame", "mírame a los ojos" ]
   },
   {
     "name": "intent_imperative_volumelevel_extend",
-    "keyphrases" : [ "volumen" ]
+    "keyphrases" : [ "volumen", "pon el volumen" ]
   },
   {
     "name": "intent_imperative_shutup",
@@ -141,7 +141,7 @@
   },
   {
     "name": "intent_greeting_hello",
-    "keyphrases" : [ "hola", "cómo estás", "buenos días", "buenas noches", "buenas tardes" ]
+    "keyphrases" : [ "hola", "cómo estás" ]
   },
   {
     "name": "intent_imperative_come",
@@ -153,11 +153,11 @@
   },
   {
     "name": "intent_knowledge_promptquestion",
-    "keyphrases" : [ "pregunta" ]
+    "keyphrases" : [ "pregunta", "hacer una pregunta" ]
   },
   {
     "name": "intent_clock_checktimer",
-    "keyphrases" : [ "comproba el cronómetro", "comproba el temporizador" ]
+    "keyphrases" : [ "comproba el cronómetro", "comproba el temporizador", "comprueba el temporizador", "comprueba el cronómetro", "cuánto falta" ]
   },
   {
     "name": "intent_global_stop_extend",
@@ -165,7 +165,7 @@
   },
   {
     "name": "intent_clock_settimer_extend",
-    "keyphrases" : [ "empeza el ", "empeza el cronómetro", "empeza el temporizador" ]
+    "keyphrases" : [ "empeza el ", "empeza el cronómetro", "empeza el temporizador", "empieza el temporizador", "empieza el cronómetro", "pon un temporizador" ]
   },
   {
     "name": "intent_clock_time",
@@ -185,7 +185,7 @@
   },
   {
     "name": "intent_imperative_fetchcube",
-    "keyphrases" : [ "recoge el cubo", "toma tu cubo", "toma el cubo", "recoge tu cubo" ]
+    "keyphrases" : [ "recoge el cubo", "toma tu cubo", "toma el cubo", "recoge tu cubo", "tráeme el cubo" ]
   },
   {
     "name": "intent_imperative_findcube",
@@ -197,7 +197,7 @@
   },
   {
     "name": "intent_message_recordmessage_extend",
-    "keyphrases" : [ "graba" ]
+    "keyphrases" : [ "graba", "graba un mensaje" ]
   },
   {
     "name": "intent_message_playmessage_extend",
@@ -205,11 +205,11 @@
   },
   {
     "name": "intent_blackjack_hit",
-    "keyphrases" : [ "hit" ]
+    "keyphrases" : [ "hit", "otra carta" ]
   },
   {
     "name": "intent_blackjack_stand",
-    "keyphrases" : [ "stand" ]
+    "keyphrases" : [ "stand", "me planto" ]
   },
   {
     "name": "intent_play_keepaway",
