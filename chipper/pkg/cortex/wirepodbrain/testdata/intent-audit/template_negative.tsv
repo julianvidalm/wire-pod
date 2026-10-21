@@ -102,6 +102,9 @@ en	Yesterday on the news they said something about set your eye color to, did yo
 en	I said color of your eyes.	none	template
 en	My friend keeps talking about color of your eyes today.	none	template
 en	Yesterday on the news they said something about color of your eyes, did you hear it?	none	template
+en	I said make your eyes.	none	template
+en	My friend keeps talking about make your eyes today.	none	template
+en	Yesterday on the news they said something about make your eyes, did you hear it?	none	template
 en	I said older.	none	template
 en	My friend keeps talking about older today.	none	template
 en	Yesterday on the news they said something about older, did you hear it?	none	template
@@ -150,6 +153,15 @@ en	Yesterday on the news they said something about start exploring, did you hear
 en	I said go explore.	none	template
 en	My friend keeps talking about go explore today.	none	template
 en	Yesterday on the news they said something about go explore, did you hear it?	none	template
+en	I said explore.	none	template
+en	My friend keeps talking about explore today.	none	template
+en	Yesterday on the news they said something about explore, did you hear it?	none	template
+en	I said go exploring.	none	template
+en	My friend keeps talking about go exploring today.	none	template
+en	Yesterday on the news they said something about go exploring, did you hear it?	none	template
+en	I said explore the house.	none	template
+en	My friend keeps talking about explore the house today.	none	template
+en	Yesterday on the news they said something about explore the house, did you hear it?	none	template
 en	I said charge.	none	template
 en	My friend keeps talking about charge today.	none	template
 en	Yesterday on the news they said something about charge, did you hear it?	none	template
@@ -171,6 +183,27 @@ en	Yesterday on the news they said something about charger, did you hear it?	non
 en	I said your charger.	none	template
 en	My friend keeps talking about your charger today.	none	template
 en	Yesterday on the news they said something about your charger, did you hear it?	none	template
+en	I said go to the charger.	none	template
+en	My friend keeps talking about go to the charger today.	none	template
+en	Yesterday on the news they said something about go to the charger, did you hear it?	none	template
+en	I said go to your charger.	none	template
+en	My friend keeps talking about go to your charger today.	none	template
+en	Yesterday on the news they said something about go to your charger, did you hear it?	none	template
+en	I said go charge.	none	template
+en	My friend keeps talking about go charge today.	none	template
+en	Yesterday on the news they said something about go charge, did you hear it?	none	template
+en	I said charge yourself.	none	template
+en	My friend keeps talking about charge yourself today.	none	template
+en	Yesterday on the news they said something about charge yourself, did you hear it?	none	template
+en	I said go home.	none	template
+en	My friend keeps talking about go home today.	none	template
+en	Yesterday on the news they said something about go home, did you hear it?	none	template
+en	I said back to your charger.	none	template
+en	My friend keeps talking about back to your charger today.	none	template
+en	Yesterday on the news they said something about back to your charger, did you hear it?	none	template
+en	I said go to your dock.	none	template
+en	My friend keeps talking about go to your dock today.	none	template
+en	Yesterday on the news they said something about go to your dock, did you hear it?	none	template
 en	I said flee.	none	template
 en	My friend keeps talking about flee today.	none	template
 en	Yesterday on the news they said something about flee, did you hear it?	none	template
@@ -183,6 +216,18 @@ en	Yesterday on the news they said something about sheep, did you hear it?	none	
 en	I said go to sleep.	none	template
 en	My friend keeps talking about go to sleep today.	none	template
 en	Yesterday on the news they said something about go to sleep, did you hear it?	none	template
+en	I said take a nap.	none	template
+en	My friend keeps talking about take a nap today.	none	template
+en	Yesterday on the news they said something about take a nap, did you hear it?	none	template
+en	I said time to sleep.	none	template
+en	My friend keeps talking about time to sleep today.	none	template
+en	Yesterday on the news they said something about time to sleep, did you hear it?	none	template
+en	I said time for bed.	none	template
+en	My friend keeps talking about time for bed today.	none	template
+en	Yesterday on the news they said something about time for bed, did you hear it?	none	template
+en	I said bedtime.	none	template
+en	My friend keeps talking about bedtime today.	none	template
+en	Yesterday on the news they said something about bedtime, did you hear it?	none	template
 en	I said [blank_audio].	none	template
 en	My friend keeps talking about [blank_audio] today.	none	template
 en	Yesterday on the news they said something about [blank_audio], did you hear it?	none	template
@@ -225,6 +270,9 @@ en	Yesterday on the news they said something about might, did you hear it?	none	
 en	I said goodnight.	none	template
 en	My friend keeps talking about goodnight today.	none	template
 en	Yesterday on the news they said something about goodnight, did you hear it?	none	template
+en	I said good night.	none	template
+en	My friend keeps talking about good night today.	none	template
+en	Yesterday on the news they said something about good night, did you hear it?	none	template
 en	I said good bye.	none	template
 en	My friend keeps talking about good bye today.	none	template
 en	Yesterday on the news they said something about good bye, did you hear it?	none	template
@@ -240,6 +288,15 @@ en	Yesterday on the news they said something about goodbye, did you hear it?	non
 en	I said see you later.	none	template
 en	My friend keeps talking about see you later today.	none	template
 en	Yesterday on the news they said something about see you later, did you hear it?	none	template
+en	I said bye bye.	none	template
+en	My friend keeps talking about bye bye today.	none	template
+en	Yesterday on the news they said something about bye bye, did you hear it?	none	template
+en	I said bye.	none	template
+en	My friend keeps talking about bye today.	none	template
+en	Yesterday on the news they said something about bye, did you hear it?	none	template
+en	I said see you soon.	none	template
+en	My friend keeps talking about see you soon today.	none	template
+en	Yesterday on the news they said something about see you soon, did you hear it?	none	template
 en	I said fireworks.	none	template
 en	My friend keeps talking about fireworks today.	none	template
 en	Yesterday on the news they said something about fireworks, did you hear it?	none	template
@@ -372,6 +429,12 @@ en	Yesterday on the news they said something about ernest, did you hear it?	none
 en	I said turn left.	none	template
 en	My friend keeps talking about turn left today.	none	template
 en	Yesterday on the news they said something about turn left, did you hear it?	none	template
+en	I said turn to the left.	none	template
+en	My friend keeps talking about turn to the left today.	none	template
+en	Yesterday on the news they said something about turn to the left, did you hear it?	none	template
+en	I said turn to your left.	none	template
+en	My friend keeps talking about turn to your left today.	none	template
+en	Yesterday on the news they said something about turn to your left, did you hear it?	none	template
 en	I said rn right.	none	template
 en	My friend keeps talking about rn right today.	none	template
 en	Yesterday on the news they said something about rn right, did you hear it?	none	template
@@ -393,6 +456,12 @@ en	Yesterday on the news they said something about ed right, did you hear it?	no
 en	I said turn right.	none	template
 en	My friend keeps talking about turn right today.	none	template
 en	Yesterday on the news they said something about turn right, did you hear it?	none	template
+en	I said turn to the right.	none	template
+en	My friend keeps talking about turn to the right today.	none	template
+en	Yesterday on the news they said something about turn to the right, did you hear it?	none	template
+en	I said turn to your right.	none	template
+en	My friend keeps talking about turn to your right today.	none	template
+en	Yesterday on the news they said something about turn to your right, did you hear it?	none	template
 en	I said roll cu.	none	template
 en	My friend keeps talking about roll cu today.	none	template
 en	Yesterday on the news they said something about roll cu, did you hear it?	none	template
@@ -525,6 +594,12 @@ en	Yesterday on the news they said something about fistbump, did you hear it?	no
 en	I said fist bump.	none	template
 en	My friend keeps talking about fist bump today.	none	template
 en	Yesterday on the news they said something about fist bump, did you hear it?	none	template
+en	I said give me a fist bump.	none	template
+en	My friend keeps talking about give me a fist bump today.	none	template
+en	Yesterday on the news they said something about give me a fist bump, did you hear it?	none	template
+en	I said give me a fistbump.	none	template
+en	My friend keeps talking about give me a fistbump today.	none	template
+en	Yesterday on the news they said something about give me a fistbump, did you hear it?	none	template
 en	I said black.	none	template
 en	My friend keeps talking about black today.	none	template
 en	Yesterday on the news they said something about black, did you hear it?	none	template
@@ -540,6 +615,15 @@ en	Yesterday on the news they said something about play blackjack, did you hear 
 en	I said card game.	none	template
 en	My friend keeps talking about card game today.	none	template
 en	Yesterday on the news they said something about card game, did you hear it?	none	template
+en	I said blackjack.	none	template
+en	My friend keeps talking about blackjack today.	none	template
+en	Yesterday on the news they said something about blackjack, did you hear it?	none	template
+en	I said play some blackjack.	none	template
+en	My friend keeps talking about play some blackjack today.	none	template
+en	Yesterday on the news they said something about play some blackjack, did you hear it?	none	template
+en	I said play cards.	none	template
+en	My friend keeps talking about play cards today.	none	template
+en	Yesterday on the news they said something about play cards, did you hear it?	none	template
 en	I said yes.	none	template
 en	My friend keeps talking about yes today.	none	template
 en	Yesterday on the news they said something about yes, did you hear it?	none	template
@@ -690,6 +774,15 @@ en	Yesterday on the news they said something about turn the volume down, did you
 en	I said be quieter.	none	template
 en	My friend keeps talking about be quieter today.	none	template
 en	Yesterday on the news they said something about be quieter, did you hear it?	none	template
+en	I said lower the volume.	none	template
+en	My friend keeps talking about lower the volume today.	none	template
+en	Yesterday on the news they said something about lower the volume, did you hear it?	none	template
+en	I said turn it down.	none	template
+en	My friend keeps talking about turn it down today.	none	template
+en	Yesterday on the news they said something about turn it down, did you hear it?	none	template
+en	I said turn down the volume.	none	template
+en	My friend keeps talking about turn down the volume today.	none	template
+en	Yesterday on the news they said something about turn down the volume, did you hear it?	none	template
 en	I said all you up.	none	template
 en	My friend keeps talking about all you up today.	none	template
 en	Yesterday on the news they said something about all you up, did you hear it?	none	template
@@ -705,6 +798,12 @@ en	Yesterday on the news they said something about up the volume, did you hear i
 en	I said louder.	none	template
 en	My friend keeps talking about louder today.	none	template
 en	Yesterday on the news they said something about louder, did you hear it?	none	template
+en	I said turn it up.	none	template
+en	My friend keeps talking about turn it up today.	none	template
+en	Yesterday on the news they said something about turn it up, did you hear it?	none	template
+en	I said turn up the volume.	none	template
+en	My friend keeps talking about turn up the volume today.	none	template
+en	Yesterday on the news they said something about turn up the volume, did you hear it?	none	template
 en	I said stare.	none	template
 en	My friend keeps talking about stare today.	none	template
 en	Yesterday on the news they said something about stare, did you hear it?	none	template
@@ -726,6 +825,9 @@ en	Yesterday on the news they said something about change your volume, did you h
 en	I said set the volume.	none	template
 en	My friend keeps talking about set the volume today.	none	template
 en	Yesterday on the news they said something about set the volume, did you hear it?	none	template
+en	I said set your volume.	none	template
+en	My friend keeps talking about set your volume today.	none	template
+en	Yesterday on the news they said something about set your volume, did you hear it?	none	template
 en	I said shut up.	none	template
 en	My friend keeps talking about shut up today.	none	template
 en	Yesterday on the news they said something about shut up, did you hear it?	none	template
@@ -762,6 +864,12 @@ en	Yesterday on the news they said something about come to me, did you hear it?	
 en	I said come here.	none	template
 en	My friend keeps talking about come here today.	none	template
 en	Yesterday on the news they said something about come here, did you hear it?	none	template
+en	I said come over here.	none	template
+en	My friend keeps talking about come over here today.	none	template
+en	Yesterday on the news they said something about come over here, did you hear it?	none	template
+en	I said come closer.	none	template
+en	My friend keeps talking about come closer today.	none	template
+en	Yesterday on the news they said something about come closer, did you hear it?	none	template
 en	I said love you.	none	template
 en	My friend keeps talking about love you today.	none	template
 en	Yesterday on the news they said something about love you, did you hear it?	none	template
@@ -927,6 +1035,12 @@ en	Yesterday on the news they said something about pick up the cube, did you hea
 en	I said pickup the cube.	none	template
 en	My friend keeps talking about pickup the cube today.	none	template
 en	Yesterday on the news they said something about pickup the cube, did you hear it?	none	template
+en	I said pick your cube up.	none	template
+en	My friend keeps talking about pick your cube up today.	none	template
+en	Yesterday on the news they said something about pick your cube up, did you hear it?	none	template
+en	I said pick up your cube.	none	template
+en	My friend keeps talking about pick up your cube today.	none	template
+en	Yesterday on the news they said something about pick up your cube, did you hear it?	none	template
 en	I said fetch your cu.	none	template
 en	My friend keeps talking about fetch your cu today.	none	template
 en	Yesterday on the news they said something about fetch your cu, did you hear it?	none	template
@@ -972,6 +1086,12 @@ en	Yesterday on the news they said something about do a trick, did you hear it?	
 en	I said a trick.	none	template
 en	My friend keeps talking about a trick today.	none	template
 en	Yesterday on the news they said something about a trick, did you hear it?	none	template
+en	I said do a cool trick.	none	template
+en	My friend keeps talking about do a cool trick today.	none	template
+en	Yesterday on the news they said something about do a cool trick, did you hear it?	none	template
+en	I said show me a trick.	none	template
+en	My friend keeps talking about show me a trick today.	none	template
+en	Yesterday on the news they said something about show me a trick, did you hear it?	none	template
 en	I said record.	none	template
 en	My friend keeps talking about record today.	none	template
 en	Yesterday on the news they said something about record, did you hear it?	none	template
@@ -993,6 +1113,9 @@ en	Yesterday on the news they said something about play a method, did you hear i
 en	I said play my message.	none	template
 en	My friend keeps talking about play my message today.	none	template
 en	Yesterday on the news they said something about play my message, did you hear it?	none	template
+en	I said play the message.	none	template
+en	My friend keeps talking about play the message today.	none	template
+en	Yesterday on the news they said something about play the message, did you hear it?	none	template
 en	I said hit.	none	template
 en	My friend keeps talking about hit today.	none	template
 en	Yesterday on the news they said something about hit, did you hear it?	none	template
@@ -1065,6 +1188,15 @@ es	Ayer en las noticias dijeron algo sobre color de tus ojos, ¿lo escuchaste?	n
 es	Dije tus ojos de color.	none	template
 es	Mi amigo siempre habla de tus ojos de color hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre tus ojos de color, ¿lo escuchaste?	none	template
+es	Dije cambia el color de los ojos.	none	template
+es	Mi amigo siempre habla de cambia el color de los ojos hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre cambia el color de los ojos, ¿lo escuchaste?	none	template
+es	Dije cambia el color de tus ojos.	none	template
+es	Mi amigo siempre habla de cambia el color de tus ojos hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre cambia el color de tus ojos, ¿lo escuchaste?	none	template
+es	Dije ponte los ojos.	none	template
+es	Mi amigo siempre habla de ponte los ojos hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre ponte los ojos, ¿lo escuchaste?	none	template
 es	Dije cuántos años tienes.	none	template
 es	Mi amigo siempre habla de cuántos años tienes hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre cuántos años tienes, ¿lo escuchaste?	none	template
@@ -1083,6 +1215,15 @@ es	Ayer en las noticias dijeron algo sobre ve a la exploración, ¿lo escuchaste
 es	Dije da un paseo.	none	template
 es	Mi amigo siempre habla de da un paseo hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre da un paseo, ¿lo escuchaste?	none	template
+es	Dije vete a explorar.	none	template
+es	Mi amigo siempre habla de vete a explorar hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre vete a explorar, ¿lo escuchaste?	none	template
+es	Dije ponte a explorar.	none	template
+es	Mi amigo siempre habla de ponte a explorar hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre ponte a explorar, ¿lo escuchaste?	none	template
+es	Dije sal a explorar.	none	template
+es	Mi amigo siempre habla de sal a explorar hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre sal a explorar, ¿lo escuchaste?	none	template
 es	Dije ve a casa.	none	template
 es	Mi amigo siempre habla de ve a casa hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre ve a casa, ¿lo escuchaste?	none	template
@@ -1101,6 +1242,27 @@ es	Ayer en las noticias dijeron algo sobre encuentra el cargador, ¿lo escuchast
 es	Dije ve al cargador.	none	template
 es	Mi amigo siempre habla de ve al cargador hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre ve al cargador, ¿lo escuchaste?	none	template
+es	Dije vete al cargador.	none	template
+es	Mi amigo siempre habla de vete al cargador hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre vete al cargador, ¿lo escuchaste?	none	template
+es	Dije ve a cargarte.	none	template
+es	Mi amigo siempre habla de ve a cargarte hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre ve a cargarte, ¿lo escuchaste?	none	template
+es	Dije ve a cargar.	none	template
+es	Mi amigo siempre habla de ve a cargar hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre ve a cargar, ¿lo escuchaste?	none	template
+es	Dije ve a tu cargador.	none	template
+es	Mi amigo siempre habla de ve a tu cargador hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre ve a tu cargador, ¿lo escuchaste?	none	template
+es	Dije vuelve al cargador.	none	template
+es	Mi amigo siempre habla de vuelve al cargador hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre vuelve al cargador, ¿lo escuchaste?	none	template
+es	Dije vuelve a casa.	none	template
+es	Mi amigo siempre habla de vuelve a casa hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre vuelve a casa, ¿lo escuchaste?	none	template
+es	Dije al cargador.	none	template
+es	Mi amigo siempre habla de al cargador hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre al cargador, ¿lo escuchaste?	none	template
 es	Dije dorme.	none	template
 es	Mi amigo siempre habla de dorme hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre dorme, ¿lo escuchaste?	none	template
@@ -1116,6 +1278,27 @@ es	Ayer en las noticias dijeron algo sobre haz la siesta, ¿lo escuchaste?	none	
 es	Dije en tu cama.	none	template
 es	Mi amigo siempre habla de en tu cama hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre en tu cama, ¿lo escuchaste?	none	template
+es	Dije hora de dormir.	none	template
+es	Mi amigo siempre habla de hora de dormir hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre hora de dormir, ¿lo escuchaste?	none	template
+es	Dije hora de ir a la cama.	none	template
+es	Mi amigo siempre habla de hora de ir a la cama hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre hora de ir a la cama, ¿lo escuchaste?	none	template
+es	Dije vete a dormir.	none	template
+es	Mi amigo siempre habla de vete a dormir hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre vete a dormir, ¿lo escuchaste?	none	template
+es	Dije duérmete.	none	template
+es	Mi amigo siempre habla de duérmete hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre duérmete, ¿lo escuchaste?	none	template
+es	Dije duerme.	none	template
+es	Mi amigo siempre habla de duerme hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre duerme, ¿lo escuchaste?	none	template
+es	Dije echa una siesta.	none	template
+es	Mi amigo siempre habla de echa una siesta hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre echa una siesta, ¿lo escuchaste?	none	template
+es	Dije tómate una siesta.	none	template
+es	Mi amigo siempre habla de tómate una siesta hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre tómate una siesta, ¿lo escuchaste?	none	template
 es	Dije dia.	none	template
 es	Mi amigo siempre habla de dia hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre dia, ¿lo escuchaste?	none	template
@@ -1137,12 +1320,27 @@ es	Ayer en las noticias dijeron algo sobre buenas tardes, ¿lo escuchaste?	none	
 es	Dije buenas noches.	none	template
 es	Mi amigo siempre habla de buenas noches hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre buenas noches, ¿lo escuchaste?	none	template
+es	Dije que descanses.	none	template
+es	Mi amigo siempre habla de que descanses hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre que descanses, ¿lo escuchaste?	none	template
 es	Dije adiós.	none	template
 es	Mi amigo siempre habla de adiós hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre adiós, ¿lo escuchaste?	none	template
 es	Dije hasta luego.	none	template
 es	Mi amigo siempre habla de hasta luego hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre hasta luego, ¿lo escuchaste?	none	template
+es	Dije chao.	none	template
+es	Mi amigo siempre habla de chao hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre chao, ¿lo escuchaste?	none	template
+es	Dije chau.	none	template
+es	Mi amigo siempre habla de chau hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre chau, ¿lo escuchaste?	none	template
+es	Dije nos vemos.	none	template
+es	Mi amigo siempre habla de nos vemos hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre nos vemos, ¿lo escuchaste?	none	template
+es	Dije adios.	none	template
+es	Mi amigo siempre habla de adios hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre adios, ¿lo escuchaste?	none	template
 es	Dije fuegos artificiales.	none	template
 es	Mi amigo siempre habla de fuegos artificiales hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre fuegos artificiales, ¿lo escuchaste?	none	template
@@ -1182,18 +1380,42 @@ es	Ayer en las noticias dijeron algo sobre gira, ¿lo escuchaste?	none	template
 es	Dije date la vuelta.	none	template
 es	Mi amigo siempre habla de date la vuelta hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre date la vuelta, ¿lo escuchaste?	none	template
+es	Dije date una vuelta.	none	template
+es	Mi amigo siempre habla de date una vuelta hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre date una vuelta, ¿lo escuchaste?	none	template
+es	Dije da la vuelta.	none	template
+es	Mi amigo siempre habla de da la vuelta hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre da la vuelta, ¿lo escuchaste?	none	template
 es	Dije gira a la izquierda.	none	template
 es	Mi amigo siempre habla de gira a la izquierda hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre gira a la izquierda, ¿lo escuchaste?	none	template
 es	Dije ve a la izquierda.	none	template
 es	Mi amigo siempre habla de ve a la izquierda hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre ve a la izquierda, ¿lo escuchaste?	none	template
+es	Dije gira hacia la izquierda.	none	template
+es	Mi amigo siempre habla de gira hacia la izquierda hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre gira hacia la izquierda, ¿lo escuchaste?	none	template
+es	Dije gira a tu izquierda.	none	template
+es	Mi amigo siempre habla de gira a tu izquierda hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre gira a tu izquierda, ¿lo escuchaste?	none	template
+es	Dije voltea a la izquierda.	none	template
+es	Mi amigo siempre habla de voltea a la izquierda hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre voltea a la izquierda, ¿lo escuchaste?	none	template
 es	Dije gira a la derecha.	none	template
 es	Mi amigo siempre habla de gira a la derecha hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre gira a la derecha, ¿lo escuchaste?	none	template
 es	Dije ve a la derecha.	none	template
 es	Mi amigo siempre habla de ve a la derecha hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre ve a la derecha, ¿lo escuchaste?	none	template
+es	Dije gira hacia la derecha.	none	template
+es	Mi amigo siempre habla de gira hacia la derecha hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre gira hacia la derecha, ¿lo escuchaste?	none	template
+es	Dije gira a tu derecha.	none	template
+es	Mi amigo siempre habla de gira a tu derecha hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre gira a tu derecha, ¿lo escuchaste?	none	template
+es	Dije voltea a la derecha.	none	template
+es	Mi amigo siempre habla de voltea a la derecha hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre voltea a la derecha, ¿lo escuchaste?	none	template
 es	Dije juega con el cubo.	none	template
 es	Mi amigo siempre habla de juega con el cubo hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre juega con el cubo, ¿lo escuchaste?	none	template
@@ -1203,18 +1425,42 @@ es	Ayer en las noticias dijeron algo sobre haz rodar el cubo, ¿lo escuchaste?	n
 es	Dije mueve el cubo.	none	template
 es	Mi amigo siempre habla de mueve el cubo hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre mueve el cubo, ¿lo escuchaste?	none	template
+es	Dije haz rodar tu cubo.	none	template
+es	Mi amigo siempre habla de haz rodar tu cubo hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre haz rodar tu cubo, ¿lo escuchaste?	none	template
+es	Dije rueda el cubo.	none	template
+es	Mi amigo siempre habla de rueda el cubo hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre rueda el cubo, ¿lo escuchaste?	none	template
+es	Dije rueda tu cubo.	none	template
+es	Mi amigo siempre habla de rueda tu cubo hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre rueda tu cubo, ¿lo escuchaste?	none	template
 es	Dije silba.	none	template
 es	Mi amigo siempre habla de silba hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre silba, ¿lo escuchaste?	none	template
 es	Dije haz un caballito.	none	template
 es	Mi amigo siempre habla de haz un caballito hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre haz un caballito, ¿lo escuchaste?	none	template
+es	Dije hazme un caballito.	none	template
+es	Mi amigo siempre habla de hazme un caballito hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre hazme un caballito, ¿lo escuchaste?	none	template
 es	Dije dame el cinco.	none	template
 es	Mi amigo siempre habla de dame el cinco hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre dame el cinco, ¿lo escuchaste?	none	template
 es	Dije golpe de puño.	none	template
 es	Mi amigo siempre habla de golpe de puño hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre golpe de puño, ¿lo escuchaste?	none	template
+es	Dije choca esos cinco.	none	template
+es	Mi amigo siempre habla de choca esos cinco hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre choca esos cinco, ¿lo escuchaste?	none	template
+es	Dije choca el puño.	none	template
+es	Mi amigo siempre habla de choca el puño hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre choca el puño, ¿lo escuchaste?	none	template
+es	Dije chócala.	none	template
+es	Mi amigo siempre habla de chócala hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre chócala, ¿lo escuchaste?	none	template
+es	Dije dame un golpe de puño.	none	template
+es	Mi amigo siempre habla de dame un golpe de puño hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre dame un golpe de puño, ¿lo escuchaste?	none	template
 es	Dije veintiuna.	none	template
 es	Mi amigo siempre habla de veintiuna hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre veintiuna, ¿lo escuchaste?	none	template
@@ -1227,6 +1473,12 @@ es	Ayer en las noticias dijeron algo sobre jugar blackjack, ¿lo escuchaste?	non
 es	Dije a la veintiuna.	none	template
 es	Mi amigo siempre habla de a la veintiuna hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre a la veintiuna, ¿lo escuchaste?	none	template
+es	Dije juguemos a las cartas.	none	template
+es	Mi amigo siempre habla de juguemos a las cartas hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre juguemos a las cartas, ¿lo escuchaste?	none	template
+es	Dije juega a las cartas.	none	template
+es	Mi amigo siempre habla de juega a las cartas hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre juega a las cartas, ¿lo escuchaste?	none	template
 es	Dije sí.	none	template
 es	Mi amigo siempre habla de sí hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre sí, ¿lo escuchaste?	none	template
@@ -1293,12 +1545,24 @@ es	Ayer en las noticias dijeron algo sobre baje el volumen, ¿lo escuchaste?	non
 es	Dije baja el volumen.	none	template
 es	Mi amigo siempre habla de baja el volumen hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre baja el volumen, ¿lo escuchaste?	none	template
+es	Dije baja un poco el volumen.	none	template
+es	Mi amigo siempre habla de baja un poco el volumen hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre baja un poco el volumen, ¿lo escuchaste?	none	template
+es	Dije habla más bajo.	none	template
+es	Mi amigo siempre habla de habla más bajo hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre habla más bajo, ¿lo escuchaste?	none	template
 es	Dije sube el volumen.	none	template
 es	Mi amigo siempre habla de sube el volumen hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre sube el volumen, ¿lo escuchaste?	none	template
 es	Dije más volumen.	none	template
 es	Mi amigo siempre habla de más volumen hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre más volumen, ¿lo escuchaste?	none	template
+es	Dije sube un poco el volumen.	none	template
+es	Mi amigo siempre habla de sube un poco el volumen hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre sube un poco el volumen, ¿lo escuchaste?	none	template
+es	Dije habla más fuerte.	none	template
+es	Mi amigo siempre habla de habla más fuerte hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre habla más fuerte, ¿lo escuchaste?	none	template
 es	Dije mírame.	none	template
 es	Mi amigo siempre habla de mírame hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre mírame, ¿lo escuchaste?	none	template
@@ -1329,6 +1593,15 @@ es	Ayer en las noticias dijeron algo sobre de mí, ¿lo escuchaste?	none	templat
 es	Dije aquí.	none	template
 es	Mi amigo siempre habla de aquí hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre aquí, ¿lo escuchaste?	none	template
+es	Dije ven aquí.	none	template
+es	Mi amigo siempre habla de ven aquí hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre ven aquí, ¿lo escuchaste?	none	template
+es	Dije ven acá.	none	template
+es	Mi amigo siempre habla de ven acá hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre ven acá, ¿lo escuchaste?	none	template
+es	Dije acércate.	none	template
+es	Mi amigo siempre habla de acércate hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre acércate, ¿lo escuchaste?	none	template
 es	Dije te amo.	none	template
 es	Mi amigo siempre habla de te amo hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre te amo, ¿lo escuchaste?	none	template
@@ -1419,9 +1692,18 @@ es	Ayer en las noticias dijeron algo sobre hace un ballet, ¿lo escuchaste?	none
 es	Dije danza.	none	template
 es	Mi amigo siempre habla de danza hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre danza, ¿lo escuchaste?	none	template
+es	Dije ponte a bailar.	none	template
+es	Mi amigo siempre habla de ponte a bailar hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre ponte a bailar, ¿lo escuchaste?	none	template
 es	Dije recoge.	none	template
 es	Mi amigo siempre habla de recoge hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre recoge, ¿lo escuchaste?	none	template
+es	Dije levanta el cubo.	none	template
+es	Mi amigo siempre habla de levanta el cubo hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre levanta el cubo, ¿lo escuchaste?	none	template
+es	Dije levanta tu cubo.	none	template
+es	Mi amigo siempre habla de levanta tu cubo hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre levanta tu cubo, ¿lo escuchaste?	none	template
 es	Dije recoge el cubo.	none	template
 es	Mi amigo siempre habla de recoge el cubo hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre recoge el cubo, ¿lo escuchaste?	none	template
@@ -1437,6 +1719,15 @@ es	Ayer en las noticias dijeron algo sobre recoge tu cubo, ¿lo escuchaste?	none
 es	Dije tráeme el cubo.	none	template
 es	Mi amigo siempre habla de tráeme el cubo hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre tráeme el cubo, ¿lo escuchaste?	none	template
+es	Dije tráeme tu cubo.	none	template
+es	Mi amigo siempre habla de tráeme tu cubo hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre tráeme tu cubo, ¿lo escuchaste?	none	template
+es	Dije trae el cubo.	none	template
+es	Mi amigo siempre habla de trae el cubo hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre trae el cubo, ¿lo escuchaste?	none	template
+es	Dije trae tu cubo.	none	template
+es	Mi amigo siempre habla de trae tu cubo hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre trae tu cubo, ¿lo escuchaste?	none	template
 es	Dije encuentra el cubo.	none	template
 es	Mi amigo siempre habla de encuentra el cubo hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre encuentra el cubo, ¿lo escuchaste?	none	template
@@ -1461,6 +1752,12 @@ es	Ayer en las noticias dijeron algo sobre impresioname, ¿lo escuchaste?	none	t
 es	Dije inventa algo.	none	template
 es	Mi amigo siempre habla de inventa algo hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre inventa algo, ¿lo escuchaste?	none	template
+es	Dije haz un truco.	none	template
+es	Mi amigo siempre habla de haz un truco hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre haz un truco, ¿lo escuchaste?	none	template
+es	Dije hazme un truco.	none	template
+es	Mi amigo siempre habla de hazme un truco hoy.	none	template
+es	Ayer en las noticias dijeron algo sobre hazme un truco, ¿lo escuchaste?	none	template
 es	Dije graba.	none	template
 es	Mi amigo siempre habla de graba hoy.	none	template
 es	Ayer en las noticias dijeron algo sobre graba, ¿lo escuchaste?	none	template

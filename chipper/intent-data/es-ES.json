@@ -13,7 +13,7 @@
   },
   {
     "name": "intent_imperative_eyecolor",
-    "keyphrases" : [ "color de ojos", "cambiar color", "ojos", "color de tus ojos", "tus ojos de color" ]
+    "keyphrases" : [ "color de ojos", "cambiar color", "ojos", "color de tus ojos", "tus ojos de color", "cambia el color de los ojos", "cambia el color de tus ojos", "ponte los ojos" ]
   },
   {
     "name": "intent_character_age",
@@ -21,15 +21,15 @@
   },
   {
     "name": "intent_explore_start",
-    "keyphrases" : [ "ve a explorar", "explora", "ve a la exploración", "da un paseo" ]
+    "keyphrases" : [ "ve a explorar", "explora", "ve a la exploración", "da un paseo", "vete a explorar", "ponte a explorar", "sal a explorar" ]
   },
   {
     "name": "intent_system_charger",
-    "keyphrases" : [ "ve a casa", "a casa", "recargate", "colocate en el cargador", "encuentra el cargador", "ve al cargador" ]
+    "keyphrases" : [ "ve a casa", "a casa", "recargate", "colocate en el cargador", "encuentra el cargador", "ve al cargador", "vete al cargador", "ve a cargarte", "ve a cargar", "ve a tu cargador", "vuelve al cargador", "vuelve a casa", "al cargador" ]
   },
   {
     "name": "intent_system_sleep",
-    "keyphrases" : [ "dorme", "ve a dormir", "ve a la cama", "haz la siesta", "en tu cama" ]
+    "keyphrases" : [ "dorme", "ve a dormir", "ve a la cama", "haz la siesta", "en tu cama", "hora de dormir", "hora de ir a la cama", "vete a dormir", "duérmete", "duerme", "echa una siesta", "tómate una siesta" ]
   },
   {
     "name": "intent_greeting_goodmorning",
@@ -37,11 +37,11 @@
   },
   {
     "name": "intent_greeting_goodnight",
-    "keyphrases" : [ "buenas noches" ]
+    "keyphrases" : [ "buenas noches", "que descanses" ]
   },
   {
     "name": "intent_greeting_goodbye",
-    "keyphrases" : [ "adiós", "hasta luego" ]
+    "keyphrases" : [ "adiós", "hasta luego", "chao", "chau", "nos vemos", "adios" ]
   },
   {
     "name": "intent_seasonal_happynewyear",
@@ -65,31 +65,31 @@
   },
   {
     "name": "intent_imperative_turnaround",
-    "keyphrases" : [ "gira", "date la vuelta" ]
+    "keyphrases" : [ "gira", "date la vuelta", "date una vuelta", "da la vuelta" ]
   },
   {
     "name": "intent_imperative_turnleft",
-    "keyphrases" : [ "gira a la izquierda", "ve a la izquierda" ]
+    "keyphrases" : [ "gira a la izquierda", "ve a la izquierda", "gira hacia la izquierda", "gira a tu izquierda", "voltea a la izquierda" ]
   },
   {
     "name": "intent_imperative_turnright",
-    "keyphrases" : [ "gira a la derecha", "ve a la derecha" ]
+    "keyphrases" : [ "gira a la derecha", "ve a la derecha", "gira hacia la derecha", "gira a tu derecha", "voltea a la derecha" ]
   },
   {
     "name": "intent_play_rollcube",
-    "keyphrases" : [ "juega con el cubo", "haz rodar el cubo", "mueve el cubo"]
+    "keyphrases" : [ "juega con el cubo", "haz rodar el cubo", "mueve el cubo", "haz rodar tu cubo", "rueda el cubo", "rueda tu cubo" ]
   },
   {
     "name": "intent_play_popawheelie",
-    "keyphrases" : [ "silba", "haz un caballito" ]
+    "keyphrases" : [ "silba", "haz un caballito", "hazme un caballito" ]
   },
   {
     "name": "intent_play_fistbump",
-    "keyphrases" : [ "dame el cinco", "golpe de puño" ]
+    "keyphrases" : [ "dame el cinco", "golpe de puño", "choca esos cinco", "choca el puño", "chócala", "dame un golpe de puño" ]
   },
   {
     "name": "intent_play_blackjack",
-    "keyphrases" : [ "veintiuna", "blackjack", "jugar blackjack", "a la veintiuna" ]
+    "keyphrases" : [ "veintiuna", "blackjack", "jugar blackjack", "a la veintiuna", "juguemos a las cartas", "juega a las cartas" ]
   },
   {
     "name": "intent_imperative_affirmative",
@@ -121,11 +121,11 @@
   },
   {
     "name": "intent_imperative_volumedown",
-    "keyphrases" : [ "baje el volumen", "baja el volumen" ]
+    "keyphrases" : [ "baje el volumen", "baja el volumen", "baja un poco el volumen", "habla más bajo" ]
   },
   {
     "name": "intent_imperative_volumeup",
-    "keyphrases" : [ "sube el volumen", "más volumen" ]
+    "keyphrases" : [ "sube el volumen", "más volumen", "sube un poco el volumen", "habla más fuerte" ]
   },
   {
     "name": "intent_imperative_lookatme",
@@ -145,7 +145,7 @@
   },
   {
     "name": "intent_imperative_come",
-    "keyphrases" : [ "ven", "de mí", "aquí" ]
+    "keyphrases" : [ "ven", "de mí", "aquí", "ven aquí", "ven acá", "acércate" ]
   },
   {
     "name": "intent_imperative_love",
@@ -177,15 +177,15 @@
   },
   {
     "name": "intent_imperative_dance",
-    "keyphrases" : [ "baila", "hace un ballet", "danza" ]
+    "keyphrases" : [ "baila", "hace un ballet", "danza", "ponte a bailar" ]
   },
   {
     "name": "intent_play_pickupcube",
-    "keyphrases" : [ "recoge" ]
+    "keyphrases" : [ "recoge", "levanta el cubo", "levanta tu cubo" ]
   },
   {
     "name": "intent_imperative_fetchcube",
-    "keyphrases" : [ "recoge el cubo", "toma tu cubo", "toma el cubo", "recoge tu cubo", "tráeme el cubo" ]
+    "keyphrases" : [ "recoge el cubo", "toma tu cubo", "toma el cubo", "recoge tu cubo", "tráeme el cubo", "tráeme tu cubo", "trae el cubo", "trae tu cubo" ]
   },
   {
     "name": "intent_imperative_findcube",
@@ -193,7 +193,7 @@
   },
   {
     "name": "intent_play_anytrick",
-    "keyphrases" : [ "haz algo genial", "sorpréndeme", "impresioname", "inventa algo" ]
+    "keyphrases" : [ "haz algo genial", "sorpréndeme", "impresioname", "inventa algo", "haz un truco", "hazme un truco" ]
   },
   {
     "name": "intent_message_recordmessage_extend",

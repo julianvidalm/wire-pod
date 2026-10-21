@@ -5,7 +5,7 @@
 //
 // From chipper:
 //
-//	go run ./cmd/intent-audit -generate -out ../../odd/reports/intent-audit.md [-before <dir of the old lists>]
+//	go run ./cmd/intent-audit -generate -out ../../odd/reports/intent-audit.md [-before <dir of the old lists>] [-previous <dir of the lists before the latest additions>]
 //
 // -generate rewrites the template corpora (every keyphrase inside non-command sentences and said as a command)
 // from the intent lists before the audit; the hand-written corpora and the labelled real transcripts stay as they
@@ -37,8 +37,9 @@ func main() {
 	out := flag.String("out", "", "markdown report path (empty: summary only)")
 	thresholds := flag.String("thresholds", "0.2,0.25,0.3,0.4,0.5", "coverage thresholds to compare")
 	before := flag.String("before", "", "intent lists before the cleaning, to compare (for example a copy from git)")
+	previous := flag.String("previous", "", "intent lists before the latest phrase additions (robot-wake T7), to compare")
 	flag.Parse()
-	if err := run(*intentDir, *corpus, *generate, *dumps, *out, *thresholds, *before); err != nil {
+	if err := run(*intentDir, *corpus, *generate, *dumps, *out, *thresholds, *before, *previous); err != nil {
 		fmt.Fprintln(os.Stderr, "intent-audit:", err)
 		os.Exit(1)
 	}
@@ -46,7 +47,7 @@ func main() {
 
 var locales = map[string]string{"en": "en-US", "es": "es-ES"}
 
-func run(intentDir, corpus string, generate bool, dumps, out, thresholdList, beforeDir string) error {
+func run(intentDir, corpus string, generate bool, dumps, out, thresholdList, beforeDir, previousDir string) error {
 	intents, err := wirepodbrain.LoadIntents(intentDir, locales)
 	if err != nil {
 		return err
@@ -96,6 +97,13 @@ func run(intentDir, corpus string, generate bool, dumps, out, thresholdList, bef
 		"(`I said %s.` … `Yesterday on the news they said something about %s, did you hear it?`) and are said as " +
 		"commands alone, so they measure how short a context a phrase hijacks and their hits are self-fulfilling: " +
 		"decisions use the natural numbers.\n\n")
+	if previousDir != "" {
+		prev, err := wirepodbrain.LoadIntents(previousDir, locales)
+		if err != nil {
+			return err
+		}
+		b.WriteString(additionsSection(brain(prev, live, 0).Audit(cases), current))
+	}
 	if beforeDir != "" {
 		old, err := wirepodbrain.LoadIntents(beforeDir, locales)
 		if err != nil {
@@ -120,7 +128,7 @@ func run(intentDir, corpus string, generate bool, dumps, out, thresholdList, bef
 		for _, set := range []struct {
 			name string
 			f    func(wirepodbrain.Report, string, int) string
-		}{{"Tuning set (hand-written and real)", cell}, {"Held-out set", heldOut}} {
+		}{{"Tuning set (hand-written and real)", cell}, {"Held-out set", heldOut}, {"Second held-out set (robot-wake T7)", heldOut2}} {
 			b.WriteString("**" + set.name + "**\n\n" + header)
 			for _, row := range rows {
 				r := brain(row.lists, row.v, row.min).Audit(cases)
@@ -262,6 +270,55 @@ func cell(r wirepodbrain.Report, lang string, i int) string {
 func heldOut(r wirepodbrain.Report, lang string, i int) string {
 	return sourceCell(r, lang, i, "holdout")
 }
+
+// heldOut2 is cell for the second held-out set, written after the robot-wake T7 phrase additions (the first one's
+// losses chose those phrases, so it is optimistic from then on).
+func heldOut2(r wirepodbrain.Report, lang string, i int) string {
+	return sourceCell(r, lang, i, "holdout2")
+}
+
+// additionsSection compares the live rule before (prev) and after (cur) the robot-wake T7 phrase additions on every
+// natural set, and lists the second held-out set's misses and hijacks after them.
+func additionsSection(prev, cur wirepodbrain.Report) string {
+	var b strings.Builder
+	b.WriteString("## Robot-wake T7: natural phrasings added (live rule)\n\nThe phrases were chosen from the lost commands of " +
+		"the tuning and first held-out sets (\"Go to the charger.\", \"Take a nap.\", \"Ve a cargarte.\"…), so those two sets are " +
+		"optimistic after the change. The **second held-out set** was written after the additions and never used to tune " +
+		"anything: it is the honest estimate. Hijacks / lost commands.\n\n| lists | tuning all | held-out en | held-out es | " +
+		"held-out all | held-out 2 en | held-out 2 es | held-out 2 all |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
+	for _, row := range []struct {
+		name string
+		r    wirepodbrain.Report
+	}{{"before T7", prev}, {"after T7 (live)", cur}} {
+		pair := func(f func(wirepodbrain.Report, string, int) string, lang string) string {
+			return f(row.r, lang, 0) + " / " + f(row.r, lang, 1)
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s |\n", row.name, pair(cell, ""), pair(heldOut, "en"),
+			pair(heldOut, "es"), pair(heldOut, ""), pair(heldOut2, "en"), pair(heldOut2, "es"), pair(heldOut2, ""))
+	}
+	b.WriteString("\n**Second held-out set after T7, misses and hijacks**\n\n| lang | sentence | expected | got | phrase | coverage |\n" +
+		"| --- | --- | --- | --- | --- | --- |\n")
+	n := 0
+	for _, res := range cur.Results {
+		if res.Source != "holdout2" || !(res.Miss() || res.Hijack()) {
+			continue
+		}
+		n++
+		cov := ""
+		if res.Matched {
+			cov = fmt.Sprintf("%.2f", res.Route.Coverage)
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n", res.Lang, mdCell(res.Text), strings.TrimPrefix(res.Expected, "intent_"),
+			strings.TrimPrefix(res.Got, "intent_"), mdCell(res.Route.Phrase), cov)
+	}
+	if n == 0 {
+		b.WriteString("| | none | | | | |\n")
+	}
+	return b.String() + "\n"
+}
+
+// mdCell escapes a table cell.
+func mdCell(s string) string { return strings.ReplaceAll(s, "|", `\|`) }
 
 func sourceCell(r wirepodbrain.Report, lang string, i int, sources ...string) string {
 	return tally(r, func(res wirepodbrain.Result) bool {

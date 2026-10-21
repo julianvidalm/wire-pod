@@ -68,6 +68,8 @@ en	Set your eye color to.	intent_imperative_eyecolor	template
 en	Set your eye color to, please.	intent_imperative_eyecolor	template
 en	Color of your eyes.	intent_imperative_eyecolor	template
 en	Color of your eyes, please.	intent_imperative_eyecolor	template
+en	Make your eyes.	intent_imperative_eyecolor	template
+en	Make your eyes, please.	intent_imperative_eyecolor	template
 en	Older.	intent_character_age	template
 en	Older, please.	intent_character_age	template
 en	Old are you.	intent_character_age	template
@@ -100,6 +102,12 @@ en	Start exploring.	intent_explore_start	template
 en	Start exploring, please.	intent_explore_start	template
 en	Go explore.	intent_explore_start	template
 en	Go explore, please.	intent_explore_start	template
+en	Explore.	intent_explore_start	template
+en	Explore, please.	intent_explore_start	template
+en	Go exploring.	intent_explore_start	template
+en	Go exploring, please.	intent_explore_start	template
+en	Explore the house.	intent_explore_start	template
+en	Explore the house, please.	intent_explore_start	template
 en	Charge.	intent_system_charger	template
 en	Charge, please.	intent_system_charger	template
 en	Home.	intent_system_charger	template
@@ -114,6 +122,20 @@ en	Charger.	intent_system_charger	template
 en	Charger, please.	intent_system_charger	template
 en	Your charger.	intent_system_charger	template
 en	Your charger, please.	intent_system_charger	template
+en	Go to the charger.	intent_system_charger	template
+en	Go to the charger, please.	intent_system_charger	template
+en	Go to your charger.	intent_system_charger	template
+en	Go to your charger, please.	intent_system_charger	template
+en	Go charge.	intent_system_charger	template
+en	Go charge, please.	intent_system_charger	template
+en	Charge yourself.	intent_system_charger	template
+en	Charge yourself, please.	intent_system_charger	template
+en	Go home.	intent_system_charger	template
+en	Go home, please.	intent_system_charger	template
+en	Back to your charger.	intent_system_charger	template
+en	Back to your charger, please.	intent_system_charger	template
+en	Go to your dock.	intent_system_charger	template
+en	Go to your dock, please.	intent_system_charger	template
 en	Flee.	intent_system_sleep	template
 en	Flee, please.	intent_system_sleep	template
 en	Sleep.	intent_system_sleep	template
@@ -122,6 +144,14 @@ en	Sheep.	intent_system_sleep	template
 en	Sheep, please.	intent_system_sleep	template
 en	Go to sleep.	intent_system_sleep	template
 en	Go to sleep, please.	intent_system_sleep	template
+en	Take a nap.	intent_system_sleep	template
+en	Take a nap, please.	intent_system_sleep	template
+en	Time to sleep.	intent_system_sleep	template
+en	Time to sleep, please.	intent_system_sleep	template
+en	Time for bed.	intent_system_sleep	template
+en	Time for bed, please.	intent_system_sleep	template
+en	Bedtime.	intent_system_sleep	template
+en	Bedtime, please.	intent_system_sleep	template
 en	[blank_audio].	intent_system_noaudio	template
 en	[blank_audio], please.	intent_system_noaudio	template
 en	[door opens].	intent_system_noaudio	template
@@ -150,6 +180,8 @@ en	Might.	intent_greeting_goodnight	template
 en	Might, please.	intent_greeting_goodnight	template
 en	Goodnight.	intent_greeting_goodnight	template
 en	Goodnight, please.	intent_greeting_goodnight	template
+en	Good night.	intent_greeting_goodnight	template
+en	Good night, please.	intent_greeting_goodnight	template
 en	Good bye.	intent_greeting_goodbye	template
 en	Good bye, please.	intent_greeting_goodbye	template
 en	Good by.	intent_greeting_goodbye	template
@@ -160,6 +192,12 @@ en	Goodbye.	intent_greeting_goodbye	template
 en	Goodbye, please.	intent_greeting_goodbye	template
 en	See you later.	intent_greeting_goodbye	template
 en	See you later, please.	intent_greeting_goodbye	template
+en	Bye bye.	intent_greeting_goodbye	template
+en	Bye bye, please.	intent_greeting_goodbye	template
+en	Bye.	intent_greeting_goodbye	template
+en	Bye, please.	intent_greeting_goodbye	template
+en	See you soon.	intent_greeting_goodbye	template
+en	See you soon, please.	intent_greeting_goodbye	template
 en	Fireworks.	intent_seasonal_happynewyear	template
 en	Fireworks, please.	intent_seasonal_happynewyear	template
 en	New year.	intent_seasonal_happynewyear	template
@@ -248,6 +286,10 @@ en	Ernest.	intent_imperative_turnleft	template
 en	Ernest, please.	intent_imperative_turnleft	template
 en	Turn left.	intent_imperative_turnleft	template
 en	Turn left, please.	intent_imperative_turnleft	template
+en	Turn to the left.	intent_imperative_turnleft	template
+en	Turn to the left, please.	intent_imperative_turnleft	template
+en	Turn to your left.	intent_imperative_turnleft	template
+en	Turn to your left, please.	intent_imperative_turnleft	template
 en	Rn right.	intent_imperative_turnright	template
 en	Rn right, please.	intent_imperative_turnright	template
 en	Go right.	intent_imperative_turnright	template
@@ -262,6 +304,10 @@ en	Ed right.	intent_imperative_turnright	template
 en	Ed right, please.	intent_imperative_turnright	template
 en	Turn right.	intent_imperative_turnright	template
 en	Turn right, please.	intent_imperative_turnright	template
+en	Turn to the right.	intent_imperative_turnright	template
+en	Turn to the right, please.	intent_imperative_turnright	template
+en	Turn to your right.	intent_imperative_turnright	template
+en	Turn to your right, please.	intent_imperative_turnright	template
 en	Roll cu.	intent_play_rollcube	template
 en	Roll cu, please.	intent_play_rollcube	template
 en	Roll your cu.	intent_play_rollcube	template
@@ -350,6 +396,10 @@ en	Fistbump.	intent_play_fistbump	template
 en	Fistbump, please.	intent_play_fistbump	template
 en	Fist bump.	intent_play_fistbump	template
 en	Fist bump, please.	intent_play_fistbump	template
+en	Give me a fist bump.	intent_play_fistbump	template
+en	Give me a fist bump, please.	intent_play_fistbump	template
+en	Give me a fistbump.	intent_play_fistbump	template
+en	Give me a fistbump, please.	intent_play_fistbump	template
 en	Black.	intent_play_blackjack	template
 en	Black, please.	intent_play_blackjack	template
 en	Cards.	intent_play_blackjack	template
@@ -360,6 +410,12 @@ en	Play blackjack.	intent_play_blackjack	template
 en	Play blackjack, please.	intent_play_blackjack	template
 en	Card game.	intent_play_blackjack	template
 en	Card game, please.	intent_play_blackjack	template
+en	Blackjack.	intent_play_blackjack	template
+en	Blackjack, please.	intent_play_blackjack	template
+en	Play some blackjack.	intent_play_blackjack	template
+en	Play some blackjack, please.	intent_play_blackjack	template
+en	Play cards.	intent_play_blackjack	template
+en	Play cards, please.	intent_play_blackjack	template
 en	Yes.	intent_imperative_affirmative	template
 en	Yes, please.	intent_imperative_affirmative	template
 en	Correct.	intent_imperative_affirmative	template
@@ -460,6 +516,12 @@ en	Turn the volume down.	intent_imperative_volumedown	template
 en	Turn the volume down, please.	intent_imperative_volumedown	template
 en	Be quieter.	intent_imperative_volumedown	template
 en	Be quieter, please.	intent_imperative_volumedown	template
+en	Lower the volume.	intent_imperative_volumedown	template
+en	Lower the volume, please.	intent_imperative_volumedown	template
+en	Turn it down.	intent_imperative_volumedown	template
+en	Turn it down, please.	intent_imperative_volumedown	template
+en	Turn down the volume.	intent_imperative_volumedown	template
+en	Turn down the volume, please.	intent_imperative_volumedown	template
 en	All you up.	intent_imperative_volumeup	template
 en	All you up, please.	intent_imperative_volumeup	template
 en	Volume up.	intent_imperative_volumeup	template
@@ -470,6 +532,10 @@ en	Up the volume.	intent_imperative_volumeup	template
 en	Up the volume, please.	intent_imperative_volumeup	template
 en	Louder.	intent_imperative_volumeup	template
 en	Louder, please.	intent_imperative_volumeup	template
+en	Turn it up.	intent_imperative_volumeup	template
+en	Turn it up, please.	intent_imperative_volumeup	template
+en	Turn up the volume.	intent_imperative_volumeup	template
+en	Turn up the volume, please.	intent_imperative_volumeup	template
 en	Stare.	intent_imperative_lookatme	template
 en	Stare, please.	intent_imperative_lookatme	template
 en	At me.	intent_imperative_lookatme	template
@@ -484,6 +550,8 @@ en	Change your volume.	intent_imperative_volumelevel_extend	template
 en	Change your volume, please.	intent_imperative_volumelevel_extend	template
 en	Set the volume.	intent_imperative_volumelevel_extend	template
 en	Set the volume, please.	intent_imperative_volumelevel_extend	template
+en	Set your volume.	intent_imperative_volumelevel_extend	template
+en	Set your volume, please.	intent_imperative_volumelevel_extend	template
 en	Shut up.	intent_imperative_shutup	template
 en	Shut up, please.	intent_imperative_shutup	template
 en	Hello.	intent_greeting_hello	template
@@ -508,6 +576,10 @@ en	Come to me.	intent_imperative_come	template
 en	Come to me, please.	intent_imperative_come	template
 en	Come here.	intent_imperative_come	template
 en	Come here, please.	intent_imperative_come	template
+en	Come over here.	intent_imperative_come	template
+en	Come over here, please.	intent_imperative_come	template
+en	Come closer.	intent_imperative_come	template
+en	Come closer, please.	intent_imperative_come	template
 en	Love you.	intent_imperative_love	template
 en	Love you, please.	intent_imperative_love	template
 en	Dove you.	intent_imperative_love	template
@@ -618,6 +690,10 @@ en	Pick up the cube.	intent_play_pickupcube	template
 en	Pick up the cube, please.	intent_play_pickupcube	template
 en	Pickup the cube.	intent_play_pickupcube	template
 en	Pickup the cube, please.	intent_play_pickupcube	template
+en	Pick your cube up.	intent_play_pickupcube	template
+en	Pick your cube up, please.	intent_play_pickupcube	template
+en	Pick up your cube.	intent_play_pickupcube	template
+en	Pick up your cube, please.	intent_play_pickupcube	template
 en	Fetch your cu.	intent_imperative_fetchcube	template
 en	Fetch your cu, please.	intent_imperative_fetchcube	template
 en	Fetch cu.	intent_imperative_fetchcube	template
@@ -648,6 +724,10 @@ en	Do a trick.	intent_play_anytrick	template
 en	Do a trick, please.	intent_play_anytrick	template
 en	A trick.	intent_play_anytrick	template
 en	A trick, please.	intent_play_anytrick	template
+en	Do a cool trick.	intent_play_anytrick	template
+en	Do a cool trick, please.	intent_play_anytrick	template
+en	Show me a trick.	intent_play_anytrick	template
+en	Show me a trick, please.	intent_play_anytrick	template
 en	Record.	intent_message_recordmessage_extend	template
 en	Record, please.	intent_message_recordmessage_extend	template
 en	Record a message.	intent_message_recordmessage_extend	template
@@ -662,6 +742,8 @@ en	Play a method.	intent_message_playmessage_extend	template
 en	Play a method, please.	intent_message_playmessage_extend	template
 en	Play my message.	intent_message_playmessage_extend	template
 en	Play my message, please.	intent_message_playmessage_extend	template
+en	Play the message.	intent_message_playmessage_extend	template
+en	Play the message, please.	intent_message_playmessage_extend	template
 en	Hit.	intent_blackjack_hit	template
 en	Hit, please.	intent_blackjack_hit	template
 en	Stand.	intent_blackjack_stand	template
@@ -710,6 +792,12 @@ es	Color de tus ojos.	intent_imperative_eyecolor	template
 es	Color de tus ojos, por favor.	intent_imperative_eyecolor	template
 es	Tus ojos de color.	intent_imperative_eyecolor	template
 es	Tus ojos de color, por favor.	intent_imperative_eyecolor	template
+es	Cambia el color de los ojos.	intent_imperative_eyecolor	template
+es	Cambia el color de los ojos, por favor.	intent_imperative_eyecolor	template
+es	Cambia el color de tus ojos.	intent_imperative_eyecolor	template
+es	Cambia el color de tus ojos, por favor.	intent_imperative_eyecolor	template
+es	Ponte los ojos.	intent_imperative_eyecolor	template
+es	Ponte los ojos, por favor.	intent_imperative_eyecolor	template
 es	Cuántos años tienes.	intent_character_age	template
 es	Cuántos años tienes, por favor.	intent_character_age	template
 es	Cuál es tu edad.	intent_character_age	template
@@ -722,6 +810,12 @@ es	Ve a la exploración.	intent_explore_start	template
 es	Ve a la exploración, por favor.	intent_explore_start	template
 es	Da un paseo.	intent_explore_start	template
 es	Da un paseo, por favor.	intent_explore_start	template
+es	Vete a explorar.	intent_explore_start	template
+es	Vete a explorar, por favor.	intent_explore_start	template
+es	Ponte a explorar.	intent_explore_start	template
+es	Ponte a explorar, por favor.	intent_explore_start	template
+es	Sal a explorar.	intent_explore_start	template
+es	Sal a explorar, por favor.	intent_explore_start	template
 es	Ve a casa.	intent_system_charger	template
 es	Ve a casa, por favor.	intent_system_charger	template
 es	A casa.	intent_system_charger	template
@@ -734,6 +828,20 @@ es	Encuentra el cargador.	intent_system_charger	template
 es	Encuentra el cargador, por favor.	intent_system_charger	template
 es	Ve al cargador.	intent_system_charger	template
 es	Ve al cargador, por favor.	intent_system_charger	template
+es	Vete al cargador.	intent_system_charger	template
+es	Vete al cargador, por favor.	intent_system_charger	template
+es	Ve a cargarte.	intent_system_charger	template
+es	Ve a cargarte, por favor.	intent_system_charger	template
+es	Ve a cargar.	intent_system_charger	template
+es	Ve a cargar, por favor.	intent_system_charger	template
+es	Ve a tu cargador.	intent_system_charger	template
+es	Ve a tu cargador, por favor.	intent_system_charger	template
+es	Vuelve al cargador.	intent_system_charger	template
+es	Vuelve al cargador, por favor.	intent_system_charger	template
+es	Vuelve a casa.	intent_system_charger	template
+es	Vuelve a casa, por favor.	intent_system_charger	template
+es	Al cargador.	intent_system_charger	template
+es	Al cargador, por favor.	intent_system_charger	template
 es	Dorme.	intent_system_sleep	template
 es	Dorme, por favor.	intent_system_sleep	template
 es	Ve a dormir.	intent_system_sleep	template
@@ -744,6 +852,20 @@ es	Haz la siesta.	intent_system_sleep	template
 es	Haz la siesta, por favor.	intent_system_sleep	template
 es	En tu cama.	intent_system_sleep	template
 es	En tu cama, por favor.	intent_system_sleep	template
+es	Hora de dormir.	intent_system_sleep	template
+es	Hora de dormir, por favor.	intent_system_sleep	template
+es	Hora de ir a la cama.	intent_system_sleep	template
+es	Hora de ir a la cama, por favor.	intent_system_sleep	template
+es	Vete a dormir.	intent_system_sleep	template
+es	Vete a dormir, por favor.	intent_system_sleep	template
+es	Duérmete.	intent_system_sleep	template
+es	Duérmete, por favor.	intent_system_sleep	template
+es	Duerme.	intent_system_sleep	template
+es	Duerme, por favor.	intent_system_sleep	template
+es	Echa una siesta.	intent_system_sleep	template
+es	Echa una siesta, por favor.	intent_system_sleep	template
+es	Tómate una siesta.	intent_system_sleep	template
+es	Tómate una siesta, por favor.	intent_system_sleep	template
 es	Dia.	intent_greeting_goodmorning	template
 es	Dia, por favor.	intent_greeting_goodmorning	template
 es	Mañana.	intent_greeting_goodmorning	template
@@ -758,10 +880,20 @@ es	Buenas tardes.	intent_greeting_goodmorning	template
 es	Buenas tardes, por favor.	intent_greeting_goodmorning	template
 es	Buenas noches.	intent_greeting_goodnight	template
 es	Buenas noches, por favor.	intent_greeting_goodnight	template
+es	Que descanses.	intent_greeting_goodnight	template
+es	Que descanses, por favor.	intent_greeting_goodnight	template
 es	Adiós.	intent_greeting_goodbye	template
 es	Adiós, por favor.	intent_greeting_goodbye	template
 es	Hasta luego.	intent_greeting_goodbye	template
 es	Hasta luego, por favor.	intent_greeting_goodbye	template
+es	Chao.	intent_greeting_goodbye	template
+es	Chao, por favor.	intent_greeting_goodbye	template
+es	Chau.	intent_greeting_goodbye	template
+es	Chau, por favor.	intent_greeting_goodbye	template
+es	Nos vemos.	intent_greeting_goodbye	template
+es	Nos vemos, por favor.	intent_greeting_goodbye	template
+es	Adios.	intent_greeting_goodbye	template
+es	Adios, por favor.	intent_greeting_goodbye	template
 es	Fuegos artificiales.	intent_seasonal_happynewyear	template
 es	Fuegos artificiales, por favor.	intent_seasonal_happynewyear	template
 es	Feliz año nuevo.	intent_seasonal_happynewyear	template
@@ -788,28 +920,60 @@ es	Gira.	intent_imperative_turnaround	template
 es	Gira, por favor.	intent_imperative_turnaround	template
 es	Date la vuelta.	intent_imperative_turnaround	template
 es	Date la vuelta, por favor.	intent_imperative_turnaround	template
+es	Date una vuelta.	intent_imperative_turnaround	template
+es	Date una vuelta, por favor.	intent_imperative_turnaround	template
+es	Da la vuelta.	intent_imperative_turnaround	template
+es	Da la vuelta, por favor.	intent_imperative_turnaround	template
 es	Gira a la izquierda.	intent_imperative_turnleft	template
 es	Gira a la izquierda, por favor.	intent_imperative_turnleft	template
 es	Ve a la izquierda.	intent_imperative_turnleft	template
 es	Ve a la izquierda, por favor.	intent_imperative_turnleft	template
+es	Gira hacia la izquierda.	intent_imperative_turnleft	template
+es	Gira hacia la izquierda, por favor.	intent_imperative_turnleft	template
+es	Gira a tu izquierda.	intent_imperative_turnleft	template
+es	Gira a tu izquierda, por favor.	intent_imperative_turnleft	template
+es	Voltea a la izquierda.	intent_imperative_turnleft	template
+es	Voltea a la izquierda, por favor.	intent_imperative_turnleft	template
 es	Gira a la derecha.	intent_imperative_turnright	template
 es	Gira a la derecha, por favor.	intent_imperative_turnright	template
 es	Ve a la derecha.	intent_imperative_turnright	template
 es	Ve a la derecha, por favor.	intent_imperative_turnright	template
+es	Gira hacia la derecha.	intent_imperative_turnright	template
+es	Gira hacia la derecha, por favor.	intent_imperative_turnright	template
+es	Gira a tu derecha.	intent_imperative_turnright	template
+es	Gira a tu derecha, por favor.	intent_imperative_turnright	template
+es	Voltea a la derecha.	intent_imperative_turnright	template
+es	Voltea a la derecha, por favor.	intent_imperative_turnright	template
 es	Juega con el cubo.	intent_play_rollcube	template
 es	Juega con el cubo, por favor.	intent_play_rollcube	template
 es	Haz rodar el cubo.	intent_play_rollcube	template
 es	Haz rodar el cubo, por favor.	intent_play_rollcube	template
 es	Mueve el cubo.	intent_play_rollcube	template
 es	Mueve el cubo, por favor.	intent_play_rollcube	template
+es	Haz rodar tu cubo.	intent_play_rollcube	template
+es	Haz rodar tu cubo, por favor.	intent_play_rollcube	template
+es	Rueda el cubo.	intent_play_rollcube	template
+es	Rueda el cubo, por favor.	intent_play_rollcube	template
+es	Rueda tu cubo.	intent_play_rollcube	template
+es	Rueda tu cubo, por favor.	intent_play_rollcube	template
 es	Silba.	intent_play_popawheelie	template
 es	Silba, por favor.	intent_play_popawheelie	template
 es	Haz un caballito.	intent_play_popawheelie	template
 es	Haz un caballito, por favor.	intent_play_popawheelie	template
+es	Hazme un caballito.	intent_play_popawheelie	template
+es	Hazme un caballito, por favor.	intent_play_popawheelie	template
 es	Dame el cinco.	intent_play_fistbump	template
 es	Dame el cinco, por favor.	intent_play_fistbump	template
 es	Golpe de puño.	intent_play_fistbump	template
 es	Golpe de puño, por favor.	intent_play_fistbump	template
+es	Choca esos cinco.	intent_play_fistbump	template
+es	Choca esos cinco, por favor.	intent_play_fistbump	template
+es	Choca el puño.	intent_play_fistbump	template
+es	Choca el puño, por favor.	intent_play_fistbump	template
+es	Chócala.	intent_play_fistbump	template
+es	Chócala, por favor.	intent_play_fistbump	template
+es	Dame un golpe de puño.	intent_play_fistbump	template
+es	Dame un golpe de puño, por favor.	intent_play_fistbump	template
 es	Veintiuna.	intent_play_blackjack	template
 es	Veintiuna, por favor.	intent_play_blackjack	template
 es	Blackjack.	intent_play_blackjack	template
@@ -818,6 +982,10 @@ es	Jugar blackjack.	intent_play_blackjack	template
 es	Jugar blackjack, por favor.	intent_play_blackjack	template
 es	A la veintiuna.	intent_play_blackjack	template
 es	A la veintiuna, por favor.	intent_play_blackjack	template
+es	Juguemos a las cartas.	intent_play_blackjack	template
+es	Juguemos a las cartas, por favor.	intent_play_blackjack	template
+es	Juega a las cartas.	intent_play_blackjack	template
+es	Juega a las cartas, por favor.	intent_play_blackjack	template
 es	Sí.	intent_imperative_affirmative	template
 es	Sí, por favor.	intent_imperative_affirmative	template
 es	Correcto.	intent_imperative_affirmative	template
@@ -862,10 +1030,18 @@ es	Baje el volumen.	intent_imperative_volumedown	template
 es	Baje el volumen, por favor.	intent_imperative_volumedown	template
 es	Baja el volumen.	intent_imperative_volumedown	template
 es	Baja el volumen, por favor.	intent_imperative_volumedown	template
+es	Baja un poco el volumen.	intent_imperative_volumedown	template
+es	Baja un poco el volumen, por favor.	intent_imperative_volumedown	template
+es	Habla más bajo.	intent_imperative_volumedown	template
+es	Habla más bajo, por favor.	intent_imperative_volumedown	template
 es	Sube el volumen.	intent_imperative_volumeup	template
 es	Sube el volumen, por favor.	intent_imperative_volumeup	template
 es	Más volumen.	intent_imperative_volumeup	template
 es	Más volumen, por favor.	intent_imperative_volumeup	template
+es	Sube un poco el volumen.	intent_imperative_volumeup	template
+es	Sube un poco el volumen, por favor.	intent_imperative_volumeup	template
+es	Habla más fuerte.	intent_imperative_volumeup	template
+es	Habla más fuerte, por favor.	intent_imperative_volumeup	template
 es	Mírame.	intent_imperative_lookatme	template
 es	Mírame, por favor.	intent_imperative_lookatme	template
 es	Mírame a los ojos.	intent_imperative_lookatme	template
@@ -886,6 +1062,12 @@ es	De mí.	intent_imperative_come	template
 es	De mí, por favor.	intent_imperative_come	template
 es	Aquí.	intent_imperative_come	template
 es	Aquí, por favor.	intent_imperative_come	template
+es	Ven aquí.	intent_imperative_come	template
+es	Ven aquí, por favor.	intent_imperative_come	template
+es	Ven acá.	intent_imperative_come	template
+es	Ven acá, por favor.	intent_imperative_come	template
+es	Acércate.	intent_imperative_come	template
+es	Acércate, por favor.	intent_imperative_come	template
 es	Te amo.	intent_imperative_love	template
 es	Te amo, por favor.	intent_imperative_love	template
 es	Eres mi amor.	intent_imperative_love	template
@@ -946,8 +1128,14 @@ es	Hace un ballet.	intent_imperative_dance	template
 es	Hace un ballet, por favor.	intent_imperative_dance	template
 es	Danza.	intent_imperative_dance	template
 es	Danza, por favor.	intent_imperative_dance	template
+es	Ponte a bailar.	intent_imperative_dance	template
+es	Ponte a bailar, por favor.	intent_imperative_dance	template
 es	Recoge.	intent_play_pickupcube	template
 es	Recoge, por favor.	intent_play_pickupcube	template
+es	Levanta el cubo.	intent_play_pickupcube	template
+es	Levanta el cubo, por favor.	intent_play_pickupcube	template
+es	Levanta tu cubo.	intent_play_pickupcube	template
+es	Levanta tu cubo, por favor.	intent_play_pickupcube	template
 es	Recoge el cubo.	intent_imperative_fetchcube	template
 es	Recoge el cubo, por favor.	intent_imperative_fetchcube	template
 es	Toma tu cubo.	intent_imperative_fetchcube	template
@@ -958,6 +1146,12 @@ es	Recoge tu cubo.	intent_imperative_fetchcube	template
 es	Recoge tu cubo, por favor.	intent_imperative_fetchcube	template
 es	Tráeme el cubo.	intent_imperative_fetchcube	template
 es	Tráeme el cubo, por favor.	intent_imperative_fetchcube	template
+es	Tráeme tu cubo.	intent_imperative_fetchcube	template
+es	Tráeme tu cubo, por favor.	intent_imperative_fetchcube	template
+es	Trae el cubo.	intent_imperative_fetchcube	template
+es	Trae el cubo, por favor.	intent_imperative_fetchcube	template
+es	Trae tu cubo.	intent_imperative_fetchcube	template
+es	Trae tu cubo, por favor.	intent_imperative_fetchcube	template
 es	Encuentra el cubo.	intent_imperative_findcube	template
 es	Encuentra el cubo, por favor.	intent_imperative_findcube	template
 es	Encuentra tu cubo.	intent_imperative_findcube	template
@@ -974,6 +1168,10 @@ es	Impresioname.	intent_play_anytrick	template
 es	Impresioname, por favor.	intent_play_anytrick	template
 es	Inventa algo.	intent_play_anytrick	template
 es	Inventa algo, por favor.	intent_play_anytrick	template
+es	Haz un truco.	intent_play_anytrick	template
+es	Haz un truco, por favor.	intent_play_anytrick	template
+es	Hazme un truco.	intent_play_anytrick	template
+es	Hazme un truco, por favor.	intent_play_anytrick	template
 es	Graba.	intent_message_recordmessage_extend	template
 es	Graba, por favor.	intent_message_recordmessage_extend	template
 es	Graba un mensaje.	intent_message_recordmessage_extend	template

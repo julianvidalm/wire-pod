@@ -29,3 +29,15 @@ and the intent is the one with the longest keyphrase in the question ("Gira a la
 - `baja el volumen` (volumedown; the list had only the formal `baje el volumen`) and `más volumen` (volumeup): `volumen` (volumelevel) took both.
 - `otra carta` (hit), `me planto` (stand), `comprueba el temporizador`, `comprueba el cronómetro`, `cuánto falta` (checktimer; the list had the misspelt `comproba`), `empieza el temporizador`, `empieza el cronómetro`, `pon un temporizador` (settimer; misspelt `empeza`), `hacia atrás` (backup), `color de tus ojos`, `tus ojos de color` (eyecolor), `tráeme el cubo` (fetchcube), `mírame a los ojos` (lookatme), `date la vuelta` (turnaround), `pon el volumen` (volumelevel), `graba un mensaje` (recordmessage), `jugar blackjack`, `a la veintiuna` (blackjack), `haz un caballito` (popawheelie): natural commands with no keyphrase or one under 0.3.
 - Kept: `tarde` (goodmorning) no longer takes a natural sentence ("…la tarde es el mejor momento…" is 1 of 11 words); `no` and `correcto` are fixed by word start.
+
+### Added in robot-wake T7 (2026-10-21)
+
+Live, "Go to the charger." went to the LLM (`charger` covers 1 of 4 words) and the LLM said it had no command for it.
+Full natural phrasings of the commands the tuning and first held-out sets lost were added (en: `go to the charger`,
+`take a nap`, `bye bye`, `turn to the left`, `give me a fist bump`…; es: `ve a cargarte`, `vete al cargador`,
+`gira hacia la izquierda`, `date una vuelta`, `hora de dormir`…), full phrases rather than single words so they do not
+take non-commands. Single words were added only where a sentence of three words or less is a command and a longer one
+is diluted under the 0.3 coverage (`bye`, `explore`, `blackjack`, `duerme`, `chao`). Statements that read like
+commands were left out (`go to bed`, `a dormir`, `a la izquierda`, `da una vuelta`, `más fuerte`): by the 0.3 rule they
+would take common sentences ("I go to bed at eleven", "la tienda está a la izquierda del banco"; not measured). The second held-out set was written after this
+and measures it.

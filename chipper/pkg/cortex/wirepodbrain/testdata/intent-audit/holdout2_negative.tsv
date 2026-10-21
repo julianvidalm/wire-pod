@@ -1,0 +1,52 @@
+# Second held-out set (robot-wake T7, 2026-10-21): written after the T7 keyphrase additions and never used to tune
+# the lists or the rule. lang\ttext\texpected\tsource
+en	My phone charger stopped working yesterday.	none	holdout2
+en	How long does it take to charge an electric car?	none	holdout2
+en	I need to go home early today.	none	holdout2
+en	I took a nap after lunch.	none	holdout2
+en	What time do kids usually go to bed?	none	holdout2
+en	I couldn't sleep last night.	none	holdout2
+en	Should I turn left or right at the next street?	none	holdout2
+en	The museum is on the left side of the road.	none	holdout2
+en	My brother and I played cards all night.	none	holdout2
+en	Who invented the game of blackjack?	none	holdout2
+en	I want to explore Japan someday.	none	holdout2
+en	Can you tell me a fun fact about volcanoes?	none	holdout2
+en	The music in the restaurant was too loud.	none	holdout2
+en	Why does the volume of a gas change with temperature?	none	holdout2
+en	My cat has green eyes.	none	holdout2
+en	What's your favorite color?	none	holdout2
+en	I learned a new magic trick today.	none	holdout2
+en	Bye bye birdie is an old musical.	none	holdout2
+en	Do you think robots can dream?	none	holdout2
+en	How far away is the moon?	none	holdout2
+en	My friend came over here last weekend.	none	holdout2
+en	Tell me something about the Roman empire.	none	holdout2
+en	I like to dance in the kitchen.	none	holdout2
+en	How do I fix a flat tire on my bike?	none	holdout2
+en	What's the difference between a frog and a toad?	none	holdout2
+es	El cargador de mi teléfono no funciona.	none	holdout2
+es	¿Cuánto tarda en cargarse un coche eléctrico?	none	holdout2
+es	Hoy quiero volver a casa temprano.	none	holdout2
+es	Ayer dormí muy poco.	none	holdout2
+es	¿A qué hora se duermen los niños normalmente?	none	holdout2
+es	Mi abuela duerme la siesta todos los días.	none	holdout2
+es	La farmacia está a la izquierda del banco.	none	holdout2
+es	¿Por qué los coches en Inglaterra van por la izquierda?	none	holdout2
+es	Anoche jugamos a las cartas con mis primos.	none	holdout2
+es	¿Quién inventó el juego de la veintiuna?	none	holdout2
+es	Me gustaría explorar la selva amazónica.	none	holdout2
+es	¿Me cuentas un dato curioso sobre los volcanes?	none	holdout2
+es	La música del bar estaba muy fuerte.	none	holdout2
+es	¿Cuál es el volumen de una esfera?	none	holdout2
+es	Mi gato tiene los ojos verdes.	none	holdout2
+es	¿Cuál es tu color favorito?	none	holdout2
+es	Aprendí un truco de magia nuevo.	none	holdout2
+es	Nos vemos el lunes en la oficina, le dije a mi jefe.	none	holdout2
+es	¿Crees que los robots pueden soñar?	none	holdout2
+es	¿Qué tan lejos está la luna?	none	holdout2
+es	Mi amigo vino aquí el fin de semana.	none	holdout2
+es	Háblame del imperio romano.	none	holdout2
+es	Me encanta bailar salsa.	none	holdout2
+es	¿Cómo arreglo una rueda pinchada de bicicleta?	none	holdout2
+es	¿Cuál es la diferencia entre una rana y un sapo?	none	holdout2

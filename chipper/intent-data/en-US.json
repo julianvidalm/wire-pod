@@ -16,7 +16,7 @@
 	},
 	{	
 		"name": "intent_imperative_eyecolor",
-		"keyphrases" : ["eye color", "colo", "i call her", "i foller", "icolor", "ecce", "erior", "ichor", "agricola", "change", "oracular", "oracle", "set your eye color to", "color of your eyes"],
+		"keyphrases" : ["eye color", "colo", "i call her", "i foller", "icolor", "ecce", "erior", "ichor", "agricola", "change", "oracular", "oracle", "set your eye color to", "color of your eyes", "make your eyes" ],
 		"requiresexact": false
 	},
 	{	
@@ -26,17 +26,17 @@
 	},
 	{	
 		"name": "intent_explore_start", 
-		"keyphrases" : ["start", "plor", "owing", "tailoring", "oding", "oring", "pling", "start exploring", "go explore"],
+		"keyphrases" : ["start", "plor", "owing", "tailoring", "oding", "oring", "pling", "start exploring", "go explore", "explore", "go exploring", "explore the house" ],
 		"requiresexact": false
 	},
 	{	
 		"name": "intent_system_charger", 
-		"keyphrases" : ["charge", "home", "go to your", "church", "find your ch", "charger", "your charger" ],
+		"keyphrases" : ["charge", "home", "go to your", "church", "find your ch", "charger", "your charger", "go to the charger", "go to your charger", "go charge", "charge yourself", "go home", "back to your charger", "go to your dock" ],
 		"requiresexact": false
 	},
 	{	
 		"name": "intent_system_sleep",
-		"keyphrases" : ["flee", "sleep", "sheep", "go to sleep" ],
+		"keyphrases" : ["flee", "sleep", "sheep", "go to sleep", "take a nap", "time to sleep", "time for bed", "bedtime" ],
 		"requiresexact": false
 	},
 	{	
@@ -51,12 +51,12 @@
 	},
 		{	
 		"name": "intent_greeting_goodnight", 
-		"keyphrases" : ["night", "might", "goodnight" ],
+		"keyphrases" : ["night", "might", "goodnight", "good night" ],
 		"requiresexact": false
 	},
 		{	
 		"name": "intent_greeting_goodbye", 
-		"keyphrases" : ["good bye", "good by", "good buy", "goodbye", "see you later" ],
+		"keyphrases" : ["good bye", "good by", "good buy", "goodbye", "see you later", "bye bye", "bye", "see you soon" ],
 		"requiresexact": false
 	},
 	{	
@@ -91,12 +91,12 @@
 	},
 	{	
 		"name": "intent_imperative_turnleft", 
-		"keyphrases" : ["rn left", "go left", "e left", "ed left", "ernest", "turn left" ],
+		"keyphrases" : ["rn left", "go left", "e left", "ed left", "ernest", "turn left", "turn to the left", "turn to your left" ],
 		"requiresexact": false
 	},
 	{	
 		"name": "intent_imperative_turnright", 
-		"keyphrases" : ["rn right", "go right", "e right", "ernie", "credit", "ed right", "turn right" ],
+		"keyphrases" : ["rn right", "go right", "e right", "ernie", "credit", "ed right", "turn right", "turn to the right", "turn to your right" ],
 		"requiresexact": false
 	},
 	{	
@@ -111,12 +111,12 @@
 	},
 	{	
 		"name": "intent_play_fistbump", 
-		"keyphrases" : ["this pomp", "this pump", "bump", "fistb", "fistf", "this book", "pisto", "with pomp", "fison", "first", "fifth", "were fifteen", "if bump", "wisdom", "this bu", "fist bomb", "fist ball", "this ball", "system", "fistbump", "fist bump" ],
+		"keyphrases" : ["this pomp", "this pump", "bump", "fistb", "fistf", "this book", "pisto", "with pomp", "fison", "first", "fifth", "were fifteen", "if bump", "wisdom", "this bu", "fist bomb", "fist ball", "this ball", "system", "fistbump", "fist bump", "give me a fist bump", "give me a fistbump" ],
 		"requiresexact": false
 	},
 		{	
 		"name": "intent_play_blackjack", 
-		"keyphrases" : ["black", "cards", "game", "play blackjack", "card game" ],
+		"keyphrases" : ["black", "cards", "game", "play blackjack", "card game", "blackjack", "play some blackjack", "play cards" ],
 		"requiresexact": false
 	},
 		{	
@@ -156,12 +156,12 @@
 	},
 	{	
 		"name": "intent_imperative_volumedown",
-		"keyphrases" : ["all you down", "volume down", "down volume", "down the volume", "quieter", "turn the volume down", "be quieter" ],
+		"keyphrases" : ["all you down", "volume down", "down volume", "down the volume", "quieter", "turn the volume down", "be quieter", "lower the volume", "turn it down", "turn down the volume" ],
 		"requiresexact": false
 	},
 	{	
 		"name": "intent_imperative_volumeup", 
-		"keyphrases" : ["all you up", "volume up", "up volume", "up the volume", "louder" ],
+		"keyphrases" : ["all you up", "volume up", "up volume", "up the volume", "louder", "turn it up", "turn up the volume" ],
 		"requiresexact": false
 	},
 	{	
@@ -171,7 +171,7 @@
 	},
 	{	
 		"name": "intent_imperative_volumelevel_extend",
-		"keyphrases" : ["all you", "volume", "loudness", "change your volume", "set the volume" ],
+		"keyphrases" : ["all you", "volume", "loudness", "change your volume", "set the volume", "set your volume" ],
 		"requiresexact": false
 	},
 	{	
@@ -186,7 +186,7 @@
 	},
 	{	
 		"name": "intent_imperative_come", 
-		"keyphrases" : ["come to me", "come here" ],
+		"keyphrases" : ["come to me", "come here", "come over here", "come closer" ],
 		"requiresexact": false
 	},
 	{	
@@ -231,7 +231,7 @@
 	},
 	{	
 		"name": "intent_play_pickupcube",
-		"keyphrases" : ["pickup", "pick up", "pick up the cube", "pickup the cube" ],
+		"keyphrases" : ["pickup", "pick up", "pick up the cube", "pickup the cube", "pick your cube up", "pick up your cube" ],
 		"requiresexact": false
 	},
 	{	
@@ -246,7 +246,7 @@
 	},
 	{	
 		"name": "intent_play_anytrick", 
-		"keyphrases" : ["trick", "something cool", "some thing cool", "do a trick", "a trick" ],
+		"keyphrases" : ["trick", "something cool", "some thing cool", "do a trick", "a trick", "do a cool trick", "show me a trick" ],
 		"requiresexact": false
 	},
 	{	
@@ -256,7 +256,7 @@
 	},
 	{	
 		"name": "intent_message_playmessage_extend", 
-		"keyphrases" : ["play message", "play method", "play a message", "play a method", "play my message" ],
+		"keyphrases" : ["play message", "play method", "play a message", "play a method", "play my message", "play the message" ],
 		"requiresexact": false
 	},
 		{	
