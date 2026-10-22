@@ -1,0 +1,82 @@
+# Held-out natural sentences for the intent audit, written after the 2026-10-20 cleaning and never used to tune
+# the lists or the rule. lang\ttext\texpected\tsource
+en	How old is your grandfather?	none	holdout
+en	What time does the store close?	none	holdout
+en	I never liked broccoli.	none	holdout
+en	Is the weather on Mars cold?	none	holdout
+en	What's the first letter of the alphabet?	none	holdout
+en	Can you tell me who won the game last night?	none	holdout
+en	Why do people say good luck?	none	holdout
+en	How do I turn left on a bike safely?	none	holdout
+en	What's the name of the tallest mountain?	none	holdout
+en	Tell me about the moon landing.	none	holdout
+en	Who invented the telephone?	none	holdout
+en	I'm happy to see you learning so fast.	none	holdout
+en	What's a good movie for tonight?	none	holdout
+en	How do you say thank you in Japanese?	none	holdout
+en	Do robots dream?	none	holdout
+en	What is the speed of light?	none	holdout
+en	Explain how vaccines work.	none	holdout
+en	What's the best pizza topping?	none	holdout
+en	How many legs does a spider have?	none	holdout
+en	Why is the ocean salty?	none	holdout
+en	What should I cook for dinner?	none	holdout
+en	Who is your favorite superhero?	none	holdout
+en	What's the time complexity of quicksort?	none	holdout
+en	Tell me a fun fact about penguins.	none	holdout
+en	Can you explain photosynthesis?	none	holdout
+en	What do you know about black holes?	none	holdout
+en	Where do rainbows come from?	none	holdout
+en	I had a bad day at work.	none	holdout
+en	My dog loves to play with a ball.	none	holdout
+en	What music do you like to listen to?	none	holdout
+en	How far away is the sun?	none	holdout
+en	What's the capital of Australia?	none	holdout
+en	Do you know any riddles?	none	holdout
+en	How do I fix a flat tire?	none	holdout
+en	What are you thinking about?	none	holdout
+en	Is chocolate good for you?	none	holdout
+en	What's the difference between a frog and a toad?	none	holdout
+en	Why do leaves change color in autumn?	none	holdout
+en	How do I learn to play the guitar?	none	holdout
+en	What does a timer do in a microwave?	none	holdout
+es	¿Cuántos años tiene la Tierra?	none	holdout
+es	¿A qué hora cierra el supermercado?	none	holdout
+es	Nunca me ha gustado el brócoli.	none	holdout
+es	¿Hace frío en Marte?	none	holdout
+es	¿Cuál es la primera letra del abecedario?	none	holdout
+es	¿Quién ganó el partido de anoche?	none	holdout
+es	¿Por qué la gente dice buena suerte?	none	holdout
+es	¿Cómo se gira a la izquierda en bicicleta?	none	holdout
+es	¿Cómo se llama la montaña más alta?	none	holdout
+es	Háblame de la llegada a la luna.	none	holdout
+es	¿Quién inventó el teléfono?	none	holdout
+es	Me alegra verte aprender tan rápido.	none	holdout
+es	¿Qué película veo esta noche?	none	holdout
+es	¿Cómo se dice gracias en japonés?	none	holdout
+es	¿Los robots sueñan?	none	holdout
+es	¿Cuál es la velocidad de la luz?	none	holdout
+es	Explícame cómo funcionan las vacunas.	none	holdout
+es	¿Cuál es el mejor ingrediente para la pizza?	none	holdout
+es	¿Cuántas patas tiene una araña?	none	holdout
+es	¿Por qué el mar es salado?	none	holdout
+es	¿Qué cocino para la cena?	none	holdout
+es	¿Quién es tu superhéroe favorito?	none	holdout
+es	Dime un dato curioso sobre los pingüinos.	none	holdout
+es	¿Me explicas la fotosíntesis?	none	holdout
+es	¿De dónde salen los arcoíris?	none	holdout
+es	Tuve un mal día en el trabajo.	none	holdout
+es	A mi perro le encanta jugar con la pelota.	none	holdout
+es	¿Qué música te gusta escuchar?	none	holdout
+es	¿Qué tan lejos está el sol?	none	holdout
+es	¿Cuál es la capital de Australia?	none	holdout
+es	¿Sabes alguna adivinanza?	none	holdout
+es	¿Cómo arreglo una llanta pinchada?	none	holdout
+es	¿En qué estás pensando?	none	holdout
+es	¿El chocolate es bueno para la salud?	none	holdout
+es	¿Qué diferencia hay entre una rana y un sapo?	none	holdout
+es	¿Por qué las hojas cambian de color en otoño?	none	holdout
+es	¿Cómo aprendo a tocar la guitarra?	none	holdout
+es	Mañana voy al médico por la tarde.	none	holdout
+es	No entiendo la tarea de matemáticas.	none	holdout
+es	¿Qué opinas de los volcanes?	none	holdout

@@ -1,0 +1,52 @@
+# Second held-out set (robot-wake T7, 2026-10-21): written after the T7 keyphrase additions and never used to tune
+# the lists or the rule. lang\ttext\texpected\tsource
+en	Could you head back to your charger?	intent_system_charger	holdout2
+en	Time to recharge, go dock yourself.	intent_system_charger	holdout2
+en	Go back home, Vector.	intent_system_charger	holdout2
+en	Get some sleep.	intent_system_sleep	holdout2
+en	Go to sleep now, buddy.	intent_system_sleep	holdout2
+en	Spin around.	intent_imperative_turnaround	holdout2
+en	Turn left a little.	intent_imperative_turnleft	holdout2
+en	Turn right, please.	intent_imperative_turnright	holdout2
+en	Look left.	intent_imperative_turnleft	holdout2
+en	Drive forward.	intent_imperative_forward	holdout2
+en	Back up a little.	intent_imperative_backup	holdout2
+en	Bump my fist.	intent_play_fistbump	holdout2
+en	Let's play a game of blackjack.	intent_play_blackjack	holdout2
+en	Go explore around.	intent_explore_start	holdout2
+en	Come here, Vector.	intent_imperative_come	holdout2
+en	Can you dance for me?	intent_imperative_dance	holdout2
+en	Turn the volume up.	intent_imperative_volumeup	holdout2
+en	Be a bit quieter.	intent_imperative_volumedown	holdout2
+en	Change your eye color to purple.	intent_imperative_eyecolor	holdout2
+en	Show me a cool trick.	intent_play_anytrick	holdout2
+en	Roll your cube.	intent_play_rollcube	holdout2
+en	Pop a wheelie for me.	intent_play_popawheelie	holdout2
+en	Take a photo of me.	intent_photo_take_extend	holdout2
+en	Set a timer for five minutes.	intent_clock_settimer_extend	holdout2
+en	Goodbye, Vector.	intent_greeting_goodbye	holdout2
+es	Vuelve a tu cargador.	intent_system_charger	holdout2
+es	Ve a recargarte.	intent_system_charger	holdout2
+es	Regresa a tu base.	intent_system_charger	holdout2
+es	Vete a la cama.	intent_system_sleep	holdout2
+es	Duérmete ya.	intent_system_sleep	holdout2
+es	Echa una siestita.	intent_system_sleep	holdout2
+es	Gira a la izquierda un poco.	intent_imperative_turnleft	holdout2
+es	Gírate a la derecha.	intent_imperative_turnright	holdout2
+es	Date la vuelta, por favor.	intent_imperative_turnaround	holdout2
+es	Avanza un poco.	intent_imperative_forward	holdout2
+es	Retrocede.	intent_imperative_backup	holdout2
+es	Choca el puño conmigo.	intent_play_fistbump	holdout2
+es	Juguemos al blackjack.	intent_play_blackjack	holdout2
+es	Sal a explorar la casa.	intent_explore_start	holdout2
+es	Ven aquí, Vector.	intent_imperative_come	holdout2
+es	Baila un poco.	intent_imperative_dance	holdout2
+es	Sube el volumen.	intent_imperative_volumeup	holdout2
+es	Baja el volumen un poco.	intent_imperative_volumedown	holdout2
+es	Cambia el color de tus ojos a morado.	intent_imperative_eyecolor	holdout2
+es	Haz un truco genial.	intent_play_anytrick	holdout2
+es	Haz rodar el cubo.	intent_play_rollcube	holdout2
+es	Haz un caballito.	intent_play_popawheelie	holdout2
+es	Tómame una foto.	intent_photo_take_extend	holdout2
+es	Pon un temporizador de cinco minutos.	intent_clock_settimer_extend	holdout2
+es	Adiós, Vector.	intent_greeting_goodbye	holdout2

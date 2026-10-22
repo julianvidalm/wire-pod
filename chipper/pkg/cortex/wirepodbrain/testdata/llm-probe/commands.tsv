@@ -1,0 +1,34 @@
+# Natural commands with no keyphrase of their intent, for the LLM probe (cmd/intent-audit -llm, robot-wake T7):
+# indirect requests the keyphrase matcher cannot answer. lang\ttext\texpected\tsource
+en	Could you head back to your dock?	intent_system_charger	llmprobe
+en	Your battery must be low, go recharge.	intent_system_charger	llmprobe
+en	I think it's time for you to rest for a while.	intent_system_sleep	llmprobe
+en	Scoot forward a little bit.	intent_imperative_forward	llmprobe
+en	Move away from the edge, back off.	intent_imperative_backup	llmprobe
+en	Face the other way.	intent_imperative_turnaround	llmprobe
+en	Roll over to me.	intent_imperative_come	llmprobe
+en	Can you look at my face?	intent_imperative_lookatme	llmprobe
+en	Go have a look around the room.	intent_explore_start	llmprobe
+en	Show me your best moves.	intent_imperative_dance	llmprobe
+en	Impress me with something.	intent_play_anytrick	llmprobe
+en	Bring me that little block of yours.	intent_imperative_fetchcube	llmprobe
+en	Snap a picture of me.	intent_photo_take_extend	llmprobe
+en	I can barely hear you.	intent_imperative_volumeup	llmprobe
+en	Remind me in ten minutes.	intent_clock_settimer_extend	llmprobe
+en	I'm heading out now, see ya.	intent_greeting_goodbye	llmprobe
+es	¿Puedes volver a tu base?	intent_system_charger	llmprobe
+es	Tienes poca batería, ve a recargar.	intent_system_charger	llmprobe
+es	Creo que necesitas descansar un rato.	intent_system_sleep	llmprobe
+es	Muévete un poco hacia adelante.	intent_imperative_forward	llmprobe
+es	Aléjate del borde, échate para atrás.	intent_imperative_backup	llmprobe
+es	Mira hacia el otro lado.	intent_imperative_turnaround	llmprobe
+es	Acércate a mí.	intent_imperative_come	llmprobe
+es	¿Me puedes mirar a la cara?	intent_imperative_lookatme	llmprobe
+es	Recorre la habitación a ver qué encuentras.	intent_explore_start	llmprobe
+es	Enséñame cómo te mueves con música.	intent_imperative_dance	llmprobe
+es	Sorpréndeme con algo divertido.	intent_play_anytrick	llmprobe
+es	Trae tu bloque aquí.	intent_imperative_fetchcube	llmprobe
+es	Sácame una foto.	intent_photo_take_extend	llmprobe
+es	Casi no te escucho.	intent_imperative_volumeup	llmprobe
+es	Avísame en diez minutos.	intent_clock_settimer_extend	llmprobe
+es	Me voy ya, hasta mañana.	intent_greeting_goodbye	llmprobe

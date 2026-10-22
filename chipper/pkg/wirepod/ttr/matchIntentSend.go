@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	pb "github.com/digital-dream-labs/api/go/chipperpb"
 	"github.com/julianvidalm/wire-pod/chipper/pkg/logger"
@@ -239,6 +241,76 @@ func pluginFunctionHandler(req interface{}, voiceText string, botSerial string) 
 	return matched
 }
 
+// IntentMatch is the intent wire-pod's keyphrase matcher picks for a transcript: Phrase is the keyphrase that
+// matched (lower case) and Exact says it is the whole transcript (a perfect match), not a part of it.
+type IntentMatch struct {
+	Intent string
+	Phrase string
+	Exact  bool
+}
+
+// MatchIntent is ProcessTextAll's keyphrase matching without sending anything: the first keyphrase equal to
+// voiceText, otherwise the first one voiceText contains (skipping intents that require an exact match). Plugins and
+// custom intents are not consulted.
+func MatchIntent(voiceText string, intents []vars.JsonIntent) (IntentMatch, bool) {
+	return MatchIntentWith(voiceText, intents, false)
+}
+
+// MatchIntentWith is MatchIntent; with wordStart a partial match must also begin at the start of a word of
+// voiceText ("no" is not in "buenos", "correcto" not in "incorrecto"), while it may still end inside one (the
+// whisper fragments "fistb", "roll cu"). The cortex brain uses it; ProcessTextAll keeps plain substrings.
+func MatchIntentWith(voiceText string, intents []vars.JsonIntent, wordStart bool) (IntentMatch, bool) {
+	voiceText = strings.ToLower(voiceText)
+	same := func(c string) bool { return voiceText == c }
+	if wordStart { // the cortex also compares words, so whisper's punctuation ("No.") still matches exactly
+		text := PhraseWords(voiceText)
+		same = func(c string) bool { return voiceText == c || (text != "" && text == PhraseWords(c)) }
+	}
+	for _, b := range intents {
+		for _, c := range b.Keyphrases {
+			if same(strings.ToLower(c)) {
+				return IntentMatch{Intent: b.Name, Phrase: strings.ToLower(c), Exact: true}, true
+			}
+		}
+	}
+	for _, b := range intents {
+		for _, c := range b.Keyphrases {
+			if ContainsPhrase(voiceText, strings.ToLower(c), wordStart) && !b.RequireExactMatch {
+				return IntentMatch{Intent: b.Name, Phrase: strings.ToLower(c)}, true
+			}
+		}
+	}
+	return IntentMatch{}, false
+}
+
+// PhraseWords is s's words (letters, digits and apostrophes inside a word) in lower case, one space apart.
+func PhraseWords(s string) string {
+	return strings.Join(strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '\''
+	}), " ")
+}
+
+// ContainsPhrase says whether text holds phrase (both lower case); with wordStart only where phrase begins at
+// the start of a word of text.
+func ContainsPhrase(text, phrase string, wordStart bool) bool {
+	if !wordStart || phrase == "" {
+		return strings.Contains(text, phrase)
+	}
+	for from := 0; ; {
+		i := strings.Index(text[from:], phrase)
+		if i < 0 {
+			return false
+		}
+		at := from + i
+		prev, _ := utf8.DecodeLastRuneInString(text[:at])
+		if at == 0 || !(unicode.IsLetter(prev) || unicode.IsDigit(prev)) {
+			return true
+		}
+		_, size := utf8.DecodeRuneInString(text[at:])
+		from = at + size
+	}
+}
+
 func ProcessTextAll(req interface{}, voiceText string, intents []vars.JsonIntent, isOpus bool) bool {
 	var botSerial string
 	var req2 *vtt.IntentRequest
@@ -254,59 +326,24 @@ func ProcessTextAll(req interface{}, voiceText string, intents []vars.JsonIntent
 		req3 = str
 		botSerial = req3.Device
 	}
-	var matched int = 0
-	var intentNum int = 0
 	var successMatched bool = false
 	voiceText = strings.ToLower(voiceText)
 	pluginMatched := pluginFunctionHandler(req, voiceText, botSerial)
 	customIntentMatched := customIntentHandler(req, voiceText, botSerial)
 	if !customIntentMatched && !pluginMatched {
 		logger.Println("Not a custom intent")
-		// Look for a perfect match first
-		for _, b := range intents {
-			for _, c := range b.Keyphrases {
-				if voiceText == strings.ToLower(c) {
-					logger.Println("Bot " + botSerial + " Perfect match for intent " + b.Name + " (" + strings.ToLower(c) + ")")
-					if isOpus {
-						ParamChecker(req, b.Name, voiceText, botSerial)
-					} else {
-						prehistoricParamChecker(req, b.Name, voiceText)
-					}
-					successMatched = true
-					matched = 1
-					break
-				}
+		if m, ok := MatchIntent(voiceText, intents); ok {
+			kind := "Partial"
+			if m.Exact {
+				kind = "Perfect"
 			}
-			if matched == 1 {
-				matched = 0
-				break
+			logger.Println("Bot " + botSerial + " " + kind + " match for intent " + m.Intent + " (" + m.Phrase + ")")
+			if isOpus {
+				ParamChecker(req, m.Intent, voiceText, botSerial)
+			} else {
+				prehistoricParamChecker(req, m.Intent, voiceText)
 			}
-			intentNum = intentNum + 1
-		}
-		// Not found? Then let's be happy with a bare substring search
-		if !successMatched {
-			intentNum = 0
-			matched = 0
-			for _, b := range intents {
-				for _, c := range b.Keyphrases {
-					if strings.Contains(voiceText, strings.ToLower(c)) && !b.RequireExactMatch {
-						logger.Println("Bot " + botSerial + " Partial match for intent " + b.Name + " (" + strings.ToLower(c) + ")")
-						if isOpus {
-							ParamChecker(req, b.Name, voiceText, botSerial)
-						} else {
-							prehistoricParamChecker(req, b.Name, voiceText)
-						}
-						successMatched = true
-						matched = 1
-						break
-					}
-				}
-				if matched == 1 {
-					matched = 0
-					break
-				}
-				intentNum = intentNum + 1
-			}
+			successMatched = true
 		}
 	} else {
 		logger.Println("This is a custom intent or plugin!")

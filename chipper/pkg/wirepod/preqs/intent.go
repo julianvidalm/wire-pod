@@ -12,6 +12,10 @@ import (
 
 // This is here for compatibility with 1.6 and older software
 func (s *Server) ProcessIntent(req *vtt.IntentRequest) (*vtt.IntentResponse, error) {
+	if VoiceRequest != nil {
+		VoiceRequest(req)
+		return nil, nil
+	}
 	var successMatched bool
 	speechReq := sr.ReqToSpeechRequest(req)
 	var transcribedText string

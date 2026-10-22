@@ -77,7 +77,7 @@ func grpcServe(l net.Listener, p *wp.Server) error {
 	chipperpb.RegisterChipperGrpcServer(srv.Transport(), s)
 	jdocspb.RegisterJdocsServer(srv.Transport(), jdocsServer)
 	tokenpb.RegisterTokenServer(srv.Transport(), tokenServer)
-	// Robots stream their microphone here (MicTap); the robot is the client, see pkg/mictap.
+	// Robots hold their MicTap command link here (the robot is the client, see pkg/servers/mictap).
 	mictappb.RegisterMicTapServer(srv.Transport(), micTapServer())
 
 	return srv.Transport().Serve(l)
@@ -96,6 +96,7 @@ func BeginWirepodSpecific(sttInitFunc func() error, sttHandlerFunc interface{}, 
 	if err != nil {
 		return err
 	}
+	installVoiceRequests()
 	return nil
 }
 

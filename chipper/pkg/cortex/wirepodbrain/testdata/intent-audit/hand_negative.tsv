@@ -1,0 +1,105 @@
+# Hand-written for the intent audit (cmd/intent-audit). lang\ttext\texpected\tsource; expected none = not a command.
+en	What time zone is Paris in?	none	hand
+en	I'd be happy to help you with that.	none	hand
+en	What's the first thing you remember?	none	hand
+en	Tell me about the history of Christmas.	none	hand
+en	How old is the universe?	none	hand
+en	Can you explain how a black hole works?	none	hand
+en	What game should I play tonight?	none	hand
+en	What is your favorite color?	none	hand
+en	Who was the first president of the United States?	none	hand
+en	How do I say good morning in French?	none	hand
+en	What does the word forward mean?	none	hand
+en	Explain the difference between stand and sit.	none	hand
+en	Why is the sky blue?	none	hand
+en	Tell me a story about a dragon.	none	hand
+en	What's two plus two?	none	hand
+en	Who wrote Romeo and Juliet?	none	hand
+en	How do airplanes fly?	none	hand
+en	Can you recommend a good book?	none	hand
+en	What's your favorite movie?	none	hand
+en	How far is the moon?	none	hand
+en	What is machine learning?	none	hand
+en	Give me a recipe for pancakes.	none	hand
+en	What's the meaning of life?	none	hand
+en	How do I make a cup of tea?	none	hand
+en	What do you think about music?	none	hand
+en	I had a great time at the party.	none	hand
+en	Is it good to drink coffee at night?	none	hand
+en	What happened in the first world war?	none	hand
+en	Do you like playing cards?	none	hand
+en	What's the difference between a cube and a sphere?	none	hand
+en	How do you pick up a new language quickly?	none	hand
+en	Tell me something interesting about volcanoes.	none	hand
+en	Why do cats sleep so much?	none	hand
+en	What's the best way to back up my computer?	none	hand
+en	How many hours of sleep do I need?	none	hand
+en	What's a good name for a dog?	none	hand
+en	Is it going to be a good year for the economy?	none	hand
+en	I love pizza, what's your favorite food?	none	hand
+en	How do I record my screen on Linux?	none	hand
+en	Can you explain the present perfect tense?	none	hand
+en	Who is the best soccer player in the world?	none	hand
+en	How long does it take to get to Paris by train?	none	hand
+en	Translate hello into Spanish.	none	hand
+en	Tell me a joke.	none	hand
+en	Can you explain me the first conditional please?	none	hand
+en	What do you think about the first conditional?	none	hand
+en	I'm Vector. Happy to chat with you. What can I do for you today?	none	hand
+en	What's the time difference between London and Tokyo?	none	hand
+en	My sister had a good morning at school.	none	hand
+en	I never thought about that.	none	hand
+en	How do you play chess?	none	hand
+en	Do you know any good songs to dance to?	none	hand
+en	What's the weather like on Mars?	none	hand
+en	Is it bad to stay up late?	none	hand
+es	¿Cuál es la capital de Canadá?	none	hand
+es	Cuéntame un chiste.	none	hand
+es	¿Qué opinas de la música clásica?	none	hand
+es	¿Por qué el cielo es azul?	none	hand
+es	Explícame el primer condicional.	none	hand
+es	¿Cómo se dice buenos días en francés?	none	hand
+es	Mañana tengo una reunión importante, ¿algún consejo?	none	hand
+es	¿Qué es un agujero negro?	none	hand
+es	Cuéntame una historia de dragones.	none	hand
+es	¿Quién escribió Don Quijote?	none	hand
+es	¿Cómo funcionan los aviones?	none	hand
+es	Recomiéndame un libro.	none	hand
+es	¿Cuál es tu película favorita?	none	hand
+es	¿Qué tan lejos está la luna?	none	hand
+es	¿Qué es el aprendizaje automático?	none	hand
+es	Dame una receta de panqueques.	none	hand
+es	¿Cuál es el sentido de la vida?	none	hand
+es	¿Cómo preparo un té?	none	hand
+es	¿Te gustan los juegos de cartas?	none	hand
+es	Ayer vi una película muy buena.	none	hand
+es	¿Cuántas horas debo dormir?	none	hand
+es	¿Qué nombre le pongo a mi perro?	none	hand
+es	Me encanta la pizza, ¿cuál es tu comida favorita?	none	hand
+es	¿Cómo grabo la pantalla en Linux?	none	hand
+es	Explícame el pretérito perfecto.	none	hand
+es	¿Quién es el mejor futbolista del mundo?	none	hand
+es	¿Cuánto se tarda en tren a Madrid?	none	hand
+es	Traduce hola al inglés.	none	hand
+es	¿Qué pasó en la primera guerra mundial?	none	hand
+es	¿Qué diferencia hay entre un cubo y una esfera?	none	hand
+es	¿Cómo aprendo un idioma rápido?	none	hand
+es	Háblame de los volcanes.	none	hand
+es	¿Por qué los gatos duermen tanto?	none	hand
+es	¿Es bueno tomar café en la noche?	none	hand
+es	Mi mamá dice que la tarde es el mejor momento para caminar.	none	hand
+es	No sé qué hacer este fin de semana.	none	hand
+es	¿Cómo se juega al ajedrez?	none	hand
+es	¿Qué canciones son buenas para bailar?	none	hand
+es	¿Me explicas cómo funciona la fotosíntesis?	none	hand
+es	¿Cuántos planetas hay en el sistema solar?	none	hand
+es	¿Por qué se celebra la Navidad en diciembre?	none	hand
+es	¿Qué significa la palabra adelante en inglés?	none	hand
+es	Dime un dato curioso sobre los delfines.	none	hand
+es	¿Cuál es el río más largo del mundo?	none	hand
+es	¿Qué me recomiendas para cenar hoy?	none	hand
+es	Mi hermano juega fútbol los sábados.	none	hand
+es	¿Cómo se hace una paella?	none	hand
+es	¿Quién pintó la Mona Lisa?	none	hand
+es	¿Qué es la inteligencia artificial?	none	hand
+es	¿Cuál es tu animal favorito?	none	hand

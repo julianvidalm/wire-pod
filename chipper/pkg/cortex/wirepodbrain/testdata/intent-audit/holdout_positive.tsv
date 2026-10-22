@@ -1,0 +1,214 @@
+# Held-out natural sentences for the intent audit, written after the 2026-10-20 cleaning and never used to tune
+# the lists or the rule. lang\ttext\texpected\tsource
+en	You can call me Ana.	intent_names_username_extend	holdout
+en	My name's Ana.	intent_names_username_extend	holdout
+en	How's the weather?	intent_weather_extend	holdout
+en	Is it going to rain tomorrow?	intent_weather_extend	holdout
+en	Do you remember who I am?	intent_names_ask	holdout
+en	Say my name.	intent_names_ask	holdout
+en	Make your eyes green.	intent_imperative_eyecolor	holdout
+en	Change your eye color to purple.	intent_imperative_eyecolor	holdout
+en	How old are you now?	intent_character_age	holdout
+en	When were you born?	intent_character_age	holdout
+en	Go and explore the house.	intent_explore_start	holdout
+en	Explore a bit.	intent_explore_start	holdout
+en	Go charge yourself.	intent_system_charger	holdout
+en	Return to your charger.	intent_system_charger	holdout
+en	You can go to sleep now.	intent_system_sleep	holdout
+en	Take a nap.	intent_system_sleep	holdout
+en	Morning, Vector!	intent_greeting_goodmorning	holdout
+en	Good afternoon to you.	intent_greeting_goodmorning	holdout
+en	Good night, sleep well.	intent_greeting_goodnight	holdout
+en	Night, Vector.	intent_greeting_goodnight	holdout
+en	Bye bye.	intent_greeting_goodbye	holdout
+en	See you later!	intent_greeting_goodbye	holdout
+en	Happy new year to you!	intent_seasonal_happynewyear	holdout
+en	Happy new year, little robot.	intent_seasonal_happynewyear	holdout
+en	Happy holidays to you.	intent_seasonal_happyholidays	holdout
+en	Merry Christmas to you!	intent_seasonal_happyholidays	holdout
+en	Sign in to Alexa now.	intent_amazon_signin	holdout
+en	Log out of Alexa.	intent_amazon_signin	holdout
+en	Go forward a bit.	intent_imperative_forward	holdout
+en	Move forward please.	intent_imperative_forward	holdout
+en	Turn around, Vector.	intent_imperative_turnaround	holdout
+en	Spin around.	intent_imperative_turnaround	holdout
+en	Turn to the left.	intent_imperative_turnleft	holdout
+en	Please turn left.	intent_imperative_turnleft	holdout
+en	Turn to the right.	intent_imperative_turnright	holdout
+en	Please turn right.	intent_imperative_turnright	holdout
+en	Roll your cube around.	intent_play_rollcube	holdout
+en	Can you roll the cube?	intent_play_rollcube	holdout
+en	Pop a wheelie for me.	intent_play_popawheelie	holdout
+en	Can you do a wheelie?	intent_play_popawheelie	holdout
+en	Fist bump, buddy!	intent_play_fistbump	holdout
+en	Give me a fistbump.	intent_play_fistbump	holdout
+en	Let's play some blackjack.	intent_play_blackjack	holdout
+en	Do you want to play cards?	intent_play_blackjack	holdout
+en	Yes, do it.	intent_imperative_affirmative	holdout
+en	Sure, go ahead.	intent_imperative_affirmative	holdout
+en	No!	intent_imperative_negative	holdout
+en	Don't.	intent_imperative_negative	holdout
+en	Take my picture.	intent_photo_take_extend	holdout
+en	Take a photo.	intent_photo_take_extend	holdout
+en	Good job!	intent_imperative_praise	holdout
+en	That was awesome.	intent_imperative_praise	holdout
+en	You're a bad robot.	intent_imperative_abuse	holdout
+en	I hate this robot.	intent_imperative_abuse	holdout
+en	Sorry about that.	intent_imperative_apologize	holdout
+en	I'm so sorry.	intent_imperative_apologize	holdout
+en	Back up please.	intent_imperative_backup	holdout
+en	Move backwards.	intent_imperative_backup	holdout
+en	Lower the volume.	intent_imperative_volumedown	holdout
+en	Turn it down, volume down.	intent_imperative_volumedown	holdout
+en	Turn it up louder.	intent_imperative_volumeup	holdout
+en	Volume up please.	intent_imperative_volumeup	holdout
+en	Look at me please.	intent_imperative_lookatme	holdout
+en	Hey, look at me.	intent_imperative_lookatme	holdout
+en	Volume five.	intent_imperative_volumelevel_extend	holdout
+en	Set your volume to low.	intent_imperative_volumelevel_extend	holdout
+en	Shut up already.	intent_imperative_shutup	holdout
+en	Please shut up.	intent_imperative_shutup	holdout
+en	Hello there!	intent_greeting_hello	holdout
+en	Hi, how are you doing?	intent_greeting_hello	holdout
+en	Come over here.	intent_imperative_come	holdout
+en	Come to me, Vector.	intent_imperative_come	holdout
+en	I really love you.	intent_imperative_love	holdout
+en	Love you, buddy.	intent_imperative_love	holdout
+en	Can we talk?	intent_knowledge_promptquestion	holdout
+en	I've got a question.	intent_knowledge_promptquestion	holdout
+en	Check the timer please.	intent_clock_checktimer	holdout
+en	How much is left on the timer?	intent_clock_checktimer	holdout
+en	Cancel the timer please.	intent_global_stop_extend	holdout
+en	Stop the timer now.	intent_global_stop_extend	holdout
+en	Set a timer for twenty minutes.	intent_clock_settimer_extend	holdout
+en	Start a timer for one minute.	intent_clock_settimer_extend	holdout
+en	What's the time now?	intent_clock_time	holdout
+en	Do you know what time it is?	intent_clock_time	holdout
+en	Quiet please.	intent_imperative_quiet	holdout
+en	Be quiet for a moment.	intent_imperative_quiet	holdout
+en	Dance for me.	intent_imperative_dance	holdout
+en	Let's dance!	intent_imperative_dance	holdout
+en	Pick up the cube please.	intent_play_pickupcube	holdout
+en	Pick your cube up.	intent_play_pickupcube	holdout
+en	Bring me the cube please.	intent_imperative_fetchcube	holdout
+en	Go fetch your cube.	intent_imperative_fetchcube	holdout
+en	Find the cube.	intent_imperative_findcube	holdout
+en	Go find your cube.	intent_imperative_findcube	holdout
+en	Show me something cool.	intent_play_anytrick	holdout
+en	Do a cool trick.	intent_play_anytrick	holdout
+en	Record a message for mom.	intent_message_recordmessage_extend	holdout
+en	Can you record a message?	intent_message_recordmessage_extend	holdout
+en	Play the message.	intent_message_playmessage_extend	holdout
+en	Play a message for me.	intent_message_playmessage_extend	holdout
+en	Hit me.	intent_blackjack_hit	holdout
+en	Hit, please.	intent_blackjack_hit	holdout
+en	I stand.	intent_blackjack_stand	holdout
+en	Stand.	intent_blackjack_stand	holdout
+en	Let's play keepaway.	intent_play_keepaway	holdout
+en	Play keep away with me.	intent_play_keepaway	holdout
+es	Mi nombre es Ana.	intent_names_username_extend	holdout
+es	Me llamo Ana, ¿y tú?	intent_names_username_extend	holdout
+es	¿Qué tiempo va a hacer hoy?	intent_weather_extend	holdout
+es	¿Cómo está el tiempo afuera?	intent_weather_extend	holdout
+es	¿Sabes cómo me llamo?	intent_names_ask	holdout
+es	¿Te acuerdas de quién soy?	intent_names_ask	holdout
+es	Cambia el color de los ojos.	intent_imperative_eyecolor	holdout
+es	Ponte los ojos verdes.	intent_imperative_eyecolor	holdout
+es	¿Y tú cuántos años tienes?	intent_character_age	holdout
+es	¿Qué edad tienes?	intent_character_age	holdout
+es	Vete a explorar un rato.	intent_explore_start	holdout
+es	Explora un poco.	intent_explore_start	holdout
+es	Vete al cargador.	intent_system_charger	holdout
+es	Ve a cargarte.	intent_system_charger	holdout
+es	Ya ve a dormir.	intent_system_sleep	holdout
+es	Hora de ir a la cama.	intent_system_sleep	holdout
+es	¡Buenos días, Vector!	intent_greeting_goodmorning	holdout
+es	Buenas tardes, robot.	intent_greeting_goodmorning	holdout
+es	Buenas noches, que descanses.	intent_greeting_goodnight	holdout
+es	¡Buenas noches!	intent_greeting_goodnight	holdout
+es	Adiós, Vector.	intent_greeting_goodbye	holdout
+es	Hasta luego, robot.	intent_greeting_goodbye	holdout
+es	¡Feliz año nuevo, Vector!	intent_seasonal_happynewyear	holdout
+es	Feliz año nuevo para ti.	intent_seasonal_happynewyear	holdout
+es	¡Feliz Navidad, robot!	intent_seasonal_happyholidays	holdout
+es	Felices fiestas, Vector.	intent_seasonal_happyholidays	holdout
+es	Activa Alexa ahora.	intent_amazon_signin	holdout
+es	Apaga Alexa.	intent_amazon_signin	holdout
+es	Ve adelante.	intent_imperative_forward	holdout
+es	Sigue adelante.	intent_imperative_forward	holdout
+es	Gira, gira.	intent_imperative_turnaround	holdout
+es	Date una vuelta.	intent_imperative_turnaround	holdout
+es	Gira hacia la izquierda.	intent_imperative_turnleft	holdout
+es	Ve a la izquierda, por favor.	intent_imperative_turnleft	holdout
+es	Gira hacia la derecha.	intent_imperative_turnright	holdout
+es	Ve a la derecha, por favor.	intent_imperative_turnright	holdout
+es	Haz rodar tu cubo.	intent_play_rollcube	holdout
+es	Juega con el cubo un rato.	intent_play_rollcube	holdout
+es	Silba algo.	intent_play_popawheelie	holdout
+es	Hazme un caballito.	intent_play_popawheelie	holdout
+es	¡Dame el cinco, amigo!	intent_play_fistbump	holdout
+es	Choca el puño, golpe de puño.	intent_play_fistbump	holdout
+es	¿Jugamos blackjack?	intent_play_blackjack	holdout
+es	Quiero jugar a la veintiuna.	intent_play_blackjack	holdout
+es	Sí, claro.	intent_imperative_affirmative	holdout
+es	Es correcto.	intent_imperative_affirmative	holdout
+es	No, no.	intent_imperative_negative	holdout
+es	Eso es falso.	intent_imperative_negative	holdout
+es	Sácame una foto.	intent_photo_take_extend	holdout
+es	Hazme una foto.	intent_photo_take_extend	holdout
+es	¡Muy bien, genial!	intent_imperative_praise	holdout
+es	¡Bravo, Vector!	intent_imperative_praise	holdout
+es	Eres un robot malo.	intent_imperative_abuse	holdout
+es	Qué estúpido eres.	intent_imperative_abuse	holdout
+es	Perdón, lo siento.	intent_imperative_apologize	holdout
+es	Lo siento por eso.	intent_imperative_apologize	holdout
+es	Regresa atrás.	intent_imperative_backup	holdout
+es	Ve hacia atrás un poco.	intent_imperative_backup	holdout
+es	Baja el volumen un poco.	intent_imperative_volumedown	holdout
+es	Baja un poco el volumen.	intent_imperative_volumedown	holdout
+es	Sube el volumen un poco.	intent_imperative_volumeup	holdout
+es	Sube un poco el volumen.	intent_imperative_volumeup	holdout
+es	¡Mírame!	intent_imperative_lookatme	holdout
+es	Mírame un momento.	intent_imperative_lookatme	holdout
+es	Pon el volumen bajo.	intent_imperative_volumelevel_extend	holdout
+es	Volumen al máximo.	intent_imperative_volumelevel_extend	holdout
+es	¡Cállate ya, por favor!	intent_imperative_shutup	holdout
+es	Cállate un momento.	intent_imperative_shutup	holdout
+es	¡Hola, Vector!	intent_greeting_hello	holdout
+es	Hola, ¿cómo estás?	intent_greeting_hello	holdout
+es	Ven acá.	intent_imperative_come	holdout
+es	Ven aquí, por favor.	intent_imperative_come	holdout
+es	Te quiero mucho.	intent_imperative_love	holdout
+es	Te amo, robot.	intent_imperative_love	holdout
+es	Tengo una pregunta para ti.	intent_knowledge_promptquestion	holdout
+es	¿Puedo hacerte una pregunta?	intent_knowledge_promptquestion	holdout
+es	¿Cuánto falta para el temporizador?	intent_clock_checktimer	holdout
+es	Comprueba el cronómetro.	intent_clock_checktimer	holdout
+es	Para el temporizador, por favor.	intent_global_stop_extend	holdout
+es	Detén el temporizador.	intent_global_stop_extend	holdout
+es	Pon un temporizador de diez minutos.	intent_clock_settimer_extend	holdout
+es	Empieza el cronómetro, por favor.	intent_clock_settimer_extend	holdout
+es	¿Me dices qué hora es?	intent_clock_time	holdout
+es	¿Qué hora es ahora?	intent_clock_time	holdout
+es	¡Basta ya!	intent_imperative_quiet	holdout
+es	Detente ahí.	intent_imperative_quiet	holdout
+es	¡Baila, Vector!	intent_imperative_dance	holdout
+es	Ponte a bailar, baila.	intent_imperative_dance	holdout
+es	Recoge eso.	intent_play_pickupcube	holdout
+es	Recoge, Vector.	intent_play_pickupcube	holdout
+es	Tráeme tu cubo.	intent_imperative_fetchcube	holdout
+es	Toma el cubo y tráelo.	intent_imperative_fetchcube	holdout
+es	Busca el cubo, por favor.	intent_imperative_findcube	holdout
+es	Encuentra tu cubo.	intent_imperative_findcube	holdout
+es	Sorpréndeme, Vector.	intent_play_anytrick	holdout
+es	Haz algo genial para mí.	intent_play_anytrick	holdout
+es	Graba un mensaje para mamá.	intent_message_recordmessage_extend	holdout
+es	Graba lo que digo.	intent_message_recordmessage_extend	holdout
+es	Reproduce el mensaje de mamá.	intent_message_playmessage_extend	holdout
+es	Lee el mensaje, por favor.	intent_message_playmessage_extend	holdout
+es	Hit.	intent_blackjack_hit	holdout
+es	Dame otra carta, por favor.	intent_blackjack_hit	holdout
+es	Me planto aquí.	intent_blackjack_stand	holdout
+es	Stand.	intent_blackjack_stand	holdout
+es	Vete.	intent_play_keepaway	holdout
+es	Váyase de aquí.	intent_play_keepaway	holdout

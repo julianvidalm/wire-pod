@@ -135,6 +135,11 @@ func removeEmojis(input string) string {
 }
 
 func CreateAIReq(transcribedText, esn string, gpt3tryagain, isKG bool) openai.ChatCompletionRequest {
+	return CreateAIReqWith(transcribedText, esn, gpt3tryagain, isKG, nil)
+}
+
+// CreateAIReqWith is CreateAIReq whose system prompt also lists the extra commands (CreatePromptWith).
+func CreateAIReqWith(transcribedText, esn string, gpt3tryagain, isKG bool, extra []LLMCommand) openai.ChatCompletionRequest {
 	defaultPrompt := "You are a helpful, animated robot called Vector. Keep the response concise yet informative."
 
 	var nChat []openai.ChatCompletionMessage
@@ -163,7 +168,7 @@ func CreateAIReq(transcribedText, esn string, gpt3tryagain, isKG bool) openai.Ch
 		model = vars.APIConfig.Knowledge.Model
 	}
 
-	smsg.Content = CreatePrompt(smsg.Content, model, isKG)
+	smsg.Content = CreatePromptWith(smsg.Content, model, isKG, extra)
 
 	nChat = append(nChat, smsg)
 	if vars.APIConfig.Knowledge.SaveChat {

@@ -32,6 +32,8 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: "1.26.x"
+          # Latest patch release, not the runner cache: govulncheck fails on a fixed standard library advisory.
+          check-latest: true
           cache-dependency-path: chipper/go.sum
 
       - name: Install native dependencies

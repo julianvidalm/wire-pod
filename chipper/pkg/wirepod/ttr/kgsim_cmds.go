@@ -30,6 +30,8 @@ const (
 	ActionNewRequest = 4
 	// arg: sound file
 	ActionPlaySound = 4
+	// arg: an intent name; only the cortex brain offers it (wirepodbrain), wire-pod's own LLM path does not
+	ActionRunIntent = 5
 )
 
 var animationMap [][2]string = [][2]string{
@@ -150,10 +152,16 @@ func ModelIsSupported(cmd LLMCommand, model string) bool {
 }
 
 func CreatePrompt(origPrompt string, model string, isKG bool) string {
+	return CreatePromptWith(origPrompt, model, isKG, nil)
+}
+
+// CreatePromptWith is CreatePrompt with extra commands listed after ValidLLMCommands, for a caller that also
+// handles them (the cortex brain's runIntent). wire-pod's own requests use CreatePrompt.
+func CreatePromptWith(origPrompt string, model string, isKG bool, extra []LLMCommand) string {
 	prompt := origPrompt + "\n\n" + "Keep in mind, user input comes from speech-to-text software, so respond accordingly. No special characters, especially these: & ^ * # @ - . No lists. No formatting."
 	if vars.APIConfig.Knowledge.CommandsEnable {
 		prompt = prompt + "\n\n" + "You are running ON an Anki Vector robot. You have a set of commands. If you include an emoji, I will make you start over. If you want to use a command but it doesn't exist or your desired parameter isn't in the list, avoid using the command. The format is {{command||parameter}}. You can embed these in sentences. Example: \"User: How are you feeling? | Response: \"{{playAnimationWI||sad}} I'm feeling sad...\". Square brackets ([]) are not valid.\n\nUse the playAnimation or playAnimationWI commands if you want to express emotion! You are very animated and good at following instructions. Animation takes precendence over words. You are to include many animations in your response.\n\nHere is every valid command:"
-		for _, cmd := range ValidLLMCommands {
+		for _, cmd := range append(append([]LLMCommand{}, ValidLLMCommands...), extra...) {
 			if ModelIsSupported(cmd, model) {
 				promptAppendage := "\n\nCommand Name: " + cmd.Command + "\nDescription: " + cmd.Description + "\nParameter choices: " + cmd.ParamChoices
 				prompt = prompt + promptAppendage
@@ -174,6 +182,11 @@ func CreatePrompt(origPrompt string, model string, isKG bool) string {
 }
 
 func GetActionsFromString(input string) []RobotAction {
+	return GetActionsFromStringWith(input, nil)
+}
+
+// GetActionsFromStringWith is GetActionsFromString that also recognizes the extra commands.
+func GetActionsFromStringWith(input string, extra []LLMCommand) []RobotAction {
 	splitInput := strings.Split(input, "{{")
 	if len(splitInput) == 1 {
 		return []RobotAction{
@@ -200,8 +213,11 @@ func GetActionsFromString(input string) []RobotAction {
 
 		cmdPlusParam := strings.Split(strings.TrimSpace(strings.Split(spl, "}}")[0]), "||")
 		cmd := strings.TrimSpace(cmdPlusParam[0])
-		param := strings.TrimSpace(cmdPlusParam[1])
-		action := CmdParamToAction(cmd, param)
+		param := ""
+		if len(cmdPlusParam) > 1 { // "{{command}}" without a parameter used to panic here
+			param = strings.TrimSpace(cmdPlusParam[1])
+		}
+		action := cmdParamToAction(cmd, param, extra)
 		if action.Action != -1 {
 			actions = append(actions, action)
 		}
@@ -217,7 +233,11 @@ func GetActionsFromString(input string) []RobotAction {
 }
 
 func CmdParamToAction(cmd, param string) RobotAction {
-	for _, command := range ValidLLMCommands {
+	return cmdParamToAction(cmd, param, nil)
+}
+
+func cmdParamToAction(cmd, param string, extra []LLMCommand) RobotAction {
+	for _, command := range append(append([]LLMCommand{}, ValidLLMCommands...), extra...) {
 		if cmd == command.Command {
 			return RobotAction{
 				Action:    command.Action,

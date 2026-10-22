@@ -47,3 +47,24 @@ func TestLogSinkReportsEndError(t *testing.T) {
 		t.Fatalf("end error not logged: %v", lines)
 	}
 }
+
+func TestLogSinkCountsRawMicFramesOnlyWhenTheRobotSendsThem(t *testing.T) {
+	var lines []string
+	s := NewLogSink(func(a ...any) { lines = append(lines, fmt.Sprint(a...)) })
+	s.Start("esn1", Hello{Version: 1})
+	for _, seq := range []uint32{0, 2} {
+		s.Frame("esn1", Frame{Type: FrameRawMic, Seq: seq})
+	}
+	s.Frame("esn1", Frame{Type: 9, Seq: 0})
+	s.End("esn1", nil)
+	s.Start("esn2", Hello{Version: 1})
+	s.End("esn2", nil)
+
+	all := strings.Join(lines, "\n")
+	if !strings.Contains(all, "esn1 ended: mic 0 frames (0 gaps), speaker 0 frames (0 gaps), raw mic 2 frames (1 gaps)") {
+		t.Errorf("raw mic count missing in:\n%s", all)
+	}
+	if strings.Contains(lines[len(lines)-1], "raw mic") {
+		t.Errorf("raw mic reported for a stream without raw frames: %s", lines[len(lines)-1])
+	}
+}
